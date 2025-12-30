@@ -8,14 +8,15 @@ use std::{
 use crate::trees::tree_errors::StructureError;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RBNode<T> {
-    key: T,
+pub struct RBNode<K, V> {
+    key: K,
+    data: V,
     color: Color,
-    left: Option<RBPointer<T>>,
-    right: Option<RBPointer<T>>,
+    left: Option<RBPointer<K, V>>,
+    right: Option<RBPointer<K, V>>,
 }
 
-pub type RBPointer<T> = Box<RBNode<T>>;
+pub type RBPointer<K, V> = Box<RBNode<K, V>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Color {
@@ -29,20 +30,22 @@ pub enum Side {
     Right,
 }
 
-impl<T> RBNode<T> {
+impl<K, V> RBNode<K, V> {
     /// Creates a new root node
-    pub fn new(key: T) -> Self {
+    pub fn new(key: K, data: V) -> Self {
         Self {
             key,
+            data,
             color: Color::Black,
             left: None,
             right: None,
         }
     }
 
-    fn new_with_color(key: T, color: Color) -> Self {
+    fn new_with_color(key: K, data: V, color: Color) -> Self {
         Self {
             key,
+            data,
             color,
             left: None,
             right: None,
@@ -51,9 +54,17 @@ impl<T> RBNode<T> {
 }
 
 /// Tree access
-impl<T> RBNode<T> {
-    pub fn key(&self) -> &T {
+impl<K, V> RBNode<K, V> {
+    pub fn key(&self) -> &K {
         &self.key
+    }
+
+    pub fn data(&self) -> &V {
+        &self.data
+    }
+
+    fn replace_data(&mut self, data: V) -> V {
+        std::mem::replace(&mut self.data, data)
     }
 
     fn color(&self) -> Color {
@@ -102,24 +113,24 @@ impl<T> RBNode<T> {
     }
 
     pub fn has_left(&self) -> bool {
-        self.left.is_none()
+        self.left.is_some()
     }
 
     pub fn has_right(&self) -> bool {
-        self.right.is_none()
+        self.right.is_some()
     }
 }
 
 /// Queries
-impl<T> RBNode<T> {
-    /// Finds the predecessor of the given value, if it exists.
+impl<K, V> RBNode<K, V> {
+    /// Searches for the predecessor of the given value among the keys stored in the tree.
     /// Time complexity: O(log n).
-    pub fn predecessor<Q>(&self, value: &Q) -> Option<&T>
+    pub fn predecessor<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
-        match Q::cmp(value, self.key().borrow()) {
+        match T::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
             Ordering::Less => self.get_left()
                 .and_then(|left| left.predecessor(value)),
@@ -129,14 +140,14 @@ impl<T> RBNode<T> {
         }
     }
 
-    /// Finds the successor of the given value, if it exists.
+    /// Searches for the successor of the given value among the keys stored in the tree.
     /// Time complexity: O(log n).
-    pub fn successor<Q>(&self, value: &Q) -> Option<&T>
+    pub fn successor<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
-        match Q::cmp(value, self.key().borrow()) {
+        match T::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
             Ordering::Greater => self.get_right()
                 .and_then(|right| right.successor(value)),
@@ -146,14 +157,14 @@ impl<T> RBNode<T> {
         }
     }
 
-    /// Finds the stored value that equals the given value, if it exists.
+    /// Searches for the stored key that equals the given value.
     /// Time complexity: O(log n).
-    pub fn get<Q>(&self, value: &Q) -> Option<&T>
+    pub fn get<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
-        match Q::cmp(value, self.key().borrow()) {
+        match T::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
             Ordering::Greater => self.get_right().and_then(|right| right.get(value)),
             Ordering::Less => self.get_left().and_then(|left| left.get(value)),
@@ -162,7 +173,7 @@ impl<T> RBNode<T> {
 }
 
 /// Insertions
-impl<T: Ord> RBNode<T> {
+impl<K: Ord, V> RBNode<K, V> {
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
         if let Some(left) = self.get_left() && let Some(right) = self.get_right()
@@ -191,22 +202,23 @@ impl<T: Ord> RBNode<T> {
 
     /// Returns the subtree that the given value belongs to.
     /// Returns None if the value is equal to the root's key.
-    fn choose_side<Q>(&self, value: &Q) -> Option<Side>
+    fn choose_side<T>(&self, value: &T) -> Option<Side>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
-        match Q::cmp(value, self.key().borrow()) {
+        match T::cmp(value, self.key().borrow()) {
             Ordering::Less => Some(Side::Left),
             Ordering::Greater => Some(Side::Right),
             Ordering::Equal => None,
         }
     }
 
-    /// Adds a value to the tree. If there was an equal value already in the tree, nothing happens.
-    /// Returns a Boolean indicating if the value was inserted or not.
+    /// Inserts the key-data pair into the tree.
+    /// If the key was not present in the tree yet, None is returned.
+    /// Otherwise, the data stored at the given key is updated, and the old data is returned.
     /// Time complexity: O(log n).
-    pub fn insert(&mut self, value: T) -> bool {
+    pub fn insert(&mut self, key: K, data: V) -> Option<V> {
         // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
         // To not need multiple mutable references into self, keep track of only the grandparent, together with the sides to take to get to parent and current.
         // We first handle the cases where there is no parent or no current, i.e., the path to the leaf where we put value is too short.
@@ -214,27 +226,35 @@ impl<T: Ord> RBNode<T> {
         // Check for a color swap at every node we come accross.
         self.color_swap();
 
-        let Some(mut side1) = self.choose_side(&value) else { return false; };
+        let Some(mut side1) = self.choose_side(&key) else { 
+            // self has the same key as the given key
+            let old_data = self.replace_data(data);
+            return Some(old_data);
+        };
         if !self.has_child(side1) {
             // Insert the value in place of grandparent's child
-            self.attach_child(side1, RBNode::new_with_color(value, Color::Red));
+            self.attach_child(side1, RBNode::new_with_color(key, data, Color::Red));
             self.color_swap(); // Might need to color swap due to the insertion.
             self.set_color(Color::Black); // Maintain the invariant that the root is black.
-            return true;
+            return None;
         }
 
         // Walk down the tree, updating the tree as we go.
         let mut grandparent = &mut *self;
         loop {
             let Some(child) = grandparent.get_child_mut(side1) else {
-                grandparent.attach_child(side1, RBNode::new_with_color(value, Color::Red));
-                return true;
+                grandparent.attach_child(side1, RBNode::new_with_color(key, data, Color::Red));
+                return None;
             };
             child.color_swap();
 
-            let Some(side2) = child.choose_side(&value) else { return false; };
+            let Some(side2) = child.choose_side(&key) else {
+                // child has the same key as the given key
+                let old_data = child.replace_data(data);
+                return Some(old_data);
+            };
             let Some(grandchild) = child.get_child_mut(side2) else {
-                child.attach_child(side2, RBNode::new_with_color(value, Color::Red));
+                child.attach_child(side2, RBNode::new_with_color(key, data, Color::Red));
                 grandparent.fix_local_violation(side1, side2);
                 break;
             };
@@ -243,9 +263,13 @@ impl<T: Ord> RBNode<T> {
             let has_changed = grandparent.fix_local_violation(side1, side2);
             if has_changed {
                 // Need to do comparison again, grandparent has been changed, and side1 and side2 might have been changed with it.
-                if let Some(side) = grandparent.choose_side(&value) {
+                if let Some(side) = grandparent.choose_side(&key) {
                     side1 = side;
-                } else { return false; }
+                } else {
+                    // grandparent has the same key as the given key
+                    let old_data = grandparent.replace_data(data);
+                    return Some(old_data);
+                }
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
                 grandparent = grandparent.get_child_mut(side1).unwrap();
@@ -255,33 +279,33 @@ impl<T: Ord> RBNode<T> {
 
         // Reset the root color to black
         self.set_color(Color::Black);
-        true
+        None
     }
 }
 
 // Tree operations
-impl<T> RBNode<T> {
+impl<K, V> RBNode<K, V> {
     /// Takes the left subtree, leaving a leaf in its place.
     /// Returns None if there was no left subtree.
-    fn detach_left(&mut self) -> Option<RBPointer<T>> {
+    fn detach_left(&mut self) -> Option<RBPointer<K, V>> {
         self.left.take()
     }
 
     /// Takes the right subtree, leaving a leaf in its place.
     /// Returns None if there was no right subtree.
-    fn detach_right(&mut self) -> Option<RBPointer<T>> {
+    fn detach_right(&mut self) -> Option<RBPointer<K, V>> {
         self.right.take()
     }
 
     /// Replaces the left subtree of self with a given tree.
     /// Returns the original left subtree if it was present.
-    fn replace_left(&mut self, tree: impl Into<Box<Self>>) -> Option<RBPointer<T>> {
+    fn replace_left(&mut self, tree: impl Into<Box<Self>>) -> Option<RBPointer<K, V>> {
         self.left.replace(tree.into())
     }
 
     /// Replaces the right subtree of self with a given tree.
     /// Returns the original right subtree if it was present.
-    fn replace_right(&mut self, tree: impl Into<Box<Self>>) -> Option<RBPointer<T>> {
+    fn replace_right(&mut self, tree: impl Into<Box<Self>>) -> Option<RBPointer<K, V>> {
         self.right.replace(tree.into())
     }
     
@@ -365,9 +389,9 @@ impl<T> RBNode<T> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for RBNode<T> {
+impl<K: fmt::Display, V> fmt::Display for RBNode<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<T: fmt::Display>(root: Option<&RBNode<T>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result {
+        fn recursive_fmt<K: fmt::Display, V>(root: Option<&RBNode<K, V>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result {
             write!(f, "{prefix}")?;
             if is_left {
                 write!(f, "├──")?;
@@ -396,16 +420,17 @@ impl<T: fmt::Display> fmt::Display for RBNode<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use rand::prelude::*;
 
-    fn assert_binary_search_tree<T: Clone + Ord>(root: &RBNode<T>) {
-        fn assert_binary_search_tree_recursive<T: Clone + Ord>(root: Option<&RBNode<T>>) -> Option<(T, T)> {
+    fn assert_binary_search_tree<K: Clone + Ord, V>(root: &RBNode<K, V>) {
+        fn assert_binary_search_tree_recursive<K: Clone + Ord, V>(root: Option<&RBNode<K, V>>) -> Option<(K, K)> {
             let Some(root) = root else { return None; };
             if let Some(max_left) = assert_binary_search_tree_recursive(root.get_left()).map(|(_, max)| max) {
-                assert_eq!(T::cmp(root.key(), &max_left), Ordering::Greater);
+                assert_eq!(K::cmp(root.key(), &max_left), Ordering::Greater);
             }
             if let Some(min_right) = assert_binary_search_tree_recursive(root.get_right()).map(|(min, _)| min) {
-                assert_eq!(T::cmp(root.key(), &min_right), Ordering::Less);
+                assert_eq!(K::cmp(root.key(), &min_right), Ordering::Less);
             }
             Some((
                 assert_binary_search_tree_recursive(root.get_left()).map_or(root.key().clone(), |(min, _)| min),
@@ -416,9 +441,9 @@ mod tests {
     }
 
     /// Asserts the given tree is a valid red-black tree
-    fn assert_valid_tree<T: Clone + Ord>(root: &RBNode<T>) {
+    fn assert_valid_tree<K: Clone + Ord, V>(root: &RBNode<K, V>) {
         // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree
-        fn assert_valid_tree_recursive<T: Clone + Ord>(root: Option<&RBNode<T>>) -> usize {
+        fn assert_valid_tree_recursive<K: Clone + Ord, V>(root: Option<&RBNode<K, V>>) -> usize {
             // Leaves are considered black
             let Some(root) = root else { return 1; };
 
@@ -451,22 +476,39 @@ mod tests {
     #[test]
     fn test_insertion() {
         // Test inserting values in order
-        let mut tree = RBNode::new(0);
-        for value in 1..=30 {
-            tree.insert(value);
+        let mut tree = RBNode::new(0, ());
+        for key in 1..=30 {
+            tree.insert(key, ());
         }
         assert_valid_tree(&tree);
 
         // Test inserting values in random order
         let mut rng = rand::rng();
         for _ in 0..5 {
-            let mut tree = RBNode::new(0);
-            let mut values = (1..=30).collect::<Vec<_>>();
-            values.shuffle(&mut rng);
-            for value in values {
-                tree.insert(value);
+            let mut tree = RBNode::new(0, ());
+            let mut keys = (1..=30).collect::<Vec<_>>();
+            keys.shuffle(&mut rng);
+            for key in keys {
+                tree.insert(key, ());
             }
             assert_valid_tree(&tree);
+        }
+
+        // Test inserting and updating data
+        for _ in 0..5 {
+            let mut tree = RBNode::new(0, 0);
+            let mut keys = (1..=5).cycle();
+            let mut values = (1..=30).collect::<Vec<_>>();
+            values.shuffle(&mut rng);
+
+            let mut key_data_map = HashMap::new();
+            key_data_map.insert(0, 0);
+            for value in values {
+                let key = keys.next().unwrap();
+                let old_value_tree = tree.insert(key.clone(), value.clone());
+                let old_value_map = key_data_map.insert(key.clone(), value.clone());
+                assert_eq!(old_value_tree, old_value_map);
+            }
         }
     }
 }

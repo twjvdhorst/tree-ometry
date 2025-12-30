@@ -8,9 +8,9 @@ use std::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RedBlackTree<T>(Option<RBPointer<T>>);
+pub struct RedBlackTree<K, V>(Option<RBPointer<K, V>>);
 
-impl<T> Default for RedBlackTree<T> {
+impl<K, V> Default for RedBlackTree<K, V> {
     #[inline]
     fn default() -> Self {
         Self(None)
@@ -18,7 +18,7 @@ impl<T> Default for RedBlackTree<T> {
 }
 
 /// Construction methods
-impl<T> RedBlackTree<T> {
+impl<K, V> RedBlackTree<K, V> {
     #[inline]
     pub fn new() -> Self {
         Default::default()
@@ -26,64 +26,65 @@ impl<T> RedBlackTree<T> {
 }
 
 /// Queries
-impl<T> RedBlackTree<T> {
-    /// Finds the predecessor of the given value, if it exists.
+impl<K, V> RedBlackTree<K, V> {
+    /// Searches for the predecessor of the given value among the keys stored in the tree.
     /// Time complexity: O(log n).
-    pub fn predecessor<Q>(&self, value: &Q) -> Option<&T>
+    pub fn predecessor<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
         self.get_root().and_then(|root| root.predecessor(value))
     }
 
-    /// Finds the successor of the given value, if it exists.
+    /// Searches for the successor of the given value among the keys stored in the tree.
     /// Time complexity: O(log n).
-    pub fn successor<Q>(&self, value: &Q) -> Option<&T>
+    pub fn successor<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
         self.get_root().and_then(|root| root.successor(value))
     }
 
-    /// Finds the stored value that equals the given value, if it exists.
+    /// Searches for the stored key that equals the given value.
     /// Time complexity: O(log n).
-    pub fn get<Q>(&self, value: &Q) -> Option<&T>
+    pub fn get<T>(&self, value: &T) -> Option<&K>
     where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
+        K: Borrow<T>,
+        T: Ord + ?Sized,
     {
         self.get_root().and_then(|root| root.get(value))
     }
 }
 
 /// Tree access
-impl<T> RedBlackTree<T> {
-    fn get_root(&self) -> Option<&RBNode<T>> {
+impl<K, V> RedBlackTree<K, V> {
+    fn get_root(&self) -> Option<&RBNode<K, V>> {
         self.0.as_ref().map(|root| root.as_ref())
     }
 
-    fn get_root_mut(&mut self) -> Option<&mut RBNode<T>> {
+    fn get_root_mut(&mut self) -> Option<&mut RBNode<K, V>> {
         self.0.as_mut().map(|root| root.as_mut())
     }
 }
 
-impl<T: Ord> RedBlackTree<T> {
-    /// Adds a value to the tree. If there was an equal value already in the tree, nothing happens.
-    /// Returns a Boolean indicating if the value was inserted or not.
+impl<K: Ord, V> RedBlackTree<K, V> {
+    /// Inserts the key-data pair into the tree.
+    /// If the key was not present in the tree yet, None is returned.
+    /// Otherwise, the data stored at the given key is updated, and the old data is returned.
     /// Time complexity: O(log n).
-    pub fn insert(&mut self, value: T) -> bool {
+    pub fn insert(&mut self, key: K, data: V) -> Option<V> {
         if let Some(tree) = self.get_root_mut() {
-            tree.insert(value)
+            tree.insert(key, data)
         } else {
-            self.0 = Some(Box::new(RBNode::new(value)));
-            true
+            self.0 = Some(Box::new(RBNode::new(key, data)));
+            None
         }
     }
 }
 
-impl<T: fmt::Display> fmt::Display for RedBlackTree<T> {
+impl<K: fmt::Display, V> fmt::Display for RedBlackTree<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.get_root() {
             Some(root) => root.fmt(f),
