@@ -111,8 +111,8 @@ where
             // There is a non-empty rotating subtree
             self.node_mut().replace_right(rotating_subtree);
         }
-        let old_root = std::mem::replace(self, *new_root);
-        self.node_mut().replace_left(old_root);
+        std::mem::swap(self, &mut new_root);
+        self.node_mut().replace_left(new_root);
         Ok(())
     }
 
@@ -130,8 +130,8 @@ where
             // There is a non-empty rotating subtree
             self.node_mut().replace_left(rotating_subtree);
         }
-        let old_root = std::mem::replace(self, *new_root);
-        self.node_mut().replace_right(old_root);
+        std::mem::swap(self, &mut new_root);
+        self.node_mut().replace_right(new_root);
         Ok(())
     }
 

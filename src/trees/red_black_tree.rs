@@ -17,20 +17,21 @@ impl<T> Default for RedBlackTree<T> {
 
 impl<T> BinaryTreeNode for RedBlackTree<T> {
     type Data = RedBlackData<T, Self>;
+    type DataPointer = Box<Self::Data>;
     
-    fn get_left(&self) -> Option<&RedBlackData<T, Self>> {
+    fn get_left(&self) -> Option<&Self::Data> {
         self.left.as_ref().map(|left| left.as_ref())
     }
     
-    fn get_right(&self) -> Option<&RedBlackData<T, Self>> {
+    fn get_right(&self) -> Option<&Self::Data> {
         self.right.as_ref().map(|right| right.as_ref())
     }
     
-    fn get_left_mut(&mut self) -> Option<&mut RedBlackData<T, Self>> {
+    fn get_left_mut(&mut self) -> Option<&mut Self::Data> {
         self.left.as_mut().map(|left| left.as_mut())
     }
     
-    fn get_right_mut(&mut self) -> Option<&mut RedBlackData<T, Self>> {
+    fn get_right_mut(&mut self) -> Option<&mut Self::Data> {
         self.right.as_mut().map(|right| right.as_mut())
     }
     
@@ -42,33 +43,33 @@ impl<T> BinaryTreeNode for RedBlackTree<T> {
         self.right.is_some()
     }
     
-    fn attach_left(&mut self, tree: impl Into<Box<RedBlackData<T, Self>>>) -> bool {
+    fn attach_left(&mut self, tree: impl Into<Self::DataPointer>) -> bool {
         if !self.has_left() {
             self.left = Some(tree.into());
             true
         } else { false }
     }
     
-    fn attach_right(&mut self, tree: impl Into<Box<RedBlackData<T, Self>>>) -> bool {
+    fn attach_right(&mut self, tree: impl Into<Self::DataPointer>) -> bool {
         if !self.has_right() {
             self.right = Some(tree.into());
             true
         } else { false }
     }
     
-    fn detach_left(&mut self) -> Option<Box<RedBlackData<T, Self>>> {
+    fn detach_left(&mut self) -> Option<Self::DataPointer> {
         self.left.take()
     }
     
-    fn detach_right(&mut self) -> Option<Box<RedBlackData<T, Self>>> {
+    fn detach_right(&mut self) -> Option<Self::DataPointer> {
         self.right.take()
     }
     
-    fn replace_left(&mut self, tree: impl Into<Box<RedBlackData<T, Self>>>) -> Option<Box<RedBlackData<T, Self>>> {
+    fn replace_left(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer> {
         self.left.replace(tree.into())
     }
     
-    fn replace_right(&mut self, tree: impl Into<Box<RedBlackData<T, Self>>>) -> Option<Box<RedBlackData<T, Self>>> {
+    fn replace_right(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer> {
         self.right.replace(tree.into())
     }
 }

@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
     Left,
@@ -6,6 +8,7 @@ pub enum Side {
 
 pub trait BinaryTreeNode {
     type Data;
+    type DataPointer: DerefMut<Target = Self::Data> + From<Self::Data>;
 
     fn get_left(&self) -> Option<&Self::Data>;
     fn get_right(&self) -> Option<&Self::Data>;
@@ -34,27 +37,27 @@ pub trait BinaryTreeNode {
         }
     }
 
-    fn attach_left(&mut self, tree: impl Into<Box<Self::Data>>) -> bool;
-    fn attach_right(&mut self, tree: impl Into<Box<Self::Data>>) -> bool;
-    fn attach_child(&mut self, side: Side, tree: impl Into<Box<Self::Data>>) -> bool {
+    fn attach_left(&mut self, tree: impl Into<Self::DataPointer>) -> bool;
+    fn attach_right(&mut self, tree: impl Into<Self::DataPointer>) -> bool;
+    fn attach_child(&mut self, side: Side, tree: impl Into<Self::DataPointer>) -> bool {
         match side {
             Side::Left => self.attach_left(tree),
             Side::Right => self.attach_right(tree),
         }
     }
     
-    fn detach_left(&mut self) -> Option<Box<Self::Data>>;
-    fn detach_right(&mut self) -> Option<Box<Self::Data>>;
-    fn detach_child(&mut self, side: Side) -> Option<Box<Self::Data>> {
+    fn detach_left(&mut self) -> Option<Self::DataPointer>;
+    fn detach_right(&mut self) -> Option<Self::DataPointer>;
+    fn detach_child(&mut self, side: Side) -> Option<Self::DataPointer> {
         match side {
             Side::Left => self.detach_left(),
             Side::Right => self.detach_right(),
         }
     }
 
-    fn replace_left(&mut self, tree: impl Into<Box<Self::Data>>) -> Option<Box<Self::Data>>;
-    fn replace_right(&mut self, tree: impl Into<Box<Self::Data>>) -> Option<Box<Self::Data>>;
-    fn replace_child(&mut self, side: Side, tree: impl Into<Box<Self::Data>>) -> Option<Box<Self::Data>> {
+    fn replace_left(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer>;
+    fn replace_right(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer>;
+    fn replace_child(&mut self, side: Side, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer> {
         match side {
             Side::Left => self.replace_left(tree),
             Side::Right => self.replace_right(tree),
