@@ -6,46 +6,37 @@ pub enum Side {
     Right,
 }
 
-pub trait BinarySearchTree {
+pub trait BinaryTreeNode {
     type Key: Ord;
-    type Node;
-    type Edge: DerefMut<Target = Self::Node> + From<Self::Node>;
+    type Value;
+    type Tree;
+    type Edge: DerefMut<Target = Self::Tree> + From<Self::Tree>;
 
-    fn new(key: Self::Key) -> Self;
+    fn new(key: Self::Key, value: Self::Value) -> Self;
     fn key(&self) -> &Self::Key;
-    
-    fn pick_branch<T>(&self, value: &T) -> Option<Side>
-    where
-        Self::Key: Borrow<T>,
-        T: Ord + ?Sized,
-    {
-        match T::cmp(value, self.key().borrow()) {
-            Ordering::Less => Some(Side::Left),
-            Ordering::Greater => Some(Side::Right),
-            Ordering::Equal => None,
-        }
-    }
+    fn value(&self) -> &Self::Value;
+    fn replace_value(&mut self, value: Self::Value) -> Self::Value;
 
-    fn get_left(&self) -> Option<&Self::Node>;
-    fn get_right(&self) -> Option<&Self::Node>;
-    fn get_child(&self, side: Side) -> Option<&Self::Node> {
+    fn get_left(&self) -> Option<&Self::Tree>;
+    fn get_right(&self) -> Option<&Self::Tree>;
+    fn get_child(&self, side: Side) -> Option<&Self::Tree> {
         match side {
             Side::Left => self.get_left(),
             Side::Right => self.get_right(),
         }
     }
 
-    fn get_left_mut(&mut self) -> Option<&mut Self::Node>;
-    fn get_right_mut(&mut self) -> Option<&mut Self::Node>;
-    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Node> {
+    fn get_left_mut(&mut self) -> Option<&mut Self::Tree>;
+    fn get_right_mut(&mut self) -> Option<&mut Self::Tree>;
+    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Tree> {
         match side {
             Side::Left => self.get_left_mut(),
             Side::Right => self.get_right_mut(),
         }
     }
     
-    fn has_left(&self) -> bool;
-    fn has_right(&self) -> bool;
+    fn has_left(&self) -> bool { self.get_left().is_some() }
+    fn has_right(&self) -> bool { self.get_right().is_some() }
     fn has_child(&self, side: Side) -> bool {
         match side {
             Side::Left => self.has_left(),
