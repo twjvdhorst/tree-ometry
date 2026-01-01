@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp::Ordering, ops::DerefMut};
+use std::ops::DerefMut;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
@@ -9,26 +9,27 @@ pub enum Side {
 pub trait BinaryTreeNode {
     type Key: Ord;
     type Value;
-    type Tree;
-    type Edge: DerefMut<Target = Self::Tree> + From<Self::Tree>;
+    type Wrapper;
+    type Edge: DerefMut<Target = Self::Wrapper> + From<Self::Wrapper>;
 
     fn new(key: Self::Key, value: Self::Value) -> Self;
+
     fn key(&self) -> &Self::Key;
     fn value(&self) -> &Self::Value;
     fn replace_value(&mut self, value: Self::Value) -> Self::Value;
 
-    fn get_left(&self) -> Option<&Self::Tree>;
-    fn get_right(&self) -> Option<&Self::Tree>;
-    fn get_child(&self, side: Side) -> Option<&Self::Tree> {
+    fn get_left(&self) -> Option<&Self::Wrapper>;
+    fn get_right(&self) -> Option<&Self::Wrapper>;
+    fn get_child(&self, side: Side) -> Option<&Self::Wrapper> {
         match side {
             Side::Left => self.get_left(),
             Side::Right => self.get_right(),
         }
     }
 
-    fn get_left_mut(&mut self) -> Option<&mut Self::Tree>;
-    fn get_right_mut(&mut self) -> Option<&mut Self::Tree>;
-    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Tree> {
+    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper>;
+    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper>;
+    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Wrapper> {
         match side {
             Side::Left => self.get_left_mut(),
             Side::Right => self.get_right_mut(),
