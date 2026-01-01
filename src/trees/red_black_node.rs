@@ -1,3 +1,4 @@
+use std::fmt::Binary;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
@@ -93,6 +94,74 @@ where
     }
 }
 
+/// Queries
+impl<T, N> RedBlackNode<T, N>
+where 
+    N: BinaryTree<Node = Self>
+{
+    /// Returns the subtree that the given value belongs to.
+    /// Returns None if the value is equal to the root's key.
+    fn pick_branch<Q>(&self, value: &Q) -> Option<Side>
+    where
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        match Q::cmp(value, self.key().borrow()) {
+            Ordering::Less => Some(Side::Left),
+            Ordering::Greater => Some(Side::Right),
+            Ordering::Equal => None,
+        }
+    }
+
+    /// Finds the predecessor of the given value, if it exists.
+    /// Time complexity: O(log n).
+    pub fn predecessor<Q>(&self, value: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        match Q::cmp(value, self.key().borrow()) {
+            Ordering::Equal => Some(self.key()),
+            Ordering::Less => self.get_left()
+                .and_then(|left| left.predecessor(value)),
+            Ordering::Greater => self.get_right()
+                .and_then(|right| right.predecessor(value))
+                .or(Some(self.key())),
+        }
+    }
+
+    /// Finds the successor of the given value, if it exists.
+    /// Time complexity: O(log n).
+    pub fn successor<Q>(&self, value: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        match Q::cmp(value, self.key().borrow()) {
+            Ordering::Equal => Some(self.key()),
+            Ordering::Greater => self.get_right()
+                .and_then(|right| right.successor(value)),
+            Ordering::Less => self.get_left()
+                .and_then(|left| left.successor(value))
+                .or(Some(self.key())),
+        }
+    }
+
+    /// Finds the stored value that equals the given value, if it exists.
+    /// Time complexity: O(log n).
+    pub fn get<Q>(&self, value: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        match Q::cmp(value, self.key().borrow()) {
+            Ordering::Equal => Some(self.key()),
+            Ordering::Greater => self.get_right().and_then(|right| right.get(value)),
+            Ordering::Less => self.get_left().and_then(|left| left.get(value)),
+        }
+    }
+}
+
 impl<T, N> RedBlackNode<T, N>
 where 
     N: BinaryTree<Node = Self>,
@@ -182,20 +251,6 @@ where
         } else { false }
     }
 
-    /// Returns the subtree that the given value belongs to.
-    /// Returns None if the value is equal to the root's key.
-    fn choose_side<Q>(&self, value: &Q) -> Option<Side>
-    where
-        T: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        match Q::cmp(value, self.key().borrow()) {
-            Ordering::Less => Some(Side::Left),
-            Ordering::Greater => Some(Side::Right),
-            Ordering::Equal => None,
-        }
-    }
-
     /// Inserts the key-data pair into the tree.
     /// If the key was not present in the tree yet, None is returned.
     /// Otherwise, the data stored at the given key is updated, and the old data is returned.
@@ -208,7 +263,7 @@ where
         // Check for a color swap at every node we come accross.
         self.color_swap();
 
-        let Some(mut side1) = self.choose_side(&key) else { 
+        let Some(mut side1) = self.pick_branch(&key) else { 
             // self has the same key as the given key
             return;
         };
@@ -229,7 +284,7 @@ where
             };
             child.color_swap();
 
-            let Some(side2) = child.choose_side(&key) else {
+            let Some(side2) = child.pick_branch(&key) else {
                 // child has the same key as the given key
                 return;
             };
@@ -243,7 +298,7 @@ where
             let has_changed = grandparent.fix_local_violation(side1, side2);
             if has_changed {
                 // Need to do comparison again, grandparent has been changed, and side1 and side2 might have been changed with it.
-                if let Some(side) = grandparent.choose_side(&key) {
+                if let Some(side) = grandparent.pick_branch(&key) {
                     side1 = side;
                 } else {
                     // grandparent has the same key as the given key

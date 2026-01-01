@@ -2,9 +2,17 @@ use super::binary_tree::BinaryTree;
 use super::red_black_node::RedBlackNode;
 
 pub struct RedBlackTree<T> {
-    key: T,
     left: Option<Box<RedBlackNode<T, Self>>>,
     right: Option<Box<RedBlackNode<T, Self>>>,
+}
+
+impl<T> Default for RedBlackTree<T> {
+    fn default() -> Self {
+        Self {
+            left: None,
+            right: None,
+        }
+    }
 }
 
 impl<T> BinaryTree for RedBlackTree<T> {
