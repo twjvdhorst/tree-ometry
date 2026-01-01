@@ -1,16 +1,16 @@
 use std::borrow::Borrow;
 
-use crate::trees::red_black_node::RedBlackNode;
-use crate::trees::binary_tree_node::BinaryTreeNode;
+use crate::trees::red_black_wrapper::RedBlackWrapper;
+use crate::trees::binary_tree_node::{BinarySearchTreeNode, BinaryTreeNode};
 
-type RBNode<K, V> = RedBlackNode<RedBlackInner<K, V>>;
+type RBNode<K, V> = RedBlackWrapper<RedBlackNode<K, V>>;
 pub struct RedBlackTree<K, V>(Option<RBNode<K, V>>);
 
-pub struct RedBlackInner<K, V> {
+pub struct RedBlackNode<K, V> {
     key: K,
     value: V,
-    left: Option<Box<RedBlackNode<Self>>>,
-    right: Option<Box<RedBlackNode<Self>>>,
+    left: Option<Box<RedBlackWrapper<Self>>>,
+    right: Option<Box<RedBlackWrapper<Self>>>,
 }
 
 impl<K, V> Default for RedBlackTree<K, V> {
@@ -50,35 +50,9 @@ where
     }
 }
 
-impl<K, V> BinaryTreeNode for RedBlackInner<K, V>
-where 
-    K: Ord,
-{
-    type Key = K;
-    type Value = V;
-    type Wrapper = RedBlackNode<Self>;
+impl<K, V> BinaryTreeNode for RedBlackNode<K, V> {
+    type Wrapper = RedBlackWrapper<Self>;
     type Edge = Box<Self::Wrapper>;
-
-    fn new(key: Self::Key, value: Self::Value) -> Self {
-        Self {
-            key,
-            value,
-            left: None,
-            right: None,
-        }
-    }
-
-    fn key(&self) -> &Self::Key {
-        &self.key
-    }
-
-    fn value(&self) -> &Self::Value {
-        &self.value
-    }
-
-    fn replace_value(&mut self, value: Self::Value) -> Self::Value {
-        std::mem::replace(&mut self.value, value)
-    }
     
     fn get_left(&self) -> Option<&Self::Wrapper> {
         self.left.as_ref().map(|left| left.as_ref())
@@ -127,6 +101,35 @@ where
     }
 }
 
+impl<K, V> BinarySearchTreeNode for RedBlackNode<K, V>
+where 
+    K: Ord,
+{
+    type Key = K;
+    type Value = V;    
+
+    fn new(key: Self::Key, value: Self::Value) -> Self {
+        Self {
+            key,
+            value,
+            left: None,
+            right: None,
+        }
+    }
+
+    fn key(&self) -> &Self::Key {
+        &self.key
+    }
+
+    fn value(&self) -> &Self::Value {
+        &self.value
+    }
+
+    fn replace_value(&mut self, value: Self::Value) -> Self::Value {
+        std::mem::replace(&mut self.value, value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::cmp::Ordering;
@@ -134,13 +137,13 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::trees::red_black_node::Color;
+    use crate::trees::red_black_wrapper::Color;
 
-    fn assert_binary_search_tree<K, V>(root: &RedBlackNode<RedBlackInner<K, V>>)
+    fn assert_binary_search_tree<K, V>(root: &RedBlackWrapper<RedBlackNode<K, V>>)
     where 
         K: Clone + Ord,
     {
-        fn assert_binary_search_tree_recursive<K, V>(root: Option<&RedBlackNode<RedBlackInner<K, V>>>) -> Option<(K, K)>
+        fn assert_binary_search_tree_recursive<K, V>(root: Option<&RedBlackWrapper<RedBlackNode<K, V>>>) -> Option<(K, K)>
         where
             K: Clone + Ord,
         {
@@ -160,12 +163,12 @@ mod tests {
     }
 
     /// Asserts the given tree is a valid red-black tree.
-    fn assert_valid_tree<K, V>(root: &RedBlackNode<RedBlackInner<K, V>>)
+    fn assert_valid_tree<K, V>(root: &RedBlackWrapper<RedBlackNode<K, V>>)
     where 
         K: Clone + Ord,
     {
         // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree.
-        fn assert_valid_tree_recursive<K, V>(root: Option<&RedBlackNode<RedBlackInner<K, V>>>) -> usize
+        fn assert_valid_tree_recursive<K, V>(root: Option<&RedBlackWrapper<RedBlackNode<K, V>>>) -> usize
         where
             K: Clone + Ord,
         {
@@ -201,7 +204,7 @@ mod tests {
     #[test]
     fn test_insertion() {
         // Test inserting values in order.
-        let mut tree = RedBlackNode::new(0, ());
+        let mut tree = RedBlackWrapper::new(0, ());
         for key in 1..=30 {
             tree.insert(key, ());
         }
@@ -210,7 +213,7 @@ mod tests {
         // Test inserting values in random order.
         let mut rng = rand::rng();
         for _ in 0..5 {
-            let mut tree = RedBlackNode::new(0, ());
+            let mut tree = RedBlackWrapper::new(0, ());
             let mut keys = (1..=30).collect::<Vec<_>>();
             keys.shuffle(&mut rng);
             for key in keys {
@@ -225,7 +228,7 @@ mod tests {
             let mut values = (1..=30).collect::<Vec<_>>();
             values.shuffle(&mut rng);
 
-            let mut tree = RedBlackNode::<RedBlackInner<i32, i32>>::new(0, 0);
+            let mut tree = RedBlackWrapper::<RedBlackNode<i32, i32>>::new(0, 0);
             let mut key_data_map = HashMap::new();
             key_data_map.insert(0, 0);
             for value in values {

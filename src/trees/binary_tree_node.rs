@@ -7,16 +7,8 @@ pub enum Side {
 }
 
 pub trait BinaryTreeNode {
-    type Key: Ord;
-    type Value;
     type Wrapper;
     type Edge: DerefMut<Target = Self::Wrapper> + From<Self::Wrapper>;
-
-    fn new(key: Self::Key, value: Self::Value) -> Self;
-
-    fn key(&self) -> &Self::Key;
-    fn value(&self) -> &Self::Value;
-    fn replace_value(&mut self, value: Self::Value) -> Self::Value;
 
     fn get_left(&self) -> Option<&Self::Wrapper>;
     fn get_right(&self) -> Option<&Self::Wrapper>;
@@ -71,4 +63,14 @@ pub trait BinaryTreeNode {
             Side::Right => self.replace_right(tree),
         }
     }
+}
+
+pub trait BinarySearchTreeNode: BinaryTreeNode {
+    type Key: Ord;
+    type Value;
+
+    fn new(key: Self::Key, value: Self::Value) -> Self;
+    fn key(&self) -> &Self::Key;
+    fn value(&self) -> &Self::Value;
+    fn replace_value(&mut self, value: Self::Value) -> Self::Value;
 }
