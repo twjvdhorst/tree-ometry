@@ -1,23 +1,31 @@
-use super::binary_tree::BinaryTree;
+use super::binary_tree::BinarySearchTree;
 use super::red_black_node::RedBlackNode;
 
 pub struct RedBlackTree<T> {
-    left: Option<Box<RedBlackNode<T, Self>>>,
-    right: Option<Box<RedBlackNode<T, Self>>>,
+    key: T,
+    left: Option<Box<RedBlackNode<Self>>>,
+    right: Option<Box<RedBlackNode<Self>>>,
 }
 
-impl<T> Default for RedBlackTree<T> {
-    fn default() -> Self {
+impl<T> BinarySearchTree for RedBlackTree<T>
+where 
+    T: Ord,
+{
+    type Key = T;
+    type Node = RedBlackNode<Self>;
+    type Edge = Box<Self::Node>;
+
+    fn new(key: Self::Key) -> Self {
         Self {
+            key,
             left: None,
             right: None,
         }
     }
-}
 
-impl<T> BinaryTree for RedBlackTree<T> {
-    type Node = RedBlackNode<T, Self>;
-    type Edge = Box<Self::Node>;
+    fn key(&self) -> &Self::Key {
+        &self.key
+    }
     
     fn get_left(&self) -> Option<&Self::Node> {
         self.left.as_ref().map(|left| left.as_ref())
@@ -83,8 +91,8 @@ mod tests {
     use super::*;
     use crate::trees::red_black_node::Color;
 
-    fn assert_binary_search_tree<T: Clone + Ord>(root: &RedBlackNode<T, RedBlackTree<T>>) {
-        fn assert_binary_search_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<T, RedBlackTree<T>>>) -> Option<(T, T)> {
+    fn assert_binary_search_tree<T: Clone + Ord>(root: &RedBlackNode<RedBlackTree<T>>) {
+        fn assert_binary_search_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<RedBlackTree<T>>>) -> Option<(T, T)> {
             let Some(root) = root else { return None; };
             if let Some(max_left) = assert_binary_search_tree_recursive(root.get_left()).map(|(_, max)| max) {
                 assert_eq!(T::cmp(root.key(), &max_left), Ordering::Greater);
@@ -101,9 +109,9 @@ mod tests {
     }
 
     /// Asserts the given tree is a valid red-black tree
-    fn assert_valid_tree<T: Clone + Ord>(root: &RedBlackNode<T, RedBlackTree<T>>) {
+    fn assert_valid_tree<T: Clone + Ord>(root: &RedBlackNode<RedBlackTree<T>>) {
         // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree
-        fn assert_valid_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<T, RedBlackTree<T>>>) -> usize {
+        fn assert_valid_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<RedBlackTree<T>>>) -> usize {
             // Leaves are considered black
             let Some(root) = root else { return 1; };
 

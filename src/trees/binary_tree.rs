@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{borrow::Borrow, cmp::Ordering, ops::DerefMut};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
@@ -6,9 +6,25 @@ pub enum Side {
     Right,
 }
 
-pub trait BinaryTree {
+pub trait BinarySearchTree {
+    type Key: Ord;
     type Node;
     type Edge: DerefMut<Target = Self::Node> + From<Self::Node>;
+
+    fn new(key: Self::Key) -> Self;
+    fn key(&self) -> &Self::Key;
+    
+    fn pick_branch<T>(&self, value: &T) -> Option<Side>
+    where
+        Self::Key: Borrow<T>,
+        T: Ord + ?Sized,
+    {
+        match T::cmp(value, self.key().borrow()) {
+            Ordering::Less => Some(Side::Left),
+            Ordering::Greater => Some(Side::Right),
+            Ordering::Equal => None,
+        }
+    }
 
     fn get_left(&self) -> Option<&Self::Node>;
     fn get_right(&self) -> Option<&Self::Node>;
