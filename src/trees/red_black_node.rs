@@ -4,10 +4,10 @@ use std::{
     fmt,
 };
 
-use crate::trees::binary_tree_node::*;
+use crate::trees::binary_tree::*;
 use crate::trees::tree_errors::StructureError;
 
-pub struct RedBlackData<T, N> {
+pub struct RedBlackNode<T, N> {
     key: T,
     color: Color,
     node: N,
@@ -20,7 +20,7 @@ pub enum Color {
 }
 
 /// Construction methods
-impl<T, N> RedBlackData<T, N>
+impl<T, N> RedBlackNode<T, N>
 where 
     N: Default,
 {
@@ -38,9 +38,9 @@ where
 }
 
 /// Tree access
-impl<T, N> RedBlackData<T, N>
+impl<T, N> RedBlackNode<T, N>
 where 
-    N: BinaryTreeNode<Data = Self>,
+    N: BinaryTree<Node = Self>,
 {
     pub fn key(&self) -> &T {
         &self.key
@@ -93,9 +93,9 @@ where
     }
 }
 
-impl<T, N> RedBlackData<T, N>
+impl<T, N> RedBlackNode<T, N>
 where 
-    N: BinaryTreeNode<Data = Self>,
+    N: BinaryTree<Node = Self>,
 {
     /// Performs a left tree rotation, changing self to point to the new root.
     /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
@@ -151,10 +151,10 @@ where
 }
 
 /// Insertions
-impl<T, N> RedBlackData<T, N>
+impl<T, N> RedBlackNode<T, N>
 where 
     T: Ord,
-    N: BinaryTreeNode<Data = Self> + Default,
+    N: BinaryTree<Node = Self> + Default,
 {
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
@@ -214,7 +214,7 @@ where
         };
         if !self.node().has_child(side1) {
             // Insert the value in place of grandparent's child
-            self.node_mut().attach_child(side1, RedBlackData::new_with_color(key, Color::Red));
+            self.node_mut().attach_child(side1, RedBlackNode::new_with_color(key, Color::Red));
             self.color_swap(); // Might need to color swap due to the insertion.
             self.set_color(Color::Black); // Maintain the invariant that the root is black.
             return;
@@ -224,7 +224,7 @@ where
         let mut grandparent = &mut *self;
         loop {
             let Some(child) = grandparent.get_child_mut(side1) else {
-                grandparent.node_mut().attach_child(side1, RedBlackData::new_with_color(key, Color::Red));
+                grandparent.node_mut().attach_child(side1, RedBlackNode::new_with_color(key, Color::Red));
                 return;
             };
             child.color_swap();
@@ -234,7 +234,7 @@ where
                 return;
             };
             let Some(grandchild) = child.get_child_mut(side2) else {
-                child.node_mut().attach_child(side2, RedBlackData::new_with_color(key, Color::Red));
+                child.node_mut().attach_child(side2, RedBlackNode::new_with_color(key, Color::Red));
                 grandparent.fix_local_violation(side1, side2);
                 break;
             };
@@ -261,16 +261,16 @@ where
     }
 }
     
-impl<T, N> fmt::Display for RedBlackData<T, N>
+impl<T, N> fmt::Display for RedBlackNode<T, N>
 where 
     T: fmt::Display,
-    N: BinaryTreeNode<Data = Self>,
+    N: BinaryTree<Node = Self>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<T, N>(root: Option<&RedBlackData<T, N>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        fn recursive_fmt<T, N>(root: Option<&RedBlackNode<T, N>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
             T: fmt::Display,
-            N: BinaryTreeNode<Data = RedBlackData<T, N>>,
+            N: BinaryTree<Node = RedBlackNode<T, N>>,
         {
             write!(f, "{prefix}")?;
             if is_left {

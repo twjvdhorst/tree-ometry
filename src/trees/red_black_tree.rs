@@ -1,37 +1,29 @@
-use super::binary_tree_node::BinaryTreeNode;
-use super::red_black_data::RedBlackData;
+use super::binary_tree::BinaryTree;
+use super::red_black_node::RedBlackNode;
 
 pub struct RedBlackTree<T> {
-    left: Option<Box<RedBlackData<T, Self>>>,
-    right: Option<Box<RedBlackData<T, Self>>>,
+    key: T,
+    left: Option<Box<RedBlackNode<T, Self>>>,
+    right: Option<Box<RedBlackNode<T, Self>>>,
 }
 
-impl<T> Default for RedBlackTree<T> {
-    fn default() -> Self {
-        Self {
-            left: None,
-            right: None,
-        }
-    }
-}
-
-impl<T> BinaryTreeNode for RedBlackTree<T> {
-    type Data = RedBlackData<T, Self>;
-    type DataPointer = Box<Self::Data>;
+impl<T> BinaryTree for RedBlackTree<T> {
+    type Node = RedBlackNode<T, Self>;
+    type Edge = Box<Self::Node>;
     
-    fn get_left(&self) -> Option<&Self::Data> {
+    fn get_left(&self) -> Option<&Self::Node> {
         self.left.as_ref().map(|left| left.as_ref())
     }
     
-    fn get_right(&self) -> Option<&Self::Data> {
+    fn get_right(&self) -> Option<&Self::Node> {
         self.right.as_ref().map(|right| right.as_ref())
     }
     
-    fn get_left_mut(&mut self) -> Option<&mut Self::Data> {
+    fn get_left_mut(&mut self) -> Option<&mut Self::Node> {
         self.left.as_mut().map(|left| left.as_mut())
     }
     
-    fn get_right_mut(&mut self) -> Option<&mut Self::Data> {
+    fn get_right_mut(&mut self) -> Option<&mut Self::Node> {
         self.right.as_mut().map(|right| right.as_mut())
     }
     
@@ -43,33 +35,33 @@ impl<T> BinaryTreeNode for RedBlackTree<T> {
         self.right.is_some()
     }
     
-    fn attach_left(&mut self, tree: impl Into<Self::DataPointer>) -> bool {
+    fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool {
         if !self.has_left() {
             self.left = Some(tree.into());
             true
         } else { false }
     }
     
-    fn attach_right(&mut self, tree: impl Into<Self::DataPointer>) -> bool {
+    fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool {
         if !self.has_right() {
             self.right = Some(tree.into());
             true
         } else { false }
     }
     
-    fn detach_left(&mut self) -> Option<Self::DataPointer> {
+    fn detach_left(&mut self) -> Option<Self::Edge> {
         self.left.take()
     }
     
-    fn detach_right(&mut self) -> Option<Self::DataPointer> {
+    fn detach_right(&mut self) -> Option<Self::Edge> {
         self.right.take()
     }
     
-    fn replace_left(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer> {
+    fn replace_left(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> {
         self.left.replace(tree.into())
     }
     
-    fn replace_right(&mut self, tree: impl Into<Self::DataPointer>) -> Option<Self::DataPointer> {
+    fn replace_right(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> {
         self.right.replace(tree.into())
     }
 }
@@ -81,10 +73,10 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::trees::red_black_data::Color;
+    use crate::trees::red_black_node::Color;
 
-    fn assert_binary_search_tree<T: Clone + Ord>(root: &RedBlackData<T, RedBlackTree<T>>) {
-        fn assert_binary_search_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackData<T, RedBlackTree<T>>>) -> Option<(T, T)> {
+    fn assert_binary_search_tree<T: Clone + Ord>(root: &RedBlackNode<T, RedBlackTree<T>>) {
+        fn assert_binary_search_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<T, RedBlackTree<T>>>) -> Option<(T, T)> {
             let Some(root) = root else { return None; };
             if let Some(max_left) = assert_binary_search_tree_recursive(root.get_left()).map(|(_, max)| max) {
                 assert_eq!(T::cmp(root.key(), &max_left), Ordering::Greater);
@@ -101,9 +93,9 @@ mod tests {
     }
 
     /// Asserts the given tree is a valid red-black tree
-    fn assert_valid_tree<T: Clone + Ord>(root: &RedBlackData<T, RedBlackTree<T>>) {
+    fn assert_valid_tree<T: Clone + Ord>(root: &RedBlackNode<T, RedBlackTree<T>>) {
         // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree
-        fn assert_valid_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackData<T, RedBlackTree<T>>>) -> usize {
+        fn assert_valid_tree_recursive<T: Clone + Ord>(root: Option<&RedBlackNode<T, RedBlackTree<T>>>) -> usize {
             // Leaves are considered black
             let Some(root) = root else { return 1; };
 
@@ -136,7 +128,7 @@ mod tests {
     #[test]
     fn test_insertion() {
         // Test inserting values in order
-        let mut tree = RedBlackData::new(0);
+        let mut tree = RedBlackNode::new(0);
         for key in 1..=30 {
             tree.insert(key);
         }
@@ -145,7 +137,7 @@ mod tests {
         // Test inserting values in random order
         let mut rng = rand::rng();
         for _ in 0..5 {
-            let mut tree = RedBlackData::new(0);
+            let mut tree = RedBlackNode::new(0);
             let mut keys = (1..=30).collect::<Vec<_>>();
             keys.shuffle(&mut rng);
             for key in keys {
