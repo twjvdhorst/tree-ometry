@@ -1,4 +1,4 @@
-use super::binary_tree::BinarySearchTree;
+use super::binary_search_tree::BinarySearchTree;
 use super::red_black_node::RedBlackNode;
 
 pub struct RedBlackTree<T> {

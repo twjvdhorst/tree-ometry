@@ -4,7 +4,7 @@ use std::{
     fmt,
 };
 
-use crate::trees::binary_tree::*;
+use crate::trees::binary_search_tree::*;
 use crate::trees::tree_errors::StructureError;
 
 pub struct RedBlackNode<T> {
