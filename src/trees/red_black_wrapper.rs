@@ -5,11 +5,9 @@ use std::{
 };
 
 use crate::trees::binary_tree_node::{
-    BinarySearchTreeNode,
-    Side,
+    BinarySearchTreeNode, BinaryTreeNode, Side
 };
 use crate::trees::tree_errors::StructureError;
-
 
 pub struct RedBlackWrapper<N> {
     node: N,
@@ -22,19 +20,53 @@ pub enum Color {
     Black,
 }
 
+impl<N> BinaryTreeNode for RedBlackWrapper<N>
+where 
+    N: BinaryTreeNode<Wrapper = Self>,
+{
+    type Wrapper = Self;
+    type Edge = N::Edge;
+
+    fn get_left(&self) -> Option<&Self::Wrapper> { self.node.get_left() }
+    fn get_right(&self) -> Option<&Self::Wrapper> { self.node.get_right() }
+    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_left_mut() }
+    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_right_mut() }
+    fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_left(tree) }
+    fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_right(tree)}
+    fn detach_left(&mut self) -> Option<Self::Edge> { self.node.detach_left() }
+    fn detach_right(&mut self) -> Option<Self::Edge> { self.node.detach_right() }
+    fn replace_left(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> { self.node.replace_left(tree) }
+    fn replace_right(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> { self.node.replace_right(tree) }
+}
+
+impl<N> BinarySearchTreeNode for RedBlackWrapper<N>
+where 
+    N: BinarySearchTreeNode<Wrapper = Self>,
+{
+    type Key = N::Key;
+    type Value = N::Value;
+
+    fn new(key: Self::Key, value: Self::Value) -> Self {
+        Self {
+            node: N::new(key, value),
+            color: Color::Black,
+        }
+    }
+
+    fn key(&self) -> &Self::Key { self.node.key() }
+    fn value(&self) -> &Self::Value { self.node.value() }
+    fn replace_value(&mut self, value: Self::Value) -> Self::Value { self.node.replace_value(value) }
+}
+
 /// Construction methods.
 impl<N> RedBlackWrapper<N>
 where 
     N: BinarySearchTreeNode,
 {
-    pub fn new(key: N::Key, value: N::Value) -> Self {
-        Self::new_with_color(key, value, Color::Black)
-    }
-
     fn new_with_color(key: N::Key, value: N::Value, color: Color) -> Self {
         Self {
-            color,
             node: N::new(key, value),
+            color,
         }
     }
 }
@@ -58,40 +90,6 @@ where
 
     fn set_color(&mut self, color: Color) {
         self.color = color;
-    }
-
-    pub fn key(&self) -> &N::Key {
-        &self.node().key()
-    }
-
-    pub fn get_child(&self, side: Side) -> Option<&Self> {
-        match side {
-            Side::Left => self.get_left(),
-            Side::Right => self.get_right(),
-        }
-    }
-
-    pub fn get_left(&self) -> Option<&Self> {
-        self.node().get_left()
-    }
-
-    pub fn get_right(&self) -> Option<&Self> {
-        self.node().get_right()
-    }
-
-    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self> {
-        match side {
-            Side::Left => self.get_left_mut(),
-            Side::Right => self.get_right_mut(),
-        }
-    }
-
-    fn get_left_mut(&mut self) -> Option<&mut Self> {
-        self.node_mut().get_left_mut()
-    }
-
-    fn get_right_mut(&mut self) -> Option<&mut Self> {
-        self.node_mut().get_right_mut()
     }
 }
 
@@ -169,52 +167,52 @@ where
     /// Performs a left tree rotation, changing self to point to the new root.
     /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
     fn rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_root = self.node_mut().detach_right().ok_or(StructureError::EmptyTree)?;
+        let mut new_root = self.detach_right().ok_or(StructureError::EmptyTree)?;
 
         // Change colors to keep red-black properties satisfied after rotation
         self.set_color(Color::Red);
         new_root.set_color(Color::Black);
 
         // Perform the rotation
-        if let Some(rotating_subtree) = new_root.node_mut().detach_left() {
+        if let Some(rotating_subtree) = new_root.detach_left() {
             // There is a non-empty rotating subtree
-            self.node_mut().replace_right(rotating_subtree);
+            self.replace_right(rotating_subtree);
         }
         std::mem::swap(self, &mut new_root);
-        self.node_mut().replace_left(new_root);
+        self.replace_left(new_root);
         Ok(())
     }
 
     /// Performs a right tree rotation, changing self to point to the new root.
     /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
     fn rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_root = self.node_mut().detach_left().ok_or(StructureError::EmptyTree)?;
+        let mut new_root = self.detach_left().ok_or(StructureError::EmptyTree)?;
 
         // Change colors to keep red-black properties satisfied after rotation
         self.set_color(Color::Red);
         new_root.set_color(Color::Black);
 
         // Perform the rotation
-        if let Some(rotating_subtree) = new_root.node_mut().detach_right() {
+        if let Some(rotating_subtree) = new_root.detach_right() {
             // There is a non-empty rotating subtree
-            self.node_mut().replace_left(rotating_subtree);
+            self.replace_left(rotating_subtree);
         }
         std::mem::swap(self, &mut new_root);
-        self.node_mut().replace_right(new_root);
+        self.replace_right(new_root);
         Ok(())
     }
 
     fn double_rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_right = self.node_mut().detach_right().ok_or(StructureError::EmptyTree)?;
+        let mut new_right = self.detach_right().ok_or(StructureError::EmptyTree)?;
         new_right.rotate_right()?;
-        self.node_mut().replace_right(new_right);
+        self.replace_right(new_right);
         self.rotate_left()
     }
 
     fn double_rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_left = self.node_mut().detach_left().ok_or(StructureError::EmptyTree)?;
+        let mut new_left = self.detach_left().ok_or(StructureError::EmptyTree)?;
         new_left.rotate_left()?;
-        self.node_mut().replace_left(new_left);
+        self.replace_left(new_left);
         self.rotate_right()
     }
 }
@@ -264,12 +262,12 @@ where
 
         let Some(mut side1) = self.pick_branch(&key) else { 
             // self has the same key as the given key
-            let old_value = self.node_mut().replace_value(value);
+            let old_value = self.replace_value(value);
             return Some(old_value);
         };
-        if !self.node().has_child(side1) {
+        if !self.has_child(side1) {
             // Insert the value in place of grandparent's child
-            self.node_mut().attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
+            self.attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
             self.color_swap(); // Might need to color swap due to the insertion.
             self.set_color(Color::Black); // Maintain the invariant that the root is black.
             return None;
@@ -279,18 +277,18 @@ where
         let mut grandparent = &mut *self;
         loop {
             let Some(child) = grandparent.get_child_mut(side1) else {
-                grandparent.node_mut().attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
+                grandparent.attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
                 return None;
             };
             child.color_swap();
 
             let Some(side2) = child.pick_branch(&key) else {
                 // child has the same key as the given key
-                let old_value = child.node_mut().replace_value(value);
+                let old_value = child.replace_value(value);
                 return Some(old_value);
             };
             let Some(grandchild) = child.get_child_mut(side2) else {
-                child.node_mut().attach_child(side2, RedBlackWrapper::new_with_color(key, value, Color::Red));
+                child.attach_child(side2, RedBlackWrapper::new_with_color(key, value, Color::Red));
                 grandparent.fix_local_violation(side1, side2);
                 break;
             };
@@ -303,7 +301,7 @@ where
                     side1 = side;
                 } else {
                     // grandparent has the same key as the given key
-                    let old_value = grandparent.node_mut().replace_value(value);
+                    let old_value = grandparent.replace_value(value);
                     return Some(old_value);
                 }
             } else { 

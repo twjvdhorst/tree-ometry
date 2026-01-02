@@ -3,8 +3,8 @@ use std::borrow::Borrow;
 use crate::trees::red_black_wrapper::RedBlackWrapper;
 use crate::trees::binary_tree_node::{BinarySearchTreeNode, BinaryTreeNode};
 
-type RBNode<K, V> = RedBlackWrapper<RedBlackNode<K, V>>;
-pub struct RedBlackTree<K, V>(Option<RBNode<K, V>>);
+type NodeWrapper<K, V> = RedBlackWrapper<RedBlackNode<K, V>>;
+pub struct RedBlackTree<K, V>(Option<NodeWrapper<K, V>>);
 
 pub struct RedBlackNode<K, V> {
     key: K,
