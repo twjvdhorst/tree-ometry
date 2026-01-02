@@ -4,10 +4,12 @@ use std::{
     fmt,
 };
 
-use crate::trees::binary_tree_node::{
-    BinarySearchTreeNode, BinaryTreeNode, Side
+use crate::binary_search_trees::binary_search_tree_node::{
+    BinarySearchTreeNode,
+    BinaryTreeNode,
+    Side,
 };
-use crate::trees::tree_errors::StructureError;
+use crate::binary_search_trees::tree_errors::StructureError;
 
 pub struct RedBlackWrapper<N> {
     node: N,

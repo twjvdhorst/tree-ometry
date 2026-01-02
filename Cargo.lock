@@ -89,7 +89,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusty-geometry"
+name = "rusty-trees"
 version = "0.1.0"
 dependencies = [
  "rand",

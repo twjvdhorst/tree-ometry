@@ -1,7 +1,10 @@
 use std::borrow::Borrow;
 
-use crate::trees::red_black_wrapper::RedBlackWrapper;
-use crate::trees::binary_tree_node::{BinarySearchTreeNode, BinaryTreeNode};
+use crate::binary_search_trees::red_black_wrapper::RedBlackWrapper;
+use crate::binary_search_trees::binary_search_tree_node::{
+    BinarySearchTreeNode,
+    BinaryTreeNode,
+};
 
 type NodeWrapper<K, V> = RedBlackWrapper<RedBlackNode<K, V>>;
 pub struct RedBlackTree<K, V>(Option<NodeWrapper<K, V>>);
@@ -137,7 +140,7 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::trees::red_black_wrapper::Color;
+    use crate::binary_search_trees::red_black_wrapper::Color;
 
     fn assert_binary_search_tree<K, V>(root: &RedBlackWrapper<RedBlackNode<K, V>>)
     where 
