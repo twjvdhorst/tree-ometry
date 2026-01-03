@@ -1,9 +1,10 @@
-use std::{fmt::Debug, marker::PhantomData, ops::DerefMut};
-
+use std::ops::DerefMut;
 use lending_iterator::prelude::*;
 
-use crate::binary_search_trees::binary_search_tree_node::{BinarySearchTreeNode, Side};
-
+use crate::binary_search_trees::binary_search_tree_node::{
+    BinaryTreeNodeMut,
+    Side,
+};
 use super::WalkInstruction;
 
 struct DFSStack<E>(Vec<(E, Vec<Side>)>);
@@ -38,20 +39,21 @@ impl<E> DFSStack<E> {
     }
 }
 
-pub struct PostorderWalk<'lt, N, E, F> {
-    root_state: Option<(&'lt mut N, Vec<Side>)>,
+pub struct PostorderWalk<'node, N, E, F> {
+    root_state: Option<(&'node mut N, Vec<Side>)>,
     frontier_stack: Vec<E>, // Edges that we have encountered, but not traversed yet.
     visited_stack: DFSStack<E>, // Edges that we have encountered and traversed, but not reported yet.
     instruction_fn: F,
 }
 
-impl<'lt, N, E, F> PostorderWalk<'lt, N, E, F>
+impl<'node, N, E, F> PostorderWalk<'node, N, E, F>
 where 
-    N: BinarySearchTreeNode<Wrapper = N, Edge = E>,
+    N: BinaryTreeNodeMut<Wrapper = N, Edge = E>,
     E: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
-    pub fn new(root_edge: &'lt mut N, instruction_fn: F) -> Self {
+    pub fn new(root_edge: &'node mut N, instruction_fn: F) -> Self {
+        // Create iterators for left and right subtree, which can be owned.
         let mut root_state = None;
         let mut frontier_stack = Vec::new();
         match (instruction_fn)(&root_edge) {
@@ -98,9 +100,9 @@ where
 }
 
 #[gat]
-impl<'lt, N, E, F> LendingIterator for PostorderWalk<'lt, N, E, F>
+impl<'node, N, E, F> LendingIterator for PostorderWalk<'node, N, E, F>
 where 
-    N: BinarySearchTreeNode<Wrapper = N, Edge = E, Key: Debug>,
+    N: BinaryTreeNodeMut<Wrapper = N, Edge = E>,
     E: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
@@ -109,7 +111,7 @@ where
         Self: 'next,
         = &'next mut N;
 
-    fn next(self: &'_ mut PostorderWalk<'lt, N, E, F>) -> Option<&'_ mut N> {
+    fn next(self: &'_ mut PostorderWalk<'node, N, E, F>) -> Option<&'_ mut N> {
         if self.frontier_stack.is_empty() && self.visited_stack.is_empty() {
             if let Some((root, _)) = self.root_state.take() {
                 return Some(root);
@@ -124,7 +126,7 @@ where
                 parent.attach_child(side, edge);
                 self.visited_stack.push(parent, sides);
 
-                return self.visited_stack.last_edge_mut().and_then(move |parent| parent.get_child_node_mut(side));
+                return self.visited_stack.last_edge_mut().and_then(|parent| parent.get_child_mut(side));
             } else {
                 // Edge is incident to the root node.
                 let (root, mut sides) = self.root_state.take().unwrap(); // Can unwrap safely: root edge exists since there is an unreported edge.
@@ -132,7 +134,7 @@ where
                 root.attach_child(side, edge);
                 self.root_state = Some((root, sides.clone()));
 
-                return self.root_state.as_mut().unwrap().0.get_child_node_mut(side);
+                return self.root_state.as_mut().unwrap().0.get_child_mut(side);
             }
         }
         
@@ -181,7 +183,7 @@ where
             parent.attach_child(side, current);
             self.visited_stack.push(parent, sides);
 
-            self.visited_stack.last_edge_mut().and_then(move |parent| parent.get_child_node_mut(side))
+            self.visited_stack.last_edge_mut().and_then(|parent| parent.get_child_mut(side))
         } else {
             None
         }
