@@ -16,8 +16,8 @@ pub struct RedBlackWrapper<N> {
     color: Color,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Color {
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum Color {
     Red,
     Black,
 }
@@ -29,10 +29,10 @@ where
     type Wrapper = Self;
     type Edge = N::Edge;
 
-    fn get_left(&self) -> Option<&Self::Wrapper> { self.node.get_left() }
-    fn get_right(&self) -> Option<&Self::Wrapper> { self.node.get_right() }
-    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_left_mut() }
-    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_right_mut() }
+    fn get_left_edge(&self) -> Option<&Self::Edge> { self.node.get_left_edge() }
+    fn get_right_edge(&self) -> Option<&Self::Edge> { self.node.get_right_edge() }
+    fn get_left_edge_mut(&mut self) -> Option<&mut Self::Edge> { self.node.get_left_edge_mut() }
+    fn get_right_edge_mut(&mut self) -> Option<&mut Self::Edge> { self.node.get_right_edge_mut() }
     fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_left(tree) }
     fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_right(tree)}
     fn detach_left(&mut self) -> Option<Self::Edge> { self.node.detach_left() }
@@ -78,15 +78,7 @@ impl<N> RedBlackWrapper<N>
 where 
     N: BinarySearchTreeNode<Wrapper = Self>,
 {
-    pub fn node(&self) -> &N {
-        &self.node
-    }
-
-    fn node_mut(&mut self) -> &mut N {
-        &mut self.node
-    }
-
-    pub fn color(&self) -> Color {
+    pub(crate) fn color(&self) -> Color {
         self.color
     }
 
@@ -121,9 +113,9 @@ where
     {
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
-            Ordering::Less => self.get_left()
+            Ordering::Less => self.get_left_node()
                 .and_then(|left| left.predecessor(value)),
-            Ordering::Greater => self.get_right()
+            Ordering::Greater => self.get_right_node()
                 .and_then(|right| right.predecessor(value))
                 .or(Some(self.key())),
         }
@@ -138,9 +130,9 @@ where
     {
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
-            Ordering::Greater => self.get_right()
+            Ordering::Greater => self.get_right_node()
                 .and_then(|right| right.successor(value)),
-            Ordering::Less => self.get_left()
+            Ordering::Less => self.get_left_node()
                 .and_then(|left| left.successor(value))
                 .or(Some(self.key())),
         }
@@ -155,8 +147,8 @@ where
     {
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
-            Ordering::Greater => self.get_right().and_then(|right| right.get(value)),
-            Ordering::Less => self.get_left().and_then(|left| left.get(value)),
+            Ordering::Greater => self.get_right_node().and_then(|right| right.get(value)),
+            Ordering::Less => self.get_left_node().and_then(|left| left.get(value)),
         }
     }
 }
@@ -226,17 +218,17 @@ where
 {
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
-        if let Some(left) = self.get_left() && let Some(right) = self.get_right()
+        if let Some(left) = self.get_left_node() && let Some(right) = self.get_right_node()
             && left.color() == Color::Red && right.color() == Color::Red
         {
             self.set_color(Color::Red);
-            self.get_left_mut().unwrap().set_color(Color::Black);
-            self.get_right_mut().unwrap().set_color(Color::Black);
+            self.get_left_node_mut().unwrap().set_color(Color::Black);
+            self.get_right_node_mut().unwrap().set_color(Color::Black);
         }
     }
 
     fn fix_local_violation(&mut self, side1: Side, side2: Side) -> bool {
-        if let Some(child) = self.get_child(side1) && let Some(grandchild) = child.get_child(side2)
+        if let Some(child) = self.get_child_node(side1) && let Some(grandchild) = child.get_child_node(side2)
             && child.color() == Color::Red && grandchild.color() == Color::Red
         {
             match (side1, side2) {
@@ -278,7 +270,7 @@ where
         // Walk down the tree, updating the tree as we go.
         let mut grandparent = &mut *self;
         loop {
-            let Some(child) = grandparent.get_child_mut(side1) else {
+            let Some(child) = grandparent.get_child_node_mut(side1) else {
                 grandparent.attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
                 return None;
             };
@@ -289,7 +281,7 @@ where
                 let old_value = child.replace_value(value);
                 return Some(old_value);
             };
-            let Some(grandchild) = child.get_child_mut(side2) else {
+            let Some(grandchild) = child.get_child_node_mut(side2) else {
                 child.attach_child(side2, RedBlackWrapper::new_with_color(key, value, Color::Red));
                 grandparent.fix_local_violation(side1, side2);
                 break;
@@ -308,7 +300,7 @@ where
                 }
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
-                grandparent = grandparent.get_child_mut(side1).unwrap();
+                grandparent = grandparent.get_child_node_mut(side1).unwrap();
                 side1 = side2;
             }
         }
@@ -343,8 +335,8 @@ where
                 };
                 write!(f, "N({}, {color_text})\n", root.key())?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.get_left(), f, &new_prefix, true)?;
-                recursive_fmt(root.get_right(), f, &new_prefix, false)?;
+                recursive_fmt(root.get_left_node(), f, &new_prefix, true)?;
+                recursive_fmt(root.get_right_node(), f, &new_prefix, false)?;
                 Ok(())
             } else {
                 write!(f, "L\n")

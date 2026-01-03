@@ -1,6 +1,6 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -10,26 +10,44 @@ pub trait BinaryTreeNode {
     type Wrapper;
     type Edge: DerefMut<Target = Self::Wrapper> + From<Self::Wrapper>;
 
-    fn get_left(&self) -> Option<&Self::Wrapper>;
-    fn get_right(&self) -> Option<&Self::Wrapper>;
-    fn get_child(&self, side: Side) -> Option<&Self::Wrapper> {
+    fn get_left_node(&self) -> Option<&Self::Wrapper> { self.get_left_edge().map(|left| left.deref()) }
+    fn get_right_node(&self) -> Option<&Self::Wrapper> { self.get_right_edge().map(|right| right.deref()) }
+    fn get_child_node(&self, side: Side) -> Option<&Self::Wrapper> {
         match side {
-            Side::Left => self.get_left(),
-            Side::Right => self.get_right(),
+            Side::Left => self.get_left_node(),
+            Side::Right => self.get_right_node(),
         }
     }
 
-    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper>;
-    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper>;
-    fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Wrapper> {
+    fn get_left_node_mut(&mut self) -> Option<&mut Self::Wrapper> { self.get_left_edge_mut().map(|left| left.deref_mut()) }
+    fn get_right_node_mut(&mut self) -> Option<&mut Self::Wrapper> { self.get_right_edge_mut().map(|right| right.deref_mut()) }
+    fn get_child_node_mut(&mut self, side: Side) -> Option<&mut Self::Wrapper> {
         match side {
-            Side::Left => self.get_left_mut(),
-            Side::Right => self.get_right_mut(),
+            Side::Left => self.get_left_node_mut(),
+            Side::Right => self.get_right_node_mut(),
         }
     }
     
-    fn has_left(&self) -> bool { self.get_left().is_some() }
-    fn has_right(&self) -> bool { self.get_right().is_some() }
+    fn get_left_edge(&self) -> Option<&Self::Edge>;
+    fn get_right_edge(&self) -> Option<&Self::Edge>;
+    fn get_edge(&self, side: Side) -> Option<&Self::Edge> {
+        match side {
+            Side::Left => self.get_left_edge(),
+            Side::Right => self.get_right_edge(),
+        }
+    }
+
+    fn get_left_edge_mut(&mut self) -> Option<&mut Self::Edge>;
+    fn get_right_edge_mut(&mut self) -> Option<&mut Self::Edge>;
+    fn get_edge_mut(&mut self, side: Side) -> Option<&mut Self::Edge> {
+        match side {
+            Side::Left => self.get_left_edge_mut(),
+            Side::Right => self.get_right_edge_mut(),
+        }
+    }
+    
+    fn has_left(&self) -> bool { self.get_left_node().is_some() }
+    fn has_right(&self) -> bool { self.get_right_node().is_some() }
     fn has_child(&self, side: Side) -> bool {
         match side {
             Side::Left => self.has_left(),

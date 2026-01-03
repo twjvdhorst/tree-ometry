@@ -56,21 +56,21 @@ where
 impl<K, V> BinaryTreeNode for RedBlackNode<K, V> {
     type Wrapper = RedBlackWrapper<Self>;
     type Edge = Box<Self::Wrapper>;
-    
-    fn get_left(&self) -> Option<&Self::Wrapper> {
-        self.left.as_ref().map(|left| left.as_ref())
+
+    fn get_left_edge(&self) -> Option<&Self::Edge> {
+        self.left.as_ref()
     }
-    
-    fn get_right(&self) -> Option<&Self::Wrapper> {
-        self.right.as_ref().map(|right| right.as_ref())
+
+    fn get_right_edge(&self) -> Option<&Self::Edge> {
+        self.right.as_ref()
     }
-    
-    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper> {
-        self.left.as_mut().map(|left| left.as_mut())
+
+    fn get_left_edge_mut(&mut self) -> Option<&mut Self::Edge> {
+        self.left.as_mut()
     }
-    
-    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper> {
-        self.right.as_mut().map(|right| right.as_mut())
+
+    fn get_right_edge_mut(&mut self) -> Option<&mut Self::Edge> {
+        self.right.as_mut()
     }
     
     fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool {
@@ -151,15 +151,15 @@ mod tests {
             K: Clone + Ord,
         {
             let Some(root) = root else { return None; };
-            if let Some(max_left) = assert_binary_search_tree_recursive(root.get_left()).map(|(_, max)| max) {
+            if let Some(max_left) = assert_binary_search_tree_recursive(root.get_left_node()).map(|(_, max)| max) {
                 assert_eq!(K::cmp(root.key(), &max_left), Ordering::Greater);
             }
-            if let Some(min_right) = assert_binary_search_tree_recursive(root.get_right()).map(|(min, _)| min) {
+            if let Some(min_right) = assert_binary_search_tree_recursive(root.get_right_node()).map(|(min, _)| min) {
                 assert_eq!(K::cmp(root.key(), &min_right), Ordering::Less);
             }
             Some((
-                assert_binary_search_tree_recursive(root.get_left()).map_or(root.key().clone(), |(min, _)| min),
-                assert_binary_search_tree_recursive(root.get_right()).map_or(root.key().clone(), |(_, max)| max)
+                assert_binary_search_tree_recursive(root.get_left_node()).map_or(root.key().clone(), |(min, _)| min),
+                assert_binary_search_tree_recursive(root.get_right_node()).map_or(root.key().clone(), |(_, max)| max)
             ))
         }
         assert_binary_search_tree_recursive(Some(root));
@@ -180,13 +180,13 @@ mod tests {
 
             // Assert no consecutive red nodes.
             if root.color() == Color::Red {
-                assert_ne!(root.get_left().map(|left| left.color()), Some(Color::Red));
-                assert_ne!(root.get_right().map(|right| right.color()), Some(Color::Red));
+                assert_ne!(root.get_left_node().map(|left| left.color()), Some(Color::Red));
+                assert_ne!(root.get_right_node().map(|right| right.color()), Some(Color::Red));
             }
 
             // Assert validity of subtrees.
-            let num_black_left = assert_valid_tree_recursive(root.get_left());
-            let num_black_right = assert_valid_tree_recursive(root.get_right());
+            let num_black_left = assert_valid_tree_recursive(root.get_left_node());
+            let num_black_right = assert_valid_tree_recursive(root.get_right_node());
 
             // Assert black counts match.
             assert_eq!(num_black_left, num_black_right);
