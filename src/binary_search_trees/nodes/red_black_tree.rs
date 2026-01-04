@@ -55,7 +55,7 @@ where
 
 impl<K, V> BinaryTreeNode for RedBlackNode<K, V> {
     type Wrapper = RedBlackWrapper<Self>;
-    type Edge = Box<Self::Wrapper>;
+    type NodePointer = Box<Self::Wrapper>;
 
     fn get_left(&self) -> Option<&Self::Wrapper> {
         self.left.as_ref().map(|left| left.as_ref())
@@ -75,33 +75,33 @@ impl<K, V> BinaryTreeNodeMut for RedBlackNode<K, V> {
         self.right.as_mut().map(|right| right.as_mut())
     }
     
-    fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool {
+    fn attach_left(&mut self, tree: impl Into<Self::NodePointer>) -> bool {
         if !self.has_left() {
             self.left = Some(tree.into());
             true
         } else { false }
     }
     
-    fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool {
+    fn attach_right(&mut self, tree: impl Into<Self::NodePointer>) -> bool {
         if !self.has_right() {
             self.right = Some(tree.into());
             true
         } else { false }
     }
     
-    fn detach_left(&mut self) -> Option<Self::Edge> {
+    fn detach_left(&mut self) -> Option<Self::NodePointer> {
         self.left.take()
     }
     
-    fn detach_right(&mut self) -> Option<Self::Edge> {
+    fn detach_right(&mut self) -> Option<Self::NodePointer> {
         self.right.take()
     }
     
-    fn replace_left(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> {
+    fn replace_left(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> {
         self.left.replace(tree.into())
     }
     
-    fn replace_right(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> {
+    fn replace_right(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> {
         self.right.replace(tree.into())
     }
 }

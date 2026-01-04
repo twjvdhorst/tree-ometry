@@ -25,7 +25,7 @@ where
     N: BinaryTreeNode<Wrapper = Self>,
 {
     type Wrapper = Self;
-    type Edge = N::Edge;
+    type NodePointer = N::NodePointer;
 
     fn get_left(&self) -> Option<&Self::Wrapper> { self.node.get_left() }
     fn get_right(&self) -> Option<&Self::Wrapper> { self.node.get_right() }
@@ -37,12 +37,12 @@ where
 {
     fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_left_mut() }
     fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_right_mut() }
-    fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_left(tree) }
-    fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool { self.node.attach_right(tree)}
-    fn detach_left(&mut self) -> Option<Self::Edge> { self.node.detach_left() }
-    fn detach_right(&mut self) -> Option<Self::Edge> { self.node.detach_right() }
-    fn replace_left(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> { self.node.replace_left(tree) }
-    fn replace_right(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge> { self.node.replace_right(tree) }
+    fn attach_left(&mut self, tree: impl Into<Self::NodePointer>) -> bool { self.node.attach_left(tree) }
+    fn attach_right(&mut self, tree: impl Into<Self::NodePointer>) -> bool { self.node.attach_right(tree)}
+    fn detach_left(&mut self) -> Option<Self::NodePointer> { self.node.detach_left() }
+    fn detach_right(&mut self) -> Option<Self::NodePointer> { self.node.detach_right() }
+    fn replace_left(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> { self.node.replace_left(tree) }
+    fn replace_right(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> { self.node.replace_right(tree) }
 }
 
 impl<N> BinarySearchTreeNode for RedBlackWrapper<N>

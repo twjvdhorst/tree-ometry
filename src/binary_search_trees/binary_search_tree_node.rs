@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {
@@ -8,7 +8,7 @@ pub enum Side {
 
 pub trait BinaryTreeNode {
     type Wrapper;
-    type Edge: DerefMut<Target = Self::Wrapper> + From<Self::Wrapper>;
+    type NodePointer: Deref<Target = Self::Wrapper> + From<Self::Wrapper>;
 
     fn get_left(&self) -> Option<&Self::Wrapper>;
     fn get_right(&self) -> Option<&Self::Wrapper>;
@@ -29,7 +29,7 @@ pub trait BinaryTreeNode {
     }
 }
 
-pub trait BinaryTreeNodeMut: BinaryTreeNode {
+pub trait BinaryTreeNodeMut: BinaryTreeNode<NodePointer: DerefMut<Target = Self::Wrapper>> {
     fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper>;
     fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper>;
     fn get_child_mut(&mut self, side: Side) -> Option<&mut Self::Wrapper> {
@@ -39,27 +39,27 @@ pub trait BinaryTreeNodeMut: BinaryTreeNode {
         }
     }
 
-    fn attach_left(&mut self, tree: impl Into<Self::Edge>) -> bool;
-    fn attach_right(&mut self, tree: impl Into<Self::Edge>) -> bool;
-    fn attach_child(&mut self, side: Side, tree: impl Into<Self::Edge>) -> bool {
+    fn attach_left(&mut self, tree: impl Into<Self::NodePointer>) -> bool;
+    fn attach_right(&mut self, tree: impl Into<Self::NodePointer>) -> bool;
+    fn attach_child(&mut self, side: Side, tree: impl Into<Self::NodePointer>) -> bool {
         match side {
             Side::Left => self.attach_left(tree),
             Side::Right => self.attach_right(tree),
         }
     }
     
-    fn detach_left(&mut self) -> Option<Self::Edge>;
-    fn detach_right(&mut self) -> Option<Self::Edge>;
-    fn detach_child(&mut self, side: Side) -> Option<Self::Edge> {
+    fn detach_left(&mut self) -> Option<Self::NodePointer>;
+    fn detach_right(&mut self) -> Option<Self::NodePointer>;
+    fn detach_child(&mut self, side: Side) -> Option<Self::NodePointer> {
         match side {
             Side::Left => self.detach_left(),
             Side::Right => self.detach_right(),
         }
     }
 
-    fn replace_left(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge>;
-    fn replace_right(&mut self, tree: impl Into<Self::Edge>) -> Option<Self::Edge>;
-    fn replace_child(&mut self, side: Side, tree: impl Into<Self::Edge>) -> Option<Self::Edge> {
+    fn replace_left(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer>;
+    fn replace_right(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer>;
+    fn replace_child(&mut self, side: Side, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> {
         match side {
             Side::Left => self.replace_left(tree),
             Side::Right => self.replace_right(tree),
