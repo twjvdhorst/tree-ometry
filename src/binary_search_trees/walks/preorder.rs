@@ -61,25 +61,26 @@ impl<P> NodeState<P> {
     }
 }
 
-pub struct PostorderWalk<'node, N, P, F>
+pub struct PreorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
-    root: Option<&'node mut N>,
+    root: &'node mut N,
     stack: Vec<NodeState<P>>,
     instruction_fn: F,
+    first_iteration: bool,
 }
 
-impl<'node, N, P, F> PostorderWalk<'node, N, P, F>
+impl<'node, N, P, F> PreorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
     pub fn new(root: &'node mut N, instruction_fn: F) -> Self {
-        // Create iterators for left and right subtree, which can be owned.
+        // Expand root before iteration.
         let mut stack = Vec::new();
         match (instruction_fn)(&root) {
             WalkInstruction::Left => {
@@ -111,9 +112,10 @@ where
         };
 
         Self {
-            root: Some(root),
+            root,
             stack,
             instruction_fn,
+            first_iteration: true,
         }
     }
 
@@ -126,7 +128,7 @@ where
     fn get_node_mut(&mut self, idx: StackLocation) -> Option<&mut N> {
         match idx {
             StackLocation::Index(idx) => self.stack.get_mut(idx).map(|state| state.node_pointer_mut().deref_mut()),
-            StackLocation::Root => self.root.as_deref_mut()
+            StackLocation::Root => Some(self.root)
         }
     }
 
@@ -139,11 +141,10 @@ where
         } else { None }
     }
 
-    fn expand_last(&mut self) -> bool {
-        // Check if last has not been expanded yet.
-        let parent_location = self.last_index();
-        let Some(state) = self.stack.last_mut() else { return false; };
-        if state.is_expanded() { return false; }
+    fn expand(&mut self) -> Option<&mut N> {
+        let location = self.last_index();
+        let Some(state) = self.stack.last_mut() else { return None; };
+        if state.is_expanded() { return None; }
 
         // Expand the node.
         let instruction = (self.instruction_fn)(state.node_pointer());
@@ -151,27 +152,27 @@ where
         let new_states = match instruction  {
             WalkInstruction::Left => {
                 if let Some(left) = node.detach_left() {
-                    vec![NodeState::new(left, parent_location, Side::Left)]
+                    vec![NodeState::new(left, location, Side::Left)]
                 } else { Vec::new() }
             },
             WalkInstruction::Right => {
                 if let Some(right) = node.detach_right() {
-                    vec![NodeState::new(right, parent_location, Side::Right)]
+                    vec![NodeState::new(right, location, Side::Right)]
                 } else { Vec::new() }
             },
             WalkInstruction::Both => {
                 match (node.detach_left(), node.detach_right()) {
                     (Some(left), Some(right)) => {
                         vec![
-                            NodeState::new(right, parent_location, Side::Right),
-                            NodeState::new(left, parent_location, Side::Left),
+                            NodeState::new(right, location, Side::Right),
+                            NodeState::new(left, location, Side::Left),
                         ]
                     },
                     (Some(left), _) => {
-                        vec![NodeState::new(left, parent_location, Side::Left)]
+                        vec![NodeState::new(left, location, Side::Left)]
                     },
                     (_, Some(right)) => {
-                        vec![NodeState::new(right, parent_location, Side::Right)]
+                        vec![NodeState::new(right, location, Side::Right)]
                     }
                     _ => Vec::new(),
                 }
@@ -179,28 +180,15 @@ where
             WalkInstruction::None => Vec::new(),
         };
 
+        
         state.mark_expanded();
-        if !new_states.is_empty() {
-            self.stack.extend(new_states);
-            true
-        } else { false }
-    }
-}
-
-/// Custom drop implementation that unwinds the stack to restore the tree (minus parts that have been altered already).
-impl<'node, N, P, F> Drop for PostorderWalk<'node, N, P, F>
-where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
-    P: DerefMut<Target = N>,
-    F: Fn(&N) -> WalkInstruction,
-{
-    fn drop(&mut self) {
-        while let Some(_) = self.pop_and_reattach() {}
+        self.stack.extend(new_states);
+        self.get_node_mut(location)
     }
 }
 
 #[gat]
-impl<'node, N, P, F> LendingIterator for PostorderWalk<'node, N, P, F>
+impl<'node, N, P, F> LendingIterator for PreorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
@@ -211,14 +199,15 @@ where
         Self: 'next,
         = &'next mut N;
 
-    fn next(self: &'_ mut PostorderWalk<'node, N, P, F>) -> Option<&'_ mut N> {
-        if !self.stack.is_empty() {
-            // Keep expanding nodes as long as possible.
-            while self.expand_last() {}
-            self.pop_and_reattach()
-        } else {
-            // Last iteration (or later, if self.root == None).
-            self.root.take()
+    fn next(self: &'_ mut PreorderWalk<'node, N, P, F>) -> Option<&'_ mut N> {
+        if self.first_iteration {
+            self.first_iteration = false;
+            return Some(self.root);
         }
+        
+        while let Some(state) = self.stack.last() && state.is_expanded {
+            self.pop_and_reattach();
+        }
+        self.expand()
     }
 }

@@ -4,8 +4,11 @@ use std::{
     fmt,
 };
 
-use crate::binary_search_trees::binary_search_tree_node::{
-    BinarySearchTreeNode, BinaryTreeNode, BinaryTreeNodeMut, Side
+use crate::binary_search_trees::node_traits::{
+    BinarySearchTreeNode,
+    BinaryTreeNode,
+    BinaryTreeNodeMut,
+    Side,
 };
 use crate::binary_search_trees::tree_errors::StructureError;
 

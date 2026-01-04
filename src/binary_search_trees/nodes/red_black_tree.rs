@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use crate::binary_search_trees::red_black_wrapper::RedBlackWrapper;
-use crate::binary_search_trees::binary_search_tree_node::{
+use crate::binary_search_trees::node_traits::{
     BinarySearchTreeNode,
     BinaryTreeNode, BinaryTreeNodeMut,
 };
