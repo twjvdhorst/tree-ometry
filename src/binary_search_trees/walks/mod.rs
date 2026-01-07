@@ -1,4 +1,5 @@
-mod node_stack;
+mod traversal_stack;
+pub mod inorder;
 pub mod postorder;
 pub mod preorder;
 

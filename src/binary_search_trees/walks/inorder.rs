@@ -2,11 +2,11 @@ use std::ops::DerefMut;
 use lending_iterator::prelude::*;
 
 use crate::binary_search_trees::{
-    node_traits::BinaryTreeNodeMut,
+    node_traits::{BinaryTreeNodeMut, Side},
     walks::{WalkInstruction, traversal_stack::TraversalStack},
 };
 
-pub struct PreorderWalk<'node, N, P, F>
+pub struct InorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
@@ -15,7 +15,7 @@ where
     stack: TraversalStack<'node, N, P, F>,
 }
 
-impl<'node, N, P, F> PreorderWalk<'node, N, P, F>
+impl<'node, N, P, F> InorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
@@ -29,7 +29,7 @@ where
 }
 
 #[gat]
-impl<'node, N, P, F> LendingIterator for PreorderWalk<'node, N, P, F>
+impl<'node, N, P, F> LendingIterator for InorderWalk<'node, N, P, F>
 where 
     N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
     P: DerefMut<Target = N>,
@@ -40,12 +40,17 @@ where
         Self: 'next,
         = &'next mut N;
 
-    fn next(self: &'_ mut PreorderWalk<'node, N, P, F>) -> Option<&'_ mut N> {
-        if !self.stack.is_root_reported() {
+    fn next(self: &'_ mut InorderWalk<'node, N, P, F>) -> Option<&'_ mut N> {
+        while self.stack.pop_if_reported().is_some() {}
+        if self.stack.is_empty() {
             return self.stack.report_root();
         }
-        
-        while self.stack.pop_if_expanded().is_some() {}
-        self.stack.expand_and_report()
+
+        if self.stack.side_of_parent() == Some(Side::Right) && !self.stack.is_parent_reported() {
+            self.stack.report_parent()
+        } else {
+            while self.stack.expand().is_some() {}
+            self.stack.pop()
+        }
     }
 }
