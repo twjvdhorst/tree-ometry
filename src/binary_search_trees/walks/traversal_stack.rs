@@ -30,7 +30,7 @@ struct StackFrame<P> {
 
 impl<N, P> StackFrame<P>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
 {
     fn new(node_pointer: P, parent_location: StackLocation, side_of_parent: Side) -> Self {
@@ -74,7 +74,7 @@ where
 
 pub(super) struct TraversalStack<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
@@ -86,7 +86,7 @@ where
 /// Custom drop implementation that unwinds the stack to restore the tree.
 impl<'node, N, P, F> Drop for TraversalStack<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
@@ -97,7 +97,7 @@ where
 
 impl<'node, N, P, F> TraversalStack<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {

@@ -5,10 +5,7 @@ use std::{
 };
 
 use crate::binary_search_trees::node_traits::{
-    BinarySearchTreeNode,
-    BinaryTreeNode,
-    BinaryTreeNodeMut,
-    Side,
+    BinarySearchTreeNode, BinaryTree, BinaryTreeMut, BinaryTreeNode, BinaryTreeNodeMut, Side
 };
 use crate::binary_search_trees::tree_errors::StructureError;
 
@@ -25,32 +22,31 @@ pub(crate) enum Color {
 
 impl<N> BinaryTreeNode for RedBlackWrapper<N>
 where 
-    N: BinaryTreeNode<Wrapper = Self>,
+    N: BinaryTreeNode,
 {
-    type Wrapper = Self;
-    type NodePointer = N::NodePointer;
+    type Tree = N::Tree;
 
-    fn get_left(&self) -> Option<&Self::Wrapper> { self.node.get_left() }
-    fn get_right(&self) -> Option<&Self::Wrapper> { self.node.get_right() }
+    fn get_left(&self) -> &Self::Tree { self.node.get_left() }
+    fn get_right(&self) -> &Self::Tree { self.node.get_right() }
 }
 
 impl<N> BinaryTreeNodeMut for RedBlackWrapper<N>
 where 
-    N: BinaryTreeNodeMut<Wrapper = Self>,
+    N: BinaryTreeNodeMut,
 {
-    fn get_left_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_left_mut() }
-    fn get_right_mut(&mut self) -> Option<&mut Self::Wrapper> { self.node.get_right_mut() }
-    fn attach_left(&mut self, tree: impl Into<Self::NodePointer>) -> bool { self.node.attach_left(tree) }
-    fn attach_right(&mut self, tree: impl Into<Self::NodePointer>) -> bool { self.node.attach_right(tree)}
-    fn detach_left(&mut self) -> Option<Self::NodePointer> { self.node.detach_left() }
-    fn detach_right(&mut self) -> Option<Self::NodePointer> { self.node.detach_right() }
-    fn replace_left(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> { self.node.replace_left(tree) }
-    fn replace_right(&mut self, tree: impl Into<Self::NodePointer>) -> Option<Self::NodePointer> { self.node.replace_right(tree) }
+    fn get_left_mut(&mut self) -> &mut Self::Tree { self.node.get_left_mut() }
+    fn get_right_mut(&mut self) -> &mut Self::Tree { self.node.get_right_mut() }
+    fn attach_left(&mut self, tree: impl Into<Self::Tree>) -> bool { self.node.attach_left(tree) }
+    fn attach_right(&mut self, tree: impl Into<Self::Tree>) -> bool { self.node.attach_right(tree)}
+    fn detach_left(&mut self) -> Self::Tree { self.node.detach_left() }
+    fn detach_right(&mut self) -> Self::Tree { self.node.detach_right() }
+    fn replace_left(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree { self.node.replace_left(tree) }
+    fn replace_right(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree { self.node.replace_right(tree) }
 }
 
 impl<N> BinarySearchTreeNode for RedBlackWrapper<N>
 where 
-    N: BinarySearchTreeNode<Wrapper = Self>,
+    N: BinarySearchTreeNode,
 {
     type Key = N::Key;
     type Value = N::Value;
@@ -81,10 +77,7 @@ where
 }
 
 /// Tree access.
-impl<N> RedBlackWrapper<N>
-where 
-    N: BinarySearchTreeNode<Wrapper = Self>,
-{
+impl<N> RedBlackWrapper<N> {
     pub(crate) fn color(&self) -> Color {
         self.color
     }
@@ -97,7 +90,7 @@ where
 /// Queries.
 impl<N> RedBlackWrapper<N>
 where 
-    N: BinarySearchTreeNode<Wrapper = Self>
+    N: BinarySearchTreeNode<Tree: BinaryTree<Node = Self>>,
 {
     fn pick_branch<Q>(&self, value: &Q) -> Option<Side>
     where
@@ -121,8 +114,10 @@ where
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
             Ordering::Less => self.get_left()
+                .root()
                 .and_then(|left| left.predecessor(value)),
             Ordering::Greater => self.get_right()
+                .root()
                 .and_then(|right| right.predecessor(value))
                 .or(Some(self.key())),
         }
@@ -138,8 +133,10 @@ where
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
             Ordering::Greater => self.get_right()
+                .root()
                 .and_then(|right| right.successor(value)),
             Ordering::Less => self.get_left()
+                .root()
                 .and_then(|left| left.successor(value))
                 .or(Some(self.key())),
         }
@@ -154,8 +151,12 @@ where
     {
         match Q::cmp(value, self.key().borrow()) {
             Ordering::Equal => Some(self.key()),
-            Ordering::Greater => self.get_right().and_then(|right| right.get(value)),
-            Ordering::Less => self.get_left().and_then(|left| left.get(value)),
+            Ordering::Greater => self.get_right()
+                .root()
+                .and_then(|right| right.get(value)),
+            Ordering::Less => self.get_left()
+                .root()
+                .and_then(|left| left.get(value)),
         }
     }
 }
@@ -163,57 +164,61 @@ where
 /// Tree operations.
 impl<N> RedBlackWrapper<N>
 where 
-    N: BinarySearchTreeNode<Wrapper = Self>,
+    N: BinarySearchTreeNode<Tree: BinaryTreeMut<Node = Self>>,
 {
     /// Performs a left tree rotation, changing self to point to the new root.
     /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
     fn rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_root = self.detach_right().ok_or(StructureError::EmptyTree)?;
+        let mut right = self.detach_right();
+        let mut new_root = right.root_mut().ok_or(StructureError::EmptyTree)?;
 
         // Change colors to keep red-black properties satisfied after rotation
         self.set_color(Color::Red);
         new_root.set_color(Color::Black);
 
         // Perform the rotation
-        if let Some(rotating_subtree) = new_root.detach_left() {
+        self.replace_right(new_root.detach_left());
+        //if let Some(rotating_subtree) = new_root.detach_left() {
             // There is a non-empty rotating subtree
-            self.replace_right(rotating_subtree);
-        }
+        //    self.replace_right(rotating_subtree);
+        //}
         std::mem::swap(self, &mut new_root);
-        self.replace_left(new_root);
+        self.replace_left(right);
         Ok(())
     }
 
     /// Performs a right tree rotation, changing self to point to the new root.
     /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
     fn rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_root = self.detach_left().ok_or(StructureError::EmptyTree)?;
+        let mut left = self.detach_left();
+        let mut new_root = left.root_mut().ok_or(StructureError::EmptyTree)?;
 
         // Change colors to keep red-black properties satisfied after rotation
         self.set_color(Color::Red);
         new_root.set_color(Color::Black);
 
         // Perform the rotation
-        if let Some(rotating_subtree) = new_root.detach_right() {
+        self.replace_left(new_root.detach_right());
+        //if let Some(rotating_subtree) = new_root.detach_left() {
             // There is a non-empty rotating subtree
-            self.replace_left(rotating_subtree);
-        }
+        //    self.replace_right(rotating_subtree);
+        //}
         std::mem::swap(self, &mut new_root);
-        self.replace_right(new_root);
+        self.replace_right(left);
         Ok(())
     }
 
     fn double_rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_right = self.detach_right().ok_or(StructureError::EmptyTree)?;
-        new_right.rotate_right()?;
-        self.replace_right(new_right);
+        let mut right = self.detach_right();
+        right.root_mut().ok_or(StructureError::EmptyTree)?.rotate_right()?;
+        self.replace_right(right);
         self.rotate_left()
     }
 
     fn double_rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_left = self.detach_left().ok_or(StructureError::EmptyTree)?;
-        new_left.rotate_left()?;
-        self.replace_left(new_left);
+        let mut left = self.detach_left();//.ok_or(StructureError::EmptyTree)?;
+        left.root_mut().ok_or(StructureError::EmptyTree)?.rotate_left()?;
+        self.replace_left(left);
         self.rotate_right()
     }
 }
@@ -221,21 +226,21 @@ where
 /// Insertions.
 impl<N> RedBlackWrapper<N>
 where 
-    N: BinarySearchTreeNode<Wrapper = Self>,
+    N: BinarySearchTreeNode<Tree: BinaryTreeMut<Node = Self>>,
 {
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
-        if let Some(left) = self.get_left() && let Some(right) = self.get_right()
+        if let Some(left) = self.get_left().root() && let Some(right) = self.get_right().root()
             && left.color() == Color::Red && right.color() == Color::Red
         {
             self.set_color(Color::Red);
-            self.get_left_mut().unwrap().set_color(Color::Black);
-            self.get_right_mut().unwrap().set_color(Color::Black);
+            self.get_left_mut().root_mut().unwrap().set_color(Color::Black);
+            self.get_right_mut().root_mut().unwrap().set_color(Color::Black);
         }
     }
 
     fn fix_local_violation(&mut self, side1: Side, side2: Side) -> bool {
-        if let Some(child) = self.get_child(side1) && let Some(grandchild) = child.get_child(side2)
+        if let Some(child) = self.get_child(side1).root() && let Some(grandchild) = child.get_child(side2).root()
             && child.color() == Color::Red && grandchild.color() == Color::Red
         {
             match (side1, side2) {
@@ -268,7 +273,7 @@ where
         };
         if !self.has_child(side1) {
             // Insert the value in place of grandparent's child
-            self.attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
+            self.attach_child(side1, N::Tree::new(Self::new_with_color(key, value, Color::Red)));
             self.color_swap(); // Might need to color swap due to the insertion.
             self.set_color(Color::Black); // Maintain the invariant that the root is black.
             return None;
@@ -277,8 +282,8 @@ where
         // Walk down the tree, updating the tree as we go.
         let mut grandparent = &mut *self;
         loop {
-            let Some(child) = grandparent.get_child_mut(side1) else {
-                grandparent.attach_child(side1, RedBlackWrapper::new_with_color(key, value, Color::Red));
+            let Some(child) = grandparent.get_child_mut(side1).root_mut() else {
+                grandparent.attach_child(side1, N::Tree::new(Self::new_with_color(key, value, Color::Red)));
                 return None;
             };
             child.color_swap();
@@ -288,8 +293,8 @@ where
                 let old_value = child.replace_value(value);
                 return Some(old_value);
             };
-            let Some(grandchild) = child.get_child_mut(side2) else {
-                child.attach_child(side2, RedBlackWrapper::new_with_color(key, value, Color::Red));
+            let Some(grandchild) = child.get_child_mut(side2).root_mut() else {
+                child.attach_child(side2, N::Tree::new(Self::new_with_color(key, value, Color::Red)));
                 grandparent.fix_local_violation(side1, side2);
                 break;
             };
@@ -307,7 +312,7 @@ where
                 }
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
-                grandparent = grandparent.get_child_mut(side1).unwrap();
+                grandparent = grandparent.get_child_mut(side1).root_mut().unwrap();
                 side1 = side2;
             }
         }
@@ -320,13 +325,13 @@ where
     
 impl<N> fmt::Display for RedBlackWrapper<N>
 where 
-    N: BinarySearchTreeNode<Wrapper = Self>,
+    N: BinarySearchTreeNode<Tree: BinaryTree<Node = Self>>,
     N::Key: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn recursive_fmt<T>(root: Option<&RedBlackWrapper<T>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
-            T: BinarySearchTreeNode<Wrapper = RedBlackWrapper<T>>,
+            T: BinarySearchTreeNode<Tree: BinaryTreeMut<Node = RedBlackWrapper<T>>>,
             T::Key: fmt::Display,
         {
             write!(f, "{prefix}")?;
@@ -342,8 +347,8 @@ where
                 };
                 write!(f, "N({}, {color_text})\n", root.key())?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.get_left(), f, &new_prefix, true)?;
-                recursive_fmt(root.get_right(), f, &new_prefix, false)?;
+                recursive_fmt(root.get_left().root(), f, &new_prefix, true)?;
+                recursive_fmt(root.get_right().root(), f, &new_prefix, false)?;
                 Ok(())
             } else {
                 write!(f, "L\n")

@@ -8,7 +8,7 @@ use crate::binary_search_trees::{
 
 pub struct PreorderWalk<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
@@ -17,7 +17,7 @@ where
 
 impl<'node, N, P, F> PreorderWalk<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
@@ -31,7 +31,7 @@ where
 #[gat]
 impl<'node, N, P, F> LendingIterator for PreorderWalk<'node, N, P, F>
 where 
-    N: BinaryTreeNodeMut<Wrapper = N, NodePointer = P>,
+    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
     P: DerefMut<Target = N>,
     F: Fn(&N) -> WalkInstruction,
 {
