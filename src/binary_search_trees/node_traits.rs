@@ -1,137 +1,129 @@
-use std::ops::{Deref, DerefMut};
+use std::cmp::Ordering;
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Side {
-    Left,
-    Right,
+use crate::binary_search_trees::binary_search_tree_node::Side;
+
+pub trait BinaryTreeNode {
+    type Tree;
+
+    fn left_subtree(&self) -> &Self::Tree;
+    fn right_subtree(&self) -> &Self::Tree;
+    fn subtree(&self, side: Side) -> &Self::Tree {
+        match side {
+            Side::Left => self.left_subtree(),
+            Side::Right => self.right_subtree(),
+        }
+    }
+
+    fn left_subtree_mut(&mut self) -> &mut Self::Tree;
+    fn right_subtree_mut(&mut self) -> &mut Self::Tree;
+    fn subtree_mut(&mut self, side: Side) -> &mut Self::Tree {
+        match side {
+            Side::Left => self.left_subtree_mut(),
+            Side::Right => self.right_subtree_mut(),
+        }
+    }
 }
 
 pub trait BinaryTree {
-    type Node;
+    type Node: BinaryTreeNode<Tree = Self>;
 
     fn new(root: Self::Node) -> Self;
     fn new_leaf() -> Self;
+
     fn root(&self) -> Option<&Self::Node>;
-    fn is_leaf(&self) -> bool;
-}
-
-pub trait BinaryTreeMut: BinaryTree {
     fn root_mut(&mut self) -> Option<&mut Self::Node>;
-}
+    
+    fn left_subtree(&self) -> Option<&Self> {
+        self.root().map(|root| root.left_subtree())
+    }
 
-pub trait BinaryTreeNode {
-    type Tree: BinaryTree;
+    fn right_subtree(&self) -> Option<&Self> {
+        self.root().map(|root| root.right_subtree())
+    }
 
-    fn get_left(&self) -> &Self::Tree;
-    fn get_right(&self) -> &Self::Tree;
-    fn get_child(&self, side: Side) -> &Self::Tree {
+    fn subtree(&self, side: Side) -> Option<&Self> {
         match side {
-            Side::Left => self.get_left(),
-            Side::Right => self.get_right(),
+            Side::Left => self.left_subtree(),
+            Side::Right => self.right_subtree(),
         }
     }
     
-    fn has_left(&self) -> bool { !self.get_left().is_leaf() }
-    fn has_right(&self) -> bool { !self.get_right().is_leaf() }
-    fn has_child(&self, side: Side) -> bool {
+    fn left_subtree_mut(&mut self) -> Option<&mut Self> {
+        self.root_mut().map(|root| root.left_subtree_mut())
+    }
+
+    fn right_subtree_mut(&mut self) -> Option<&mut Self> {
+        self.root_mut().map(|root| root.left_subtree_mut())
+    }
+
+    fn subtree_mut(&mut self, side: Side) -> Option<&mut Self> {
         match side {
-            Side::Left => self.has_left(),
-            Side::Right => self.has_right(),
+            Side::Left => self.left_subtree_mut(),
+            Side::Right => self.right_subtree_mut(),
         }
     }
+
+    fn is_leaf(&self) -> bool { self.root().is_none() }
 }
 
-pub trait BinaryTreeNodeMut: BinaryTreeNode<Tree: BinaryTreeMut> {
-    fn get_left_mut(&mut self) -> &mut Self::Tree;
-    fn get_right_mut(&mut self) -> &mut Self::Tree;
-    fn get_child_mut(&mut self, side: Side) -> &mut Self::Tree {
-        match side {
-            Side::Left => self.get_left_mut(),
-            Side::Right => self.get_right_mut(),
-        }
-    }
-
-    fn attach_left(&mut self, tree: impl Into<Self::Tree>) -> bool;
-    fn attach_right(&mut self, tree: impl Into<Self::Tree>) -> bool;
-    fn attach_child(&mut self, side: Side, tree: impl Into<Self::Tree>) -> bool {
-        match side {
-            Side::Left => self.attach_left(tree),
-            Side::Right => self.attach_right(tree),
-        }
-    }
-    
-    fn detach_left(&mut self) -> Self::Tree;
-    fn detach_right(&mut self) -> Self::Tree;
-    fn detach_child(&mut self, side: Side) -> Self::Tree {
-        match side {
-            Side::Left => self.detach_left(),
-            Side::Right => self.detach_right(),
-        }
-    }
-
-    fn replace_left(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree;
-    fn replace_right(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree;
-    fn replace_child(&mut self, side: Side, tree: impl Into<Self::Tree>) -> Self::Tree {
-        match side {
-            Side::Left => self.replace_left(tree),
-            Side::Right => self.replace_right(tree),
-        }
-    }
-}
-
-pub trait BinarySearchTreeNode: BinaryTreeNodeMut {
+pub trait BinarySearchTreeNode {
     type Key: Ord;
     type Value;
 
-    fn new(key: Self::Key, value: Self::Value) -> Self;
     fn key(&self) -> &Self::Key;
     fn value(&self) -> &Self::Value;
-    fn replace_value(&mut self, value: Self::Value) -> Self::Value;
+    fn value_mut(&mut self) -> &mut Self::Value;
 }
 
-impl<T> BinaryTree for T
-where
-    T: Deref<Target: BinaryTree + Sized> + From<T::Target>,
-{
-    type Node = <<T as Deref>::Target as BinaryTree>::Node;
-
-    fn new(root: Self::Node) -> Self {
-        <Self as Deref>::Target::new(root).into()
-    }
-
-    fn new_leaf() -> Self {
-        <Self as Deref>::Target::new_leaf().into()
-    }
-
-    fn root(&self) -> Option<&Self::Node> {
-        self.deref().root()
-    }
-
-    fn is_leaf(&self) -> bool {
-        self.deref().is_leaf()
-    }
-}
-
-impl<T> BinaryTreeMut for T
+pub trait BinarySearchTree: BinaryTree
 where 
-    T: DerefMut<Target: BinaryTreeMut + Sized> + From<T::Target>,
+    Self::Node: BinarySearchTreeNode,
 {
-    fn root_mut(&mut self) -> Option<&mut Self::Node> {
-        self.deref_mut().root_mut()
+    fn predecessor<Q>(&self, value: &Q) -> Option<&<Self::Node as BinarySearchTreeNode>::Key>
+    where
+        <Self::Node as BinarySearchTreeNode>::Key: AsRef<Q>,
+        Q: Ord + ?Sized,
+    {
+        let root = self.root()?;
+        match Q::cmp(value, root.key().as_ref()) {
+            Ordering::Equal => Some(root.key()),
+            Ordering::Less => self.left_subtree()?.predecessor(value),
+            Ordering::Greater => self.right_subtree()?.predecessor(value)
+                .or(Some(root.key())),
+        }
+    }
+        
+    fn successor<Q>(&self, value: &Q) -> Option<&<Self::Node as BinarySearchTreeNode>::Key>
+    where
+        <Self::Node as BinarySearchTreeNode>::Key: AsRef<Q>,
+        Q: Ord + ?Sized,
+    {
+        let root = self.root()?;
+        match Q::cmp(value, root.key().as_ref()) {
+            Ordering::Equal => Some(root.key()),
+            Ordering::Greater => self.right_subtree()?.successor(value),
+            Ordering::Less => self.left_subtree()?.successor(value)
+                .or(Some(root.key())),
+        }
+    }
+        
+    fn get<Q>(&self, value: &Q) -> Option<&<Self::Node as BinarySearchTreeNode>::Key>
+    where
+        <Self::Node as BinarySearchTreeNode>::Key: AsRef<Q>,
+        Q: Ord + ?Sized,
+    {
+        let root = self.root()?;
+        match Q::cmp(value, root.key().as_ref()) {
+            Ordering::Equal => Some(root.key()),
+            Ordering::Greater => self.right_subtree()?.get(value),
+            Ordering::Less => self.left_subtree()?.get(value),
+        }
     }
 }
 
-impl<N> BinaryTreeNode for N
-where
-    N: Deref<Target: BinaryTreeNode>,
+pub trait Insert: BinarySearchTree
+where 
+    Self::Node: BinarySearchTreeNode,
 {
-    type Tree = <<N as Deref>::Target as BinaryTreeNode>::Tree;
-
-    fn get_left(&self) -> &Self::Tree {
-        self.deref().get_left()
-    }
-
-    fn get_right(&self) -> &Self::Tree {
-        self.deref().get_right()
-    }
+    fn insert(&mut self, key: <Self::Node as BinarySearchTreeNode>::Key, value: <Self::Node as BinarySearchTreeNode>::Value) -> Option<<Self::Node as BinarySearchTreeNode>::Value>;
 }
