@@ -1,4 +1,6 @@
-use crate::binary_search_trees::node_traits::{BinarySearchTree, Insert};
+use std::fmt;
+
+use crate::binary_search_trees::node_traits::{BinarySearchTree, BinarySearchTreeNode, Insert};
 use crate::binary_search_trees::{
     red_black_node::RedBlackNode,
     node_traits::BinaryTree,
@@ -48,6 +50,40 @@ where
             self.0 = Some(Box::new(RedBlackNode::new(key, value)));
             None
         }
+    }
+}
+    
+impl<K, V> fmt::Display for RedBlackTree<K, V>
+where 
+    K: fmt::Display + Ord,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            K: fmt::Display + Ord,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(root) = tree.root() {
+                write!(f, "N({})\n", root.key())?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                if let Some(left) = tree.left_subtree() {
+                    recursive_fmt(left, f, &new_prefix, true)?;
+                }
+                if let Some(right) = tree.right_subtree() {
+                    recursive_fmt(right, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+
+        recursive_fmt(self, f, "", false)
     }
 }
 

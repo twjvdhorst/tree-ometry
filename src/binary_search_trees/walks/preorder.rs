@@ -1,46 +1,42 @@
-use std::ops::DerefMut;
 use lending_iterator::prelude::*;
 
 use crate::binary_search_trees::{
-    node_traits::BinaryTreeNodeMut,
+    node_traits::BinaryTree,
     walks::{WalkInstruction, traversal_stack::TraversalStack},
 };
 
-pub struct PreorderWalk<'node, N, P, F>
+pub struct PreorderWalk<'node, T, F>
 where 
-    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
-    P: DerefMut<Target = N>,
-    F: Fn(&N) -> WalkInstruction,
+    T: BinaryTree,
+    F: Fn(&T::Node) -> WalkInstruction,
 {
-    stack: TraversalStack<'node, N, P, F>,
+    stack: TraversalStack<'node, T, F>,
 }
 
-impl<'node, N, P, F> PreorderWalk<'node, N, P, F>
+impl<'node, T, F> PreorderWalk<'node, T, F>
 where 
-    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
-    P: DerefMut<Target = N>,
-    F: Fn(&N) -> WalkInstruction,
+    T: BinaryTree,
+    F: Fn(&T::Node) -> WalkInstruction,
 {
-    pub fn new(root: &'node mut N, instruction_fn: F) -> Self {
+    pub fn new(tree: &'node mut T, instruction_fn: F) -> Self {
         Self {
-            stack: TraversalStack::new(root, instruction_fn),
+            stack: TraversalStack::new(tree, instruction_fn),
         }
     }
 }
 
 #[gat]
-impl<'node, N, P, F> LendingIterator for PreorderWalk<'node, N, P, F>
+impl<'node, T, F> LendingIterator for PreorderWalk<'node, T, F>
 where 
-    N: BinaryTreeNodeMut<Tree = N, NodePointer = P>,
-    P: DerefMut<Target = N>,
-    F: Fn(&N) -> WalkInstruction,
+    T: BinaryTree,
+    F: Fn(&T::Node) -> WalkInstruction,
 {
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut N;
+        = &'next mut T::Node;
 
-    fn next(self: &'_ mut PreorderWalk<'node, N, P, F>) -> Option<&'_ mut N> {
+    fn next(self: &'_ mut PreorderWalk<'node, T, F>) -> Option<&'_ mut T::Node> {
         if !self.stack.is_root_reported() {
             return self.stack.report_root();
         }

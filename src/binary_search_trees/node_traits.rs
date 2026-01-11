@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use crate::binary_search_trees::binary_search_tree_node::Side;
 
 pub trait BinaryTreeNode {
-    type Tree;
+    type Tree: BinaryTree;
 
     fn left_subtree(&self) -> &Self::Tree;
     fn right_subtree(&self) -> &Self::Tree;
@@ -22,9 +22,51 @@ pub trait BinaryTreeNode {
             Side::Right => self.right_subtree_mut(),
         }
     }
+
+    fn has_left(&self) -> bool {
+        !self.left_subtree().is_leaf()
+    }
+
+    fn has_right(&self) -> bool {
+        !self.right_subtree().is_leaf()
+    }
+
+    fn has_child(&self, side: Side) -> bool {
+        match side {
+            Side::Left => self.has_left(),
+            Side::Right => self.has_right(),
+        }
+    }
+
+    fn attach_left(&mut self, tree: impl Into<Self::Tree>) -> bool;
+    fn attach_right(&mut self, tree: impl Into<Self::Tree>) -> bool;
+    fn attach_subtree(&mut self, side: Side, tree: impl Into<Self::Tree>) -> bool {
+        match side {
+            Side::Left => self.attach_left(tree),
+            Side::Right => self.attach_right(tree),
+        }
+    }
+    
+    fn detach_left(&mut self) -> Self::Tree;
+    fn detach_right(&mut self) -> Self::Tree;
+    fn detach_subtree(&mut self, side: Side) -> Self::Tree {
+        match side {
+            Side::Left => self.detach_left(),
+            Side::Right => self.detach_right(),
+        }
+    }
+    
+    fn replace_left(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree;
+    fn replace_right(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree;
+    fn replace_subtree(&mut self, side: Side, tree: impl Into<Self::Tree>) -> Self::Tree {
+        match side {
+            Side::Left => self.replace_left(tree),
+            Side::Right => self.replace_right(tree),
+        }
+    }
 }
 
-pub trait BinaryTree {
+pub trait BinaryTree: Sized {
     type Node: BinaryTreeNode<Tree = Self>;
 
     fn new(root: Self::Node) -> Self;
@@ -53,7 +95,7 @@ pub trait BinaryTree {
     }
 
     fn right_subtree_mut(&mut self) -> Option<&mut Self> {
-        self.root_mut().map(|root| root.left_subtree_mut())
+        self.root_mut().map(|root| root.right_subtree_mut())
     }
 
     fn subtree_mut(&mut self, side: Side) -> Option<&mut Self> {
@@ -63,7 +105,75 @@ pub trait BinaryTree {
         }
     }
 
-    fn is_leaf(&self) -> bool { self.root().is_none() }
+    fn is_leaf(&self) -> bool {
+        self.root().is_none()
+    }
+
+    fn has_left(&self) -> bool {
+        self.root()
+            .map(|root| !root.left_subtree().is_leaf())
+            .unwrap_or(false)
+    }
+
+    fn has_right(&self) -> bool {
+        self.root()
+            .map(|root| !root.right_subtree().is_leaf())
+            .unwrap_or(false)
+    }
+
+    fn has_child(&self, side: Side) -> bool {
+        match side {
+            Side::Left => self.has_left(),
+            Side::Right => self.has_right(),
+        }
+    }
+    
+    fn attach_left(&mut self, tree: impl Into<Self>) -> bool {
+        let Some(root) = self.root_mut() else { return false; };
+        root.attach_left(tree)
+    }
+
+    fn attach_right(&mut self, tree: impl Into<Self>) -> bool {
+        let Some(root) = self.root_mut() else { return false; };
+        root.attach_right(tree)
+    }
+
+    fn attach_subtree(&mut self, side: Side, tree: impl Into<Self>) -> bool {
+        match side {
+            Side::Left => self.attach_left(tree),
+            Side::Right => self.attach_right(tree),
+        }
+    }
+    
+    fn detach_left(&mut self) -> Option<Self> {
+        Some(self.root_mut()?.detach_left())
+    }
+
+    fn detach_right(&mut self) -> Option<Self> {
+        Some(self.root_mut()?.detach_right())
+    }
+
+    fn detach_subtree(&mut self, side: Side) -> Option<Self> {
+        match side {
+            Side::Left => self.detach_left(),
+            Side::Right => self.detach_right(),
+        }
+    }
+    
+    fn replace_left(&mut self, tree: impl Into<Self>) -> Option<Self> {
+        Some(self.root_mut()?.replace_left(tree))
+    }
+
+    fn replace_right(&mut self, tree: impl Into<Self>) -> Option<Self> {
+        Some(self.root_mut()?.replace_right(tree))
+    }
+
+    fn replace_subtree(&mut self, side: Side, tree: impl Into<Self>) -> Option<Self> {
+        match side {
+            Side::Left => self.replace_left(tree),
+            Side::Right => self.replace_right(tree),
+        }
+    }
 }
 
 pub trait BinarySearchTreeNode {

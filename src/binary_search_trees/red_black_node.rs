@@ -1,11 +1,10 @@
-use std::ops::{Deref, DerefMut};
 use std::{
     cmp::Ordering,
     fmt,
 };
 
 use crate::binary_search_trees::binary_search_tree_node::{BSTNode, Side};
-use crate::binary_search_trees::node_traits::{BinarySearchTree, BinarySearchTreeNode, BinaryTree, BinaryTreeNode};
+use crate::binary_search_trees::node_traits::{BinarySearchTreeNode, BinaryTree, BinaryTreeNode};
 use crate::binary_search_trees::tree_errors::StructureError;
 
 pub struct RedBlackNode<K, V, T> {
@@ -35,7 +34,10 @@ where
     }
 }
 
-impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T> {
+impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T>
+where 
+    T: BinaryTree,
+{
     type Tree = T;
 
     fn left_subtree(&self) -> &Self::Tree {
@@ -53,6 +55,42 @@ impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T> {
     fn right_subtree_mut(&mut self) -> &mut Self::Tree {
         self.node.right_subtree_mut()
     }
+
+    fn attach_left(&mut self, tree: impl Into<Self::Tree>) -> bool {
+        self.node.attach_left(tree)
+    }
+    
+    fn attach_right(&mut self, tree: impl Into<Self::Tree>) -> bool {
+        self.node.attach_right(tree)
+    }
+
+    fn attach_subtree(&mut self, side: Side, tree: impl Into<Self::Tree>) -> bool {
+        self.node.attach_subtree(side, tree)
+    }
+    
+    fn detach_left(&mut self) -> Self::Tree {
+        self.node.detach_left()
+    }
+    
+    fn detach_right(&mut self) -> Self::Tree {
+        self.node.detach_right()
+    }
+
+    fn detach_subtree(&mut self, side: Side) -> Self::Tree {
+        self.node.detach_subtree(side)
+    }
+    
+    fn replace_left(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree {
+        self.node.replace_left(tree)
+    }
+    
+    fn replace_right(&mut self, tree: impl Into<Self::Tree>) -> Self::Tree {
+        self.node.replace_right(tree)
+    }
+
+    fn replace_subtree(&mut self, side: Side, tree: impl Into<Self::Tree>) -> Self::Tree {
+        self.node.replace_subtree(side, tree)
+    }
 }
 
 impl<K, V, T> BinarySearchTreeNode for RedBlackNode<K, V, T>
@@ -62,69 +100,16 @@ where
     type Key = K;
     type Value = V;
 
-    fn key(&self) -> &K {
+    fn key(&self) -> &Self::Key {
         self.node.key()
     }
 
-    fn value(&self) -> &V {
+    fn value(&self) -> &Self::Value {
         self.node.value()
     }
 
     fn value_mut(&mut self) -> &mut Self::Value {
         self.node.value_mut()
-    }
-}
-
-impl<K, V, T> RedBlackNode<K, V, T>
-where 
-    T: BinaryTree,
-{
-    pub fn has_left(&self) -> bool {
-        self.node.has_left()
-    }
-
-    pub fn has_right(&self) -> bool {
-        self.node.has_right()
-    }
-
-    pub fn has_child(&self, side: Side) -> bool {
-        self.node.has_child(side)
-    }
-
-    pub fn attach_left(&mut self, tree: impl Into<T>) -> bool {
-        self.node.attach_left(tree)
-    }
-    
-    pub fn attach_right(&mut self, tree: impl Into<T>) -> bool {
-        self.node.attach_right(tree)
-    }
-
-    pub fn attach_subtree(&mut self, side: Side, tree: impl Into<T>) -> bool {
-        self.node.attach_subtree(side, tree)
-    }
-    
-    pub fn detach_left(&mut self) -> T {
-        self.node.detach_left()
-    }
-    
-    pub fn detach_right(&mut self) -> T {
-        self.node.detach_right()
-    }
-
-    pub fn detach_subtree(&mut self, side: Side) -> T {
-        self.node.detach_subtree(side)
-    }
-    
-    pub fn replace_left(&mut self, tree: impl Into<T>) -> T {
-        self.node.replace_left(tree)
-    }
-    
-    pub fn replace_right(&mut self, tree: impl Into<T>) -> T {
-        self.node.replace_right(tree)
-    }
-
-    pub fn replace_subtree(&mut self, side: Side, tree: impl Into<T>) -> T {
-        self.node.replace_subtree(side, tree)
     }
 }
 
@@ -296,41 +281,5 @@ where
         // Reset the root color to black
         self.color = Color::Black;
         None
-    }
-}
-    
-impl<K, V, T> fmt::Display for RedBlackNode<K, V, T>
-where 
-    K: fmt::Display + Ord,
-    T: BinaryTree<Node = Self>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V, T>(root: Option<&RedBlackNode<K, V, T>>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Display + Ord,
-            T: BinaryTree<Node = RedBlackNode<K, V, T>>,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(root) = root {
-                let color_text = match root.color {
-                    Color::Black => "b",
-                    Color::Red => "r",
-                };
-                write!(f, "N({}, {color_text})\n", root.key())?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.left_subtree().root(), f, &new_prefix, true)?;
-                recursive_fmt(root.right_subtree().root(), f, &new_prefix, false)?;
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-
-        recursive_fmt(Some(self), f, "", false)
     }
 }
