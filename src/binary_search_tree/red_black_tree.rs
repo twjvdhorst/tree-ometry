@@ -1,16 +1,17 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-use super::tree_errors::StructureError;
+use crate::binary_search_tree::tree_traits::{
+    BinarySearchTree, BinaryTree, BinaryTreeMut
+};
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Side {
-    Left,
-    Right,
-}
+use super::{
+    Side,
+    tree_errors::StructureError,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Color {
+enum Color {
     Red,
     Black,
 }
@@ -22,7 +23,7 @@ pub struct RedBlackNode<K, V> {
 }
 
 impl<K, V> RedBlackNode<K, V> {
-    pub fn new(key: K, value: V) -> Self {
+    fn new(key: K, value: V) -> Self {
         Self::new_with_color(key, value, Color::Black)
     }
 
@@ -84,23 +85,8 @@ impl<K, V> RedBlackTree<K, V> {
         }
     }
 
-    pub fn key(&self) -> Option<&K> {
-        Some(&self.node()?.key)
-    }
-
-    pub fn value(&self) -> Option<&V> {
-        Some(&self.node()?.value)
-    }
-
-    pub fn value_mut(&mut self) -> Option<&mut V> {
+    fn value_mut(&mut self) -> Option<&mut V> {
         Some(&mut self.node_mut()?.value)
-    }
-
-    pub fn is_leaf(&self) -> bool {
-        match self {
-            Self::Node {..} => false,
-            Self::Leaf => true,
-        }
     }
 
     fn root_color(&self) -> Option<Color> {
@@ -112,28 +98,32 @@ impl<K, V> RedBlackTree<K, V> {
             node.color = color
         }
     }
+}
 
-    pub fn left_subtree(&self) -> Option<&Self> {
+impl<K, V> BinaryTree for RedBlackTree<K, V> {
+    fn is_leaf(&self) -> bool {
+        match self {
+            Self::Node {..} => false,
+            Self::Leaf => true,
+        }
+    }
+
+    fn left_subtree(&self) -> Option<&Self> {
         match self {
             Self::Node { left, .. } => Some(left),
             Self::Leaf => None,
         }
     }
 
-    pub fn right_subtree(&self) -> Option<&Self> {
+    fn right_subtree(&self) -> Option<&Self> {
         match self {
             Self::Node { right, .. } => Some(right),
             Self::Leaf => None,
         }
     }
+}
 
-    pub fn subtree(&self, side: Side) -> Option<&Self> {
-        match side {
-            Side::Left => self.left_subtree(),
-            Side::Right => self.right_subtree(),
-        }
-    }
-
+impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
     fn left_subtree_mut(&mut self) -> Option<&mut Self> {
         match self {
             Self::Node { left, accessed_mut, .. } => {
@@ -154,35 +144,6 @@ impl<K, V> RedBlackTree<K, V> {
         }
     }
 
-    fn subtree_mut(&mut self, side: Side) -> Option<&mut Self> {
-        match side {
-            Side::Left => self.left_subtree_mut(),
-            Side::Right => self.right_subtree_mut(),
-        }
-    }
-
-    pub fn has_left_subtree(&self) -> bool {
-        if let Some(left) = self.left_subtree() && !left.is_leaf() {
-            true
-        } else { false }
-    }
-
-    pub fn has_right_subtree(&self) -> bool {
-        if let Some(right) = self.right_subtree() && !right.is_leaf() {
-            true
-        } else { false }
-    }
-
-    pub fn has_subtree(&self, side: Side) -> bool {
-        match side {
-            Side::Left => self.has_left_subtree(),
-            Side::Right => self.has_right_subtree(),
-        }
-    }
-}
-
-/// Tree operations.
-impl<K, V> RedBlackTree<K, V> {
     fn attach_left(&mut self, tree: impl Into<Self>) -> bool {
         if let Some(left) = self.left_subtree_mut() && left.is_leaf() {
             *left = tree.into();
@@ -197,26 +158,12 @@ impl<K, V> RedBlackTree<K, V> {
         } else { false }
     }
 
-    fn attach_subtree(&mut self, side: Side, tree: impl Into<Self>) -> bool {
-        match side {
-            Side::Left => self.attach_left(tree),
-            Side::Right => self.attach_right(tree),
-        }
-    }
-
     fn detach_left(&mut self) -> Option<Self> {
         Some(std::mem::take(self.left_subtree_mut()?))
     }
 
     fn detach_right(&mut self) -> Option<Self> {
         Some(std::mem::take(self.right_subtree_mut()?))
-    }
-
-    fn detach_subtree(&mut self, side: Side) -> Option<Self> {
-        match side {
-            Side::Left => self.detach_left(),
-            Side::Right => self.detach_right(),
-        }
     }
     
     fn replace_left(&mut self, tree: impl Into<Self>) -> Option<Self> {
@@ -226,47 +173,40 @@ impl<K, V> RedBlackTree<K, V> {
     fn replace_right(&mut self, tree: impl Into<Self>) -> Option<Self> {
         Some(std::mem::replace(self.right_subtree_mut()?, tree.into()))
     }
+}
 
-    fn replace_subtree(&mut self, side: Side, tree: impl Into<Self>) -> Option<Self> {
-        match side {
-            Side::Left => self.replace_left(tree),
-            Side::Right => self.replace_right(tree),
-        }
+impl<K, V> BinarySearchTree for RedBlackTree<K, V>
+where
+    K: Ord,
+{
+    type Key = K;
+    type Value = V;
+
+    fn key(&self) -> Option<&Self::Key> {
+        Some(&self.node()?.key)
     }
 
-    /// Performs a left tree rotation, changing self to point to the new root.
-    /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
+    fn value(&self) -> Option<&Self::Value> {
+        Some(&self.node()?.value)
+    }
+}
+
+/// Insertions.
+impl<K, V> RedBlackTree<K, V>
+where 
+    K: Ord,
+{
     fn rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_tree = self.detach_right().ok_or(StructureError::EmptyTree)?;
-
-        // Change colors to keep red-black properties satisfied after rotation
-        self.set_root_color(Color::Red);
-        new_tree.set_root_color(Color::Black);
-
-        // Perform the rotation
-        if let Some(rotating_subtree) = new_tree.detach_left() {
-            self.replace_right(rotating_subtree);
-        }
-        std::mem::swap(self, &mut new_tree);
-        self.replace_left(new_tree);
+        <Self as BinaryTreeMut>::rotate_left(self)?;
+        self.set_root_color(Color::Black);
+        self.left_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         Ok(())
     }
 
-    /// Performs a right tree rotation, changing self to point to the new root.
-    /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
     fn rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_tree = self.detach_left().ok_or(StructureError::EmptyTree)?;
-
-        // Change colors to keep red-black properties satisfied after rotation
-        self.set_root_color(Color::Red);
-        new_tree.set_root_color(Color::Black);
-
-        // Perform the rotation
-        if let Some(rotating_subtree) = new_tree.detach_right() {
-            self.replace_left(rotating_subtree);
-        }
-        std::mem::swap(self, &mut new_tree);
-        self.replace_right(new_tree);
+        <Self as BinaryTreeMut>::rotate_right(self)?;
+        self.set_root_color(Color::Black);
+        self.right_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         Ok(())
     }
 
@@ -283,13 +223,7 @@ impl<K, V> RedBlackTree<K, V> {
         self.replace_left(left);
         self.rotate_right()
     }
-}
 
-/// Insertions.
-impl<K, V> RedBlackTree<K, V>
-where 
-    K: Ord,
-{
     fn pick_branch(&self, value: &K) -> Option<Side> {
         match K::cmp(value, self.key()?) {
             Ordering::Less => Some(Side::Left),

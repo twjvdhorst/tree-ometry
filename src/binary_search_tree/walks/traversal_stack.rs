@@ -1,8 +1,5 @@
-use crate::binary_search_trees::{
-    binary_search_tree_node::Side,
-    node_traits::{BinaryTree, BinaryTreeNode},
-    walks::WalkInstruction,
-};
+use super::WalkInstruction;
+use crate::binary_search_tree::{Side, red_black_tree::RedBlackTree};
 
 #[derive(Clone, Copy)]
 enum StackLocation {
@@ -21,14 +18,12 @@ struct StackFrame<T> {
     tree: T,
     parent_location: StackLocation,
     side_of_parent: Side,
-    state: NodeState, // Can maybe remove; if !(explore_left || explore_right) then "expanded" or "reported"
-    explore_left: bool, // Wether the left subtree still needs to be reported, set to false if already reported
-    explore_right: bool, // Can add "expand_left / expand_right" methods based on these bools
+    state: NodeState,
 }
 
 impl<T> StackFrame<T>
 where 
-    T: BinaryTree,
+    T: BinaryTreeMut,
 {
     fn new(tree: T, parent_location: StackLocation, side_of_parent: Side) -> Self {
         Self {

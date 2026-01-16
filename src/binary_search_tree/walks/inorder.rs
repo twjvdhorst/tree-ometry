@@ -1,6 +1,6 @@
 use lending_iterator::prelude::*;
 
-use crate::binary_search_trees::{
+use crate::binary_search_tree::{
     binary_search_tree_node::Side, node_traits::BinaryTree, walks::{WalkInstruction, traversal_stack::{TraversalStack}}
 };
 
