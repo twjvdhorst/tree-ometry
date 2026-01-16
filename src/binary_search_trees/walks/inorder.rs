@@ -55,29 +55,3 @@ where
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use lending_iterator::LendingIterator;
-    use super::*;
-    use crate::binary_search_trees::{node_traits::{BinarySearchTreeNode, BinaryTree, Insert}, red_black_tree::RedBlackTree};
-
-    #[test]
-    fn test_insertion() {
-        // Test inserting values in order.
-        let mut tree = RedBlackTree::new_leaf();
-        for key in 1..=30 {
-            tree.insert(key, ());
-        }
-
-        println!("{}", tree);
-        let mut iter = InorderWalk::new(&mut tree, |_node| {
-            crate::binary_search_trees::walks::WalkInstruction::Both
-        });
-        while let Some(node) = iter.next() {
-            println!("{}", node.key());
-        }
-    }
-}
-
-

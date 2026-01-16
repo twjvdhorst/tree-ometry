@@ -5,20 +5,20 @@ use crate::binary_search_trees::{
     walks::{WalkInstruction, traversal_stack::TraversalStack},
 };
 
-pub struct PostorderWalk<'node, T, F>
+pub struct PostorderWalk<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
 {
-    stack: TraversalStack<'node, T, F>,
+    stack: TraversalStack<'tree, T, F>,
 }
 
-impl<'node, T, F> PostorderWalk<'node, T, F>
+impl<'tree, T, F> PostorderWalk<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
 {
-    pub fn new(tree: &'node mut T, instruction_fn: F) -> Self {
+    pub fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
         Self {
             stack: TraversalStack::new(tree, instruction_fn),
         }
@@ -26,7 +26,7 @@ where
 }
 
 #[gat]
-impl<'node, T, F> LendingIterator for PostorderWalk<'node, T, F>
+impl<'tree, T, F> LendingIterator for PostorderWalk<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
@@ -36,7 +36,7 @@ where
         Self: 'next,
         = &'next mut T::Node;
 
-    fn next(self: &'_ mut PostorderWalk<'node, T, F>) -> Option<&'_ mut T::Node> {
+    fn next(self: &'_ mut PostorderWalk<'tree, T, F>) -> Option<&'_ mut T::Node> {
         if !self.stack.is_empty() {
             while self.stack.expand().is_some() {}
             self.stack.pop()

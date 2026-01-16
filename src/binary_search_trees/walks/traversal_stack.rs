@@ -21,7 +21,9 @@ struct StackFrame<T> {
     tree: T,
     parent_location: StackLocation,
     side_of_parent: Side,
-    state: NodeState,
+    state: NodeState, // Can maybe remove; if !(explore_left || explore_right) then "expanded" or "reported"
+    explore_left: bool, // Wether the left subtree still needs to be reported, set to false if already reported
+    explore_right: bool, // Can add "expand_left / expand_right" methods based on these bools
 }
 
 impl<T> StackFrame<T>
@@ -68,18 +70,18 @@ where
     }
 }
 
-pub(super) struct TraversalStack<'node, T, F>
+pub(super) struct TraversalStack<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
 {
-    root_state: (Option<&'node mut T::Node>, NodeState),
+    root_state: (&'tree mut T, NodeState),
     stack: Vec<StackFrame<T>>,
     instruction_fn: F,
 }
 
 /// Custom drop implementation that unwinds the stack to restore the tree.
-impl<'node, T, F> Drop for TraversalStack<'node, T, F>
+impl<'tree, T, F> Drop for TraversalStack<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
@@ -89,12 +91,12 @@ where
     }
 }
 
-impl<'node, T, F> TraversalStack<'node, T, F>
+impl<'tree, T, F> TraversalStack<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T::Node) -> WalkInstruction,
 {
-    pub(super) fn new(tree: &'node mut T, instruction_fn: F) -> Self {
+    pub(super) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
         // Expand root before iteration.
         let mut stack = Vec::new();
         if let Some(root) = tree.root_mut() {
@@ -126,7 +128,7 @@ where
         }
         
         Self {
-            root_state: (tree.root_mut(), NodeState::Expanded),
+            root_state: (tree, NodeState::Expanded),
             stack,
             instruction_fn,
         }
@@ -141,14 +143,14 @@ where
     fn get_node_mut(&mut self, idx: StackLocation) -> Option<&mut T::Node> {
         match idx {
             StackLocation::Index(idx) => self.stack.get_mut(idx).and_then(|state| state.root_mut()),
-            StackLocation::Root => self.root_state.0.as_deref_mut()
+            StackLocation::Root => self.root_state.0.root_mut()
         }
     }
 
     pub(super) fn report_root(&mut self) -> Option<&mut T::Node> {
         if self.root_state.1 != NodeState::Reported {
             self.root_state.1 = NodeState::Reported;
-            self.root_state.0.as_deref_mut()
+            self.root_state.0.root_mut()
         } else { None }
     }
 
@@ -174,8 +176,8 @@ where
             parent.attach_subtree(state.side_of_parent, state.into_tree())
         } else {
             let side = state.side_of_parent;
-            self.root_state.0.as_mut()?.attach_subtree(side, state.into_tree());
-            self.root_state.0.as_mut()?.subtree_mut(side).root_mut()
+            self.root_state.0.attach_subtree(side, state.into_tree());
+            self.root_state.0.subtree_mut(side)?.root_mut()
         }
     }
 
@@ -208,33 +210,31 @@ where
 
         // Expand the node.
         let node = state.root_mut()?;
-        let mut new_states = Vec::new();
         match (self.instruction_fn)(node)  {
             WalkInstruction::Left => {
                 let left = node.detach_left();
                 if !left.is_leaf() {
-                    new_states.push(StackFrame::new(left, location, Side::Left))
+                    self.stack.push(StackFrame::new(left, location, Side::Left))
                 }
             },
             WalkInstruction::Right => {
                 let right = node.detach_right();
                 if !right.is_leaf() {
-                    new_states.push(StackFrame::new(right, location, Side::Right))
+                    self.stack.push(StackFrame::new(right, location, Side::Right))
                 }
             },
             WalkInstruction::Both => {
                 let left = node.detach_left();
                 let right = node.detach_right();
                 if !right.is_leaf() {
-                    new_states.push(StackFrame::new(right, location, Side::Right))
+                    self.stack.push(StackFrame::new(right, location, Side::Right))
                 }
                 if !left.is_leaf() {
-                    new_states.push(StackFrame::new(left, location, Side::Left))
+                    self.stack.push(StackFrame::new(left, location, Side::Left))
                 }
             },
             WalkInstruction::None => (),
         };
-        self.stack.extend(new_states);
         self.get_node_mut(location)
     }
 
