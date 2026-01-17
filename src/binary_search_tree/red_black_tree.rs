@@ -36,6 +36,20 @@ impl<K, V> RedBlackNode<K, V> {
     }
 }
 
+pub struct RBNodeRef<'tree, K, V> {
+    key: &'tree K,
+    value: &'tree V,
+    left: &'tree RedBlackTree<K, V>,
+    right: &'tree RedBlackTree<K, V>,
+}
+
+pub struct RBNodeRefMut<'tree, K, V> {
+    key: &'tree K,
+    value: &'tree mut V,
+    left: &'tree RedBlackTree<K, V>,
+    right: &'tree RedBlackTree<K, V>,
+}
+
 pub enum RedBlackTree<K, V> {
     Node {
         node: RedBlackNode<K, V>,
@@ -101,6 +115,20 @@ impl<K, V> RedBlackTree<K, V> {
 }
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
+    type NodeRef<'tree> = RBNodeRef<'tree, K, V>
+    where Self: 'tree;
+
+    fn node_ref(&'_ self) -> Option<Self::NodeRef<'_>> {
+        if let Self::Node { node, left, right, .. } = self {
+            Some(Self::NodeRef {
+                key: &node.key,
+                value: &node.value,
+                left,
+                right,
+            })
+        } else { None }
+    }
+
     fn is_leaf(&self) -> bool {
         match self {
             Self::Node {..} => false,
@@ -124,6 +152,20 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
 }
 
 impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
+    type NodeRefMut<'tree> = RBNodeRefMut<'tree, K, V>
+    where Self: 'tree;
+
+    fn node_ref_mut(&'_ mut self) -> Option<Self::NodeRefMut<'_>> {
+        if let Self::Node { node, left, right, .. } = self {
+            Some(Self::NodeRefMut {
+                key: &node.key,
+                value: &mut node.value,
+                left,
+                right,
+            })
+        } else { None }
+    }
+
     fn left_subtree_mut(&mut self) -> Option<&mut Self> {
         match self {
             Self::Node { left, accessed_mut, .. } => {

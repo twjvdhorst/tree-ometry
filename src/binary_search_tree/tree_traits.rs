@@ -5,7 +5,11 @@ use crate::binary_search_tree::tree_errors::StructureError;
 use super::Side;
 
 pub trait BinaryTree {
+    type NodeRef<'tree>
+    where Self: 'tree;
+
     fn is_leaf(&self) -> bool;
+    fn node_ref(&'_ self) -> Option<Self::NodeRef<'_>>;
 
     fn left_subtree(&self) -> Option<&Self>;
     fn right_subtree(&self) -> Option<&Self>;
@@ -37,6 +41,11 @@ pub trait BinaryTree {
 }
 
 pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
+    type NodeRefMut<'tree>
+    where Self: 'tree;
+
+    fn node_ref_mut(&'_ mut self) -> Option<Self::NodeRefMut<'_>>;
+
     fn left_subtree_mut(&mut self) -> Option<&mut Self>;
     fn right_subtree_mut(&mut self) -> Option<&mut Self>;
     fn subtree_mut(&mut self, side: Side) -> Option<&mut Self> {

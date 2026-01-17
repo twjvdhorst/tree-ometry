@@ -1,5 +1,5 @@
 use super::WalkInstruction;
-use crate::binary_search_tree::{Side, red_black_tree::RedBlackTree};
+use crate::binary_search_tree::{Side, tree_traits::BinaryTreeMut};
 
 #[derive(Clone, Copy)]
 enum StackLocation {
@@ -34,8 +34,8 @@ where
         }
     }
 
-    fn root_mut(&mut self) -> Option<&mut T::Node> {
-        self.tree.root_mut()
+    fn node_ref_mut(&mut self) -> Option<T::NodeRefMut> {
+        self.tree.node_ref_mut()
     }
 
     fn into_tree(self) -> T {
@@ -67,8 +67,8 @@ where
 
 pub(super) struct TraversalStack<'tree, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     root_state: (&'tree mut T, NodeState),
     stack: Vec<StackFrame<T>>,
@@ -78,8 +78,8 @@ where
 /// Custom drop implementation that unwinds the stack to restore the tree.
 impl<'tree, T, F> Drop for TraversalStack<'tree, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     fn drop(&mut self) {
         while let Some(_) = self.pop() {}
@@ -88,8 +88,8 @@ where
 
 impl<'tree, T, F> TraversalStack<'tree, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     pub(super) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
         // Expand root before iteration.
@@ -137,7 +137,7 @@ where
 
     fn get_node_mut(&mut self, idx: StackLocation) -> Option<&mut T::Node> {
         match idx {
-            StackLocation::Index(idx) => self.stack.get_mut(idx).and_then(|state| state.root_mut()),
+            StackLocation::Index(idx) => self.stack.get_mut(idx).and_then(|state| state.node_ref_mut()),
             StackLocation::Root => self.root_state.0.root_mut()
         }
     }
@@ -204,7 +204,7 @@ where
         state.mark_expanded();
 
         // Expand the node.
-        let node = state.root_mut()?;
+        let node = state.node_ref_mut()?;
         match (self.instruction_fn)(node)  {
             WalkInstruction::Left => {
                 let left = node.detach_left();
@@ -255,7 +255,7 @@ where
         match state.parent_location {
             StackLocation::Index(idx) => self.stack.get_mut(idx).and_then(|state| {
                 state.mark_reported();
-                state.root_mut()
+                state.node_ref_mut()
             }),
             StackLocation::Root => self.report_root(),
         }

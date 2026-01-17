@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 lending-iterator = "0.1.7"
+nougat = "0.2.4"
 thiserror = "2.0.17"
 
 [dev-dependencies]
