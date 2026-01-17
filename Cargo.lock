@@ -202,7 +202,6 @@ name = "rusty-trees"
 version = "0.1.0"
 dependencies = [
  "lending-iterator",
- "nougat",
  "rand",
  "thiserror",
 ]

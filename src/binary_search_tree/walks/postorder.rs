@@ -1,47 +1,77 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    node_traits::BinaryTree,
-    walks::{WalkInstruction, traversal_stack::TraversalStack},
+    Side, 
+    tree_traits::BinaryTreeMut,
+    walks::{
+        WalkInstruction,
+        traversal_stack::TraversalStack,
+    }
 };
 
-pub struct PostorderWalk<'tree, T, F>
-where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
-{
-    stack: TraversalStack<'tree, T, F>,
+#[derive(Clone, Copy)]
+enum StackLocation {
+    Index(usize),
+    Root,
 }
 
-impl<'tree, T, F> PostorderWalk<'tree, T, F>
+struct StackFrame<T> {
+    tree: T,
+    parent_location: StackLocation,
+    side_of_parent: Side,
+}
+
+pub(crate) struct PostorderWalkMut<'tree, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    stack: TraversalStack<'tree, T>,
+    instruction_fn: F,
+}
+
+impl<'tree, T, F> PostorderWalkMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     pub fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
         Self {
-            stack: TraversalStack::new(tree, instruction_fn),
+            stack: TraversalStack::new(tree),
+            instruction_fn,
+        }
+    }
+}
+
+impl<'tree, T, F> PostorderWalkMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    fn expand(&mut self) -> bool {
+        let Some(tree) = self.stack.last() else { return false; };
+        match (self.instruction_fn)(tree) {
+            WalkInstruction::Left => self.stack.expand_left(),
+            WalkInstruction::Right => self.stack.expand_right(),
+            WalkInstruction::Both => self.stack.expand_both(),
+            WalkInstruction::None => false,
         }
     }
 }
 
 #[gat]
-impl<'tree, T, F> LendingIterator for PostorderWalk<'tree, T, F>
+impl<'tree, T, F> LendingIterator for PostorderWalkMut<'tree, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut T::Node;
+        = T::NodeRefMut<'next>;
 
-    fn next(self: &'_ mut PostorderWalk<'tree, T, F>) -> Option<&'_ mut T::Node> {
-        if !self.stack.is_empty() {
-            while self.stack.expand().is_some() {}
-            self.stack.pop()
-        } else {
-            self.stack.report_root()
-        }
+    fn next(self: &'_ mut PostorderWalkMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+        while self.expand() {}
+        self.stack.pop()
     }
 }

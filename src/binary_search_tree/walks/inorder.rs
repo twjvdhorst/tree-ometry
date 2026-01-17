@@ -1,56 +1,62 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    binary_search_tree_node::Side, node_traits::BinaryTree, walks::{WalkInstruction, traversal_stack::{TraversalStack}}
+    tree_traits::BinaryTreeMut,
+    walks::{
+        WalkInstruction,
+        traversal_stack::TraversalStack,
+    },
 };
 
-pub struct InorderWalk<'node, T, F>
+pub(crate) struct InorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
-    stack: TraversalStack<'node, T, F>,
+    stack: TraversalStack<'node, T>,
+    instruction_fn: F,
 }
 
-impl<'node, T, F> InorderWalk<'node, T, F>
+impl<'node, T, F> InorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     pub fn new(tree: &'node mut T, instruction_fn: F) -> Self {
         Self {
-            stack: TraversalStack::new(tree, instruction_fn),
+            stack: TraversalStack::new(tree),
+            instruction_fn,
         }
     }
 }
 
 #[gat]
-impl<'node, T, F> LendingIterator for InorderWalk<'node, T, F>
+impl<'node, T, F> LendingIterator for InorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut T::Node;
+        = T::NodeRefMut<'next>;
 
-    fn next(self: &'_ mut InorderWalk<'node, T, F>) -> Option<&'_ mut T::Node> {
-        while self.stack.pop_if_reported().is_some() {}
-        if self.stack.is_empty() {
-            return self.stack.report_root();
-        }
-
-        if self.stack.side_of_parent() == Some(Side::Right) && !self.stack.is_parent_reported() {
-            self.stack.report_parent()
-        } else {
-            while !self.stack.is_expanded() && self.stack.has_subtree(Side::Left) {
-                self.stack.expand();
+    fn next(self: &'_ mut InorderWalkMut<'node, T, F>) -> Option<T::NodeRefMut<'_>> {
+        loop {
+            let instruction = (self.instruction_fn)(self.stack.last()?);
+            if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && self.stack.expand_left() {
+                continue;
             }
-            if self.stack.has_subtree(Side::Right) {
-                self.stack.expand_and_report()
+
+            // Left subtree has previously been expanded and reported.
+            if !self.stack.is_reported() {
+                return self.stack.report();
+            } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && self.stack.expand_right() {
+                continue;
             } else {
-                self.stack.pop()
+                // Tree and right subtree have previously been reported.
+                self.stack.pop();
+                continue;
             }
         }
     }

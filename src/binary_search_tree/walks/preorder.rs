@@ -1,47 +1,62 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    node_traits::BinaryTree,
-    walks::{WalkInstruction, traversal_stack::TraversalStack},
+    tree_traits::BinaryTreeMut,
+    walks::{
+        WalkInstruction,
+        traversal_stack::TraversalStack,
+    },
 };
 
-pub struct PreorderWalk<'node, T, F>
+pub(crate) struct PreorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
-    stack: TraversalStack<'node, T, F>,
+    stack: TraversalStack<'node, T>,
+    instruction_fn: F,
 }
 
-impl<'node, T, F> PreorderWalk<'node, T, F>
+impl<'node, T, F> PreorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     pub fn new(tree: &'node mut T, instruction_fn: F) -> Self {
         Self {
-            stack: TraversalStack::new(tree, instruction_fn),
+            stack: TraversalStack::new(tree),
+            instruction_fn,
         }
     }
 }
 
 #[gat]
-impl<'node, T, F> LendingIterator for PreorderWalk<'node, T, F>
+impl<'node, T, F> LendingIterator for PreorderWalkMut<'node, T, F>
 where 
-    T: BinaryTree,
-    F: Fn(&T::Node) -> WalkInstruction,
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
 {
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut T::Node;
+        = T::NodeRefMut<'next>;
 
-    fn next(self: &'_ mut PreorderWalk<'node, T, F>) -> Option<&'_ mut T::Node> {
-        if !self.stack.is_root_reported() {
-            return self.stack.report_root();
+    fn next(self: &'_ mut PreorderWalkMut<'node, T, F>) -> Option<T::NodeRefMut<'_>> {
+        loop {
+            if !self.stack.is_reported() {
+                return self.stack.report();
+            }
+
+            let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
+                WalkInstruction::Left => self.stack.expand_left(),
+                WalkInstruction::Right => self.stack.expand_right(),
+                WalkInstruction::Both => self.stack.expand_both(),
+                WalkInstruction::None => false,
+            };
+            if !is_expanded {
+                // Last tree on the stack is either a leaf or an already expanded tree.
+                self.stack.pop();
+            }
         }
-        
-        while self.stack.pop_if_expanded().is_some() {}
-        self.stack.expand_and_report()
     }
 }

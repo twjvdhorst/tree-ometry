@@ -37,17 +37,17 @@ impl<K, V> RedBlackNode<K, V> {
 }
 
 pub struct RBNodeRef<'tree, K, V> {
-    key: &'tree K,
-    value: &'tree V,
-    left: &'tree RedBlackTree<K, V>,
-    right: &'tree RedBlackTree<K, V>,
+    pub key: &'tree K,
+    pub value: &'tree V,
+    pub left: &'tree RedBlackTree<K, V>,
+    pub right: &'tree RedBlackTree<K, V>,
 }
 
-pub struct RBNodeRefMut<'tree, K, V> {
-    key: &'tree K,
-    value: &'tree mut V,
-    left: &'tree RedBlackTree<K, V>,
-    right: &'tree RedBlackTree<K, V>,
+pub(crate) struct RBNodeRefMut<'tree, K, V> {
+    pub(crate) key: &'tree K,
+    pub(crate) value: &'tree mut V,
+    pub(crate) left: &'tree RedBlackTree<K, V>,
+    pub(crate) right: &'tree RedBlackTree<K, V>,
 }
 
 pub enum RedBlackTree<K, V> {
