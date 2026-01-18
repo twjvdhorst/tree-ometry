@@ -1,28 +1,32 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    tree_traits::BinaryTreeMut,
-    walks::{
+    tree_traits::{
+        BinaryTree,
+        BinaryTreeMut,
+    },
+    tree_iterators::{
         WalkInstruction,
         traversal_stack::TraversalStack,
+        traversal_stack_mut::TraversalStackMut,
     },
 };
 
-pub(crate) struct PreorderWalkMut<'tree, T, F>
+pub struct PreorderIter<'tree, T, F>
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree + 'tree,
     F: Fn(&T) -> WalkInstruction,
 {
     stack: TraversalStack<'tree, T>,
     instruction_fn: F,
 }
 
-impl<'tree, T, F> PreorderWalkMut<'tree, T, F>
+impl<'tree, T, F> PreorderIter<'tree, T, F> 
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree + 'tree,
     F: Fn(&T) -> WalkInstruction,
 {
-    pub(crate) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
+    pub fn new(tree: &'tree T, instruction_fn: F) -> Self {
         Self {
             stack: TraversalStack::new(tree),
             instruction_fn,
@@ -31,7 +35,60 @@ where
 }
 
 #[gat]
-impl<'tree, T, F> LendingIterator for PreorderWalkMut<'tree, T, F>
+impl<'tree, T, F> LendingIterator for PreorderIter<'tree, T, F>
+where 
+    T: BinaryTree + 'tree,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = T::NodeRef<'next>;
+
+    fn next(self: &'_ mut PreorderIter<'tree, T, F>) -> Option<T::NodeRef<'_>> {
+        loop {
+            if !self.stack.is_reported() {
+                return self.stack.report();
+            }
+
+            let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
+                WalkInstruction::Left => self.stack.expand_left(),
+                WalkInstruction::Right => self.stack.expand_right(),
+                WalkInstruction::Both => self.stack.expand_both(),
+                WalkInstruction::None => false,
+            };
+            if !is_expanded {
+                // Last tree on the stack is either a leaf or an already expanded tree.
+                self.stack.pop();
+            }
+        }
+    }
+}
+
+pub(crate) struct PreorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    stack: TraversalStackMut<'tree, T>,
+    instruction_fn: F,
+}
+
+impl<'tree, T, F> PreorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    pub(crate) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
+        Self {
+            stack: TraversalStackMut::new(tree),
+            instruction_fn,
+        }
+    }
+}
+
+#[gat]
+impl<'tree, T, F> LendingIterator for PreorderIterMut<'tree, T, F>
 where 
     T: BinaryTreeMut,
     F: Fn(&T) -> WalkInstruction,
@@ -41,7 +98,7 @@ where
         Self: 'next,
         = T::NodeRefMut<'next>;
 
-    fn next(self: &'_ mut PreorderWalkMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+    fn next(self: &'_ mut PreorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
         loop {
             if !self.stack.is_reported() {
                 return self.stack.report();
@@ -114,7 +171,7 @@ mod tests {
             }
 
             let preorder_sequence = {
-                let mut iter = PreorderWalkMut::new(&mut tree, |_| WalkInstruction::Both);
+                let mut iter = PreorderIterMut::new(&mut tree, |_| WalkInstruction::Both);
                 let mut preorder_sequence = Vec::new();
                 while let Some(node) = iter.next() {
                     preorder_sequence.push(node.key.clone());

@@ -1,40 +1,34 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    tree_traits::BinaryTreeMut,
-    walks::{
+    tree_iterators::{
         WalkInstruction,
         traversal_stack::TraversalStack,
-    }
+        traversal_stack_mut::TraversalStackMut,
+    }, tree_traits::{BinaryTree, BinaryTreeMut}
 };
 
-pub(crate) struct PostorderWalkMut<'tree, T, F>
+pub struct PostorderIter<'tree, T, F>
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree + 'tree,
     F: Fn(&T) -> WalkInstruction,
 {
     stack: TraversalStack<'tree, T>,
     instruction_fn: F,
 }
 
-impl<'tree, T, F> PostorderWalkMut<'tree, T, F>
+impl<'tree, T, F> PostorderIter<'tree, T, F> 
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree + 'tree,
     F: Fn(&T) -> WalkInstruction,
 {
-    pub(crate) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
+    pub fn new(tree: &'tree T, instruction_fn: F) -> Self {
         Self {
             stack: TraversalStack::new(tree),
             instruction_fn,
         }
     }
-}
-
-impl<'tree, T, F> PostorderWalkMut<'tree, T, F>
-where 
-    T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
-{
+    
     fn expand(&mut self) -> bool {
         let Some(tree) = self.stack.last() else { return false; };
         match (self.instruction_fn)(tree) {
@@ -47,7 +41,56 @@ where
 }
 
 #[gat]
-impl<'tree, T, F> LendingIterator for PostorderWalkMut<'tree, T, F>
+impl<'tree, T, F> LendingIterator for PostorderIter<'tree, T, F>
+where 
+    T: BinaryTree + 'tree,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = T::NodeRef<'next>;
+
+    fn next(self: &'_ mut PostorderIter<'tree, T, F>) -> Option<T::NodeRef<'_>> {
+        while self.expand() {}
+        self.stack.pop()
+    }
+}
+
+pub(crate) struct PostorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    stack: TraversalStackMut<'tree, T>,
+    instruction_fn: F,
+}
+
+impl<'tree, T, F> PostorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    pub(crate) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
+        Self {
+            stack: TraversalStackMut::new(tree),
+            instruction_fn,
+        }
+    }
+
+    fn expand(&mut self) -> bool {
+        let Some(tree) = self.stack.last() else { return false; };
+        match (self.instruction_fn)(tree) {
+            WalkInstruction::Left => self.stack.expand_left(),
+            WalkInstruction::Right => self.stack.expand_right(),
+            WalkInstruction::Both => self.stack.expand_both(),
+            WalkInstruction::None => false,
+        }
+    }
+}
+
+#[gat]
+impl<'tree, T, F> LendingIterator for PostorderIterMut<'tree, T, F>
 where 
     T: BinaryTreeMut,
     F: Fn(&T) -> WalkInstruction,
@@ -57,7 +100,7 @@ where
         Self: 'next,
         = T::NodeRefMut<'next>;
 
-    fn next(self: &'_ mut PostorderWalkMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+    fn next(self: &'_ mut PostorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
         while self.expand() {}
         self.stack.pop()
     }
@@ -116,7 +159,7 @@ mod tests {
             }
 
             let postorder_sequence = {
-                let mut iter = PostorderWalkMut::new(&mut tree, |_| WalkInstruction::Both);
+                let mut iter = PostorderIterMut::new(&mut tree, |_| WalkInstruction::Both);
                 let mut postorder_sequence = Vec::new();
                 while let Some(node) = iter.next() {
                     postorder_sequence.push(node.key.clone());
@@ -133,7 +176,7 @@ mod tests {
                 let first_divergence_idx = Iterator::zip(path1.iter(), path2.iter())
                     .position(|(side1, side2)| side1 != side2)
                     .unwrap_or(min(path1.len(), path2.len()));
-
+                
                 assert!(
                     match (path1.get(first_divergence_idx), path2.get(first_divergence_idx)) {
                         (Some(side), Some(_)) => *side == Side::Left,
