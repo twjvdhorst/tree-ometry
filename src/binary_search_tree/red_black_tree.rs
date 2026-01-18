@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use paste::paste;
 
 use crate::binary_search_tree::tree_iterators::{
     WalkInstruction,
@@ -96,72 +97,30 @@ where
     }
 }
 
+macro_rules! make_iters {
+    ($vis: vis, $iter_name: ident, $iter_type: ident) => {
+        paste!{
+            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> WalkInstruction> {
+                self.[<$iter_name _with>](|_| WalkInstruction::Both)
+            }
+
+            $vis fn [<$iter_name _with>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
+            where
+                F: Fn(&Self) -> WalkInstruction,
+            {
+                $iter_type::new(self, f)
+            }
+        }
+    };
+}
+
 impl<K, V> RedBlackTree<K, V> {
-    pub fn inorder_iter(&mut self) -> InorderIter<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.inorder_iter_with(|_| WalkInstruction::Both)
-    }
-
-    pub fn inorder_iter_with<F>(&'_ mut self, f: F) -> InorderIter<'_, Self, F>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        InorderIter::new(self, f)
-    }
-
-    pub fn preorder_iter<F>(&mut self) -> PreorderIter<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.preorder_iter_with(|_| WalkInstruction::Both)
-    }
-
-    pub fn preorder_iter_with<F>(&'_ mut self, f: F) -> PreorderIter<'_, Self, impl Fn(&Self) -> WalkInstruction>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        PreorderIter::new(self, f)
-    }
-
-    pub fn postorder_iter<F>(&mut self) -> PostorderIter<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.postorder_iter_with(|_| WalkInstruction::Both)
-    }
-
-    pub fn postorder_iter_with<F>(&'_ mut self, f: F) -> PostorderIter<'_, Self, F>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        PostorderIter::new(self, f)
-    }
-
-    pub(crate) fn inorder_iter_mut(&mut self) -> InorderIterMut<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.inorder_iter_mut_with(|_| WalkInstruction::Both)
-    }
-
-    pub(crate) fn inorder_iter_mut_with<F>(&'_ mut self, f: F) -> InorderIterMut<'_, Self, F>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        InorderIterMut::new(self, f)
-    }
-
-    pub(crate) fn preorder_iter_mut<F>(&mut self) -> PreorderIterMut<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.preorder_iter_mut_with(|_| WalkInstruction::Both)
-    }
-
-    pub(crate) fn preorder_iter_mut_with<F>(&'_ mut self, f: F) -> PreorderIterMut<'_, Self, impl Fn(&Self) -> WalkInstruction>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        PreorderIterMut::new(self, f)
-    }
-
-    pub(crate) fn postorder_iter_mut<F>(&mut self) -> PostorderIterMut<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-        self.postorder_iter_mut_with(|_| WalkInstruction::Both)
-    }
-
-    pub(crate) fn postorder_iter_mut_with<F>(&'_ mut self, f: F) -> PostorderIterMut<'_, Self, F>
-    where 
-        F: Fn(&Self) -> WalkInstruction,
-    {
-        PostorderIterMut::new(self, f)
-    }
+    make_iters!(pub, inorder_iter, InorderIter);
+    make_iters!(pub(crate), inorder_iter_mut, InorderIterMut);
+    make_iters!(pub, preorder_iter, PreorderIter);
+    make_iters!(pub(crate), preorder_iter_mut, PreorderIterMut);
+    make_iters!(pub, postorder_iter, PostorderIter);
+    make_iters!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> RedBlackTree<K, V> {
