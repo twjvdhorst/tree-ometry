@@ -12,6 +12,42 @@ use crate::binary_search_tree::{
     },
 };
 
+macro_rules! impl_inorder_iter {
+    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
+        #[gat]
+        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
+        where 
+            T: $tree_trait,
+            F: Fn(&T) -> WalkInstruction,
+        {
+            type Item<'next>
+            where 
+                Self: 'next,
+                = T::$item<'next>;
+
+            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
+                loop {
+                    let instruction = (self.instruction_fn)(self.stack.last()?);
+                    if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && self.stack.expand_left() {
+                        continue;
+                    }
+
+                    // Left subtree has previously been expanded and reported.
+                    if !self.stack.is_reported() {
+                        return self.stack.report();
+                    } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && self.stack.expand_right() {
+                        continue;
+                    } else {
+                        // Tree and right subtree have previously been reported.
+                        self.stack.pop();
+                        continue;
+                    }
+                }
+            }
+        }
+    };
+}
+
 pub struct InorderIter<'tree, T, F>
 where 
     T: BinaryTree + 'tree,
@@ -33,38 +69,7 @@ where
         }
     }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for InorderIter<'tree, T, F>
-where 
-    T: BinaryTree + 'tree,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRef<'next>;
-
-    fn next(self: &'_ mut InorderIter<'tree, T, F>) -> Option<T::NodeRef<'_>> {
-        loop {
-            let instruction = (self.instruction_fn)(self.stack.last()?);
-            if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && self.stack.expand_left() {
-                continue;
-            }
-
-            // Left subtree has previously been expanded and reported.
-            if !self.stack.is_reported() {
-                return self.stack.report();
-            } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && self.stack.expand_right() {
-                continue;
-            } else {
-                // Tree and right subtree have previously been reported.
-                self.stack.pop();
-                continue;
-            }
-        }
-    }
-}
+impl_inorder_iter!(InorderIter, BinaryTree, NodeRef, TraversalStack);
 
 pub(crate) struct InorderIterMut<'tree, T, F>
 where 
@@ -87,38 +92,7 @@ where
         }
     }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for InorderIterMut<'tree, T, F>
-where 
-    T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRefMut<'next>;
-
-    fn next(self: &'_ mut InorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
-        loop {
-            let instruction = (self.instruction_fn)(self.stack.last()?);
-            if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && self.stack.expand_left() {
-                continue;
-            }
-
-            // Left subtree has previously been expanded and reported.
-            if !self.stack.is_reported() {
-                return self.stack.report();
-            } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && self.stack.expand_right() {
-                continue;
-            } else {
-                // Tree and right subtree have previously been reported.
-                self.stack.pop();
-                continue;
-            }
-        }
-    }
-}
+impl_inorder_iter!(InorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
 
 #[cfg(test)]
 mod tests {

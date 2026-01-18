@@ -12,6 +12,41 @@ use crate::binary_search_tree::{
     },
 };
 
+macro_rules! impl_preorder_iter {
+    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
+        #[gat]
+        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
+        where 
+            T: $tree_trait,
+            F: Fn(&T) -> WalkInstruction,
+        {
+            type Item<'next>
+            where 
+                Self: 'next,
+                = T::$item<'next>;
+
+            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
+                loop {
+                    if !self.stack.is_reported() {
+                        return self.stack.report();
+                    }
+
+                    let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
+                        WalkInstruction::Left => self.stack.expand_left(),
+                        WalkInstruction::Right => self.stack.expand_right(),
+                        WalkInstruction::Both => self.stack.expand_both(),
+                        WalkInstruction::None => false,
+                    };
+                    if !is_expanded {
+                        // Last tree on the stack is either a leaf or an already expanded tree.
+                        self.stack.pop();
+                    }
+                }
+            }
+        }
+    };
+}
+
 pub struct PreorderIter<'tree, T, F>
 where 
     T: BinaryTree + 'tree,
@@ -33,37 +68,7 @@ where
         }
     }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for PreorderIter<'tree, T, F>
-where 
-    T: BinaryTree + 'tree,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRef<'next>;
-
-    fn next(self: &'_ mut PreorderIter<'tree, T, F>) -> Option<T::NodeRef<'_>> {
-        loop {
-            if !self.stack.is_reported() {
-                return self.stack.report();
-            }
-
-            let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
-                WalkInstruction::Left => self.stack.expand_left(),
-                WalkInstruction::Right => self.stack.expand_right(),
-                WalkInstruction::Both => self.stack.expand_both(),
-                WalkInstruction::None => false,
-            };
-            if !is_expanded {
-                // Last tree on the stack is either a leaf or an already expanded tree.
-                self.stack.pop();
-            }
-        }
-    }
-}
+impl_preorder_iter!(PreorderIter, BinaryTree, NodeRef, TraversalStack);
 
 pub(crate) struct PreorderIterMut<'tree, T, F>
 where 
@@ -86,37 +91,7 @@ where
         }
     }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for PreorderIterMut<'tree, T, F>
-where 
-    T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRefMut<'next>;
-
-    fn next(self: &'_ mut PreorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
-        loop {
-            if !self.stack.is_reported() {
-                return self.stack.report();
-            }
-
-            let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
-                WalkInstruction::Left => self.stack.expand_left(),
-                WalkInstruction::Right => self.stack.expand_right(),
-                WalkInstruction::Both => self.stack.expand_both(),
-                WalkInstruction::None => false,
-            };
-            if !is_expanded {
-                // Last tree on the stack is either a leaf or an already expanded tree.
-                self.stack.pop();
-            }
-        }
-    }
-}
+impl_preorder_iter!(PreorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
 
 #[cfg(test)]
 mod tests {

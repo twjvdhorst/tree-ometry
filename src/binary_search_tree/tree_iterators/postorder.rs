@@ -8,9 +8,42 @@ use crate::binary_search_tree::{
     }, tree_traits::{BinaryTree, BinaryTreeMut}
 };
 
+macro_rules! impl_postorder_iter {
+    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
+        #[gat]
+        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
+        where 
+            T: $tree_trait,
+            F: Fn(&T) -> WalkInstruction,
+        {
+            type Item<'next>
+            where 
+                Self: 'next,
+                = T::$item<'next>;
+
+            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
+                let mut expand = true;
+                while expand {
+                    if let Some(tree) = self.stack.last() {
+                        expand = match (self.instruction_fn)(tree) {
+                            WalkInstruction::Left => self.stack.expand_left(),
+                            WalkInstruction::Right => self.stack.expand_right(),
+                            WalkInstruction::Both => self.stack.expand_both(),
+                            WalkInstruction::None => false,
+                        }
+                    } else {
+                        expand = false;
+                    }
+                }
+                self.stack.pop()
+            }
+        }
+    };
+}
+
 pub struct PostorderIter<'tree, T, F>
 where 
-    T: BinaryTree + 'tree,
+    T: BinaryTree,
     F: Fn(&T) -> WalkInstruction,
 {
     stack: TraversalStack<'tree, T>,
@@ -19,7 +52,7 @@ where
 
 impl<'tree, T, F> PostorderIter<'tree, T, F> 
 where 
-    T: BinaryTree + 'tree,
+    T: BinaryTree,
     F: Fn(&T) -> WalkInstruction,
 {
     pub fn new(tree: &'tree T, instruction_fn: F) -> Self {
@@ -28,34 +61,8 @@ where
             instruction_fn,
         }
     }
-    
-    fn expand(&mut self) -> bool {
-        let Some(tree) = self.stack.last() else { return false; };
-        match (self.instruction_fn)(tree) {
-            WalkInstruction::Left => self.stack.expand_left(),
-            WalkInstruction::Right => self.stack.expand_right(),
-            WalkInstruction::Both => self.stack.expand_both(),
-            WalkInstruction::None => false,
-        }
-    }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for PostorderIter<'tree, T, F>
-where 
-    T: BinaryTree + 'tree,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRef<'next>;
-
-    fn next(self: &'_ mut PostorderIter<'tree, T, F>) -> Option<T::NodeRef<'_>> {
-        while self.expand() {}
-        self.stack.pop()
-    }
-}
+impl_postorder_iter!(PostorderIter, BinaryTree, NodeRef, TraversalStack);
 
 pub(crate) struct PostorderIterMut<'tree, T, F>
 where 
@@ -77,34 +84,8 @@ where
             instruction_fn,
         }
     }
-
-    fn expand(&mut self) -> bool {
-        let Some(tree) = self.stack.last() else { return false; };
-        match (self.instruction_fn)(tree) {
-            WalkInstruction::Left => self.stack.expand_left(),
-            WalkInstruction::Right => self.stack.expand_right(),
-            WalkInstruction::Both => self.stack.expand_both(),
-            WalkInstruction::None => false,
-        }
-    }
 }
-
-#[gat]
-impl<'tree, T, F> LendingIterator for PostorderIterMut<'tree, T, F>
-where 
-    T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
-{
-    type Item<'next>
-    where 
-        Self: 'next,
-        = T::NodeRefMut<'next>;
-
-    fn next(self: &'_ mut PostorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
-        while self.expand() {}
-        self.stack.pop()
-    }
-}
+impl_postorder_iter!(PostorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
 
 #[cfg(test)]
 mod tests {
