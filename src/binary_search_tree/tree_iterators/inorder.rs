@@ -12,40 +12,26 @@ use crate::binary_search_tree::{
     },
 };
 
-macro_rules! impl_inorder_iter {
-    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
-        #[gat]
-        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
-        where 
-            T: $tree_trait,
-            F: Fn(&T) -> WalkInstruction,
-        {
-            type Item<'next>
-            where 
-                Self: 'next,
-                = T::$item<'next>;
+macro_rules! impl_inorder_next {
+    ($self: ident) => {{
+        loop {
+            let instruction = ($self.instruction_fn)($self.stack.last_tree()?);
+            if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && $self.stack.expand_left() {
+                continue;
+            }
 
-            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
-                loop {
-                    let instruction = (self.instruction_fn)(self.stack.last()?);
-                    if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && self.stack.expand_left() {
-                        continue;
-                    }
-
-                    // Left subtree has previously been expanded and reported.
-                    if !self.stack.is_reported() {
-                        return self.stack.report();
-                    } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && self.stack.expand_right() {
-                        continue;
-                    } else {
-                        // Tree and right subtree have previously been reported.
-                        self.stack.pop();
-                        continue;
-                    }
-                }
+            // Left subtree has previously been expanded and reported.
+            if !$self.stack.is_reported() {
+                return $self.stack.report();
+            } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && $self.stack.expand_right() {
+                continue;
+            } else {
+                // Tree and right subtree have previously been reported.
+                $self.stack.pop();
+                continue;
             }
         }
-    };
+    }}
 }
 
 pub struct InorderIter<'tree, T, F>
@@ -69,7 +55,18 @@ where
         }
     }
 }
-impl_inorder_iter!(InorderIter, BinaryTree, NodeRef, TraversalStack);
+
+impl<'tree, T, F> Iterator for InorderIter<'tree, T, F>
+where 
+    T: BinaryTree,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item = T::NodeRef<'tree>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        impl_inorder_next!(self)
+    }
+}
 
 pub(crate) struct InorderIterMut<'tree, T, F>
 where 
@@ -92,7 +89,22 @@ where
         }
     }
 }
-impl_inorder_iter!(InorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
+
+#[gat]
+impl<'tree, T, F> LendingIterator for InorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = T::NodeRefMut<'next>;
+
+    fn next(self: &'_ mut InorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+        impl_inorder_next!(self)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -134,6 +146,30 @@ mod tests {
         path
     }
 
+    fn get_sequence<K, V>(tree: &RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = InorderIter::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
+    fn get_sequence_mut<K, V>(tree: &mut RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = InorderIterMut::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
     #[test]
     fn test_inorder_walk() {
         // Test the inorder iterator for random trees.
@@ -146,16 +182,16 @@ mod tests {
                 tree.insert(key, ());
             }
 
-            let inorder_sequence = {
-                let mut iter = InorderIterMut::new(&mut tree, |_| WalkInstruction::Both);
-                let mut inorder_sequence = Vec::new();
-                while let Some(node) = iter.next() {
-                    inorder_sequence.push(node.key.clone());
-                }
-                inorder_sequence
-            };
+            // Ensure immutable and mutable iterators yield the same values.
+            for (k1, k2) in Iterator::zip(
+                get_sequence(&tree).iter(), 
+                get_sequence_mut(&mut tree).iter()
+            ) {
+                assert!(k1 == k2);
+            }
             
-            let paths = inorder_sequence.iter()
+            // Verify that the sequence is inorder.
+            let paths = get_sequence(&tree).iter()
                 .map(|key| path_to_key(&tree, key))
                 .collect::<Vec<_>>();
             for window in paths.windows(2) {

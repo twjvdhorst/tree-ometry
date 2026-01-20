@@ -12,39 +12,25 @@ use crate::binary_search_tree::{
     },
 };
 
-macro_rules! impl_preorder_iter {
-    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
-        #[gat]
-        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
-        where 
-            T: $tree_trait,
-            F: Fn(&T) -> WalkInstruction,
-        {
-            type Item<'next>
-            where 
-                Self: 'next,
-                = T::$item<'next>;
+macro_rules! impl_preorder_next {
+    ($self: ident) => {{
+        loop {
+            if !$self.stack.is_reported() {
+                return $self.stack.report();
+            }
 
-            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
-                loop {
-                    if !self.stack.is_reported() {
-                        return self.stack.report();
-                    }
-
-                    let is_expanded = match (self.instruction_fn)(self.stack.last()?) {
-                        WalkInstruction::Left => self.stack.expand_left(),
-                        WalkInstruction::Right => self.stack.expand_right(),
-                        WalkInstruction::Both => self.stack.expand_both(),
-                        WalkInstruction::None => false,
-                    };
-                    if !is_expanded {
-                        // Last tree on the stack is either a leaf or an already expanded tree.
-                        self.stack.pop();
-                    }
-                }
+            let is_expanded = match ($self.instruction_fn)($self.stack.last_tree()?) {
+                WalkInstruction::Left => $self.stack.expand_left(),
+                WalkInstruction::Right => $self.stack.expand_right(),
+                WalkInstruction::Both => $self.stack.expand_both(),
+                WalkInstruction::None => false,
+            };
+            if !is_expanded {
+                // Last tree on the stack is either a leaf or an already expanded tree.
+                $self.stack.pop();
             }
         }
-    };
+    }}
 }
 
 pub struct PreorderIter<'tree, T, F>
@@ -68,7 +54,18 @@ where
         }
     }
 }
-impl_preorder_iter!(PreorderIter, BinaryTree, NodeRef, TraversalStack);
+
+impl<'tree, T, F> Iterator for PreorderIter<'tree, T, F>
+where 
+    T: BinaryTree,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item = T::NodeRef<'tree>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        impl_preorder_next!(self)
+    }
+}
 
 pub(crate) struct PreorderIterMut<'tree, T, F>
 where 
@@ -91,7 +88,22 @@ where
         }
     }
 }
-impl_preorder_iter!(PreorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
+
+#[gat]
+impl<'tree, T, F> LendingIterator for PreorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = T::NodeRefMut<'next>;
+
+    fn next(self: &'_ mut PreorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+        impl_preorder_next!(self)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -133,6 +145,30 @@ mod tests {
         path
     }
 
+    fn get_sequence<K, V>(tree: &RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = PreorderIter::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
+    fn get_sequence_mut<K, V>(tree: &mut RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = PreorderIterMut::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
     #[test]
     fn test_preorder_walk() {
         // Test the preorder iterator for random trees.
@@ -145,16 +181,16 @@ mod tests {
                 tree.insert(key, ());
             }
 
-            let preorder_sequence = {
-                let mut iter = PreorderIterMut::new(&mut tree, |_| WalkInstruction::Both);
-                let mut preorder_sequence = Vec::new();
-                while let Some(node) = iter.next() {
-                    preorder_sequence.push(node.key.clone());
-                }
-                preorder_sequence
-            };
+            // Ensure immutable and mutable iterators yield the same values.
+            for (k1, k2) in Iterator::zip(
+                get_sequence(&tree).iter(), 
+                get_sequence_mut(&mut tree).iter()
+            ) {
+                assert!(k1 == k2);
+            }
             
-            let paths = preorder_sequence.iter()
+            // Verify that the sequence is preorder.
+            let paths = get_sequence(&tree).iter()
                 .map(|key| path_to_key(&tree, key))
                 .collect::<Vec<_>>();
             for window in paths.windows(2) {

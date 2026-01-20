@@ -8,37 +8,23 @@ use crate::binary_search_tree::{
     }, tree_traits::{BinaryTree, BinaryTreeMut}
 };
 
-macro_rules! impl_postorder_iter {
-    ($struct_name: ident, $tree_trait: ident, $item: ident, $stack_name: ident) => {
-        #[gat]
-        impl<'tree, T, F> LendingIterator for $struct_name<'tree, T, F>
-        where 
-            T: $tree_trait,
-            F: Fn(&T) -> WalkInstruction,
-        {
-            type Item<'next>
-            where 
-                Self: 'next,
-                = T::$item<'next>;
-
-            fn next(self: &'_ mut $struct_name<'tree, T, F>) -> Option<T::$item<'_>> {
-                let mut expand = true;
-                while expand {
-                    if let Some(tree) = self.stack.last() {
-                        expand = match (self.instruction_fn)(tree) {
-                            WalkInstruction::Left => self.stack.expand_left(),
-                            WalkInstruction::Right => self.stack.expand_right(),
-                            WalkInstruction::Both => self.stack.expand_both(),
-                            WalkInstruction::None => false,
-                        }
-                    } else {
-                        expand = false;
-                    }
+macro_rules! impl_postorder_next {
+    ($self: ident) => {{
+        let mut expand = true;
+        while expand {
+            if let Some(tree) = $self.stack.last_tree() {
+                expand = match ($self.instruction_fn)(tree) {
+                    WalkInstruction::Left => $self.stack.expand_left(),
+                    WalkInstruction::Right => $self.stack.expand_right(),
+                    WalkInstruction::Both => $self.stack.expand_both(),
+                    WalkInstruction::None => false,
                 }
-                self.stack.pop()
+            } else {
+                expand = false;
             }
         }
-    };
+        $self.stack.pop()
+    }};
 }
 
 pub struct PostorderIter<'tree, T, F>
@@ -62,7 +48,18 @@ where
         }
     }
 }
-impl_postorder_iter!(PostorderIter, BinaryTree, NodeRef, TraversalStack);
+
+impl<'tree, T, F> Iterator for PostorderIter<'tree, T, F>
+where 
+    T: BinaryTree,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item = T::NodeRef<'tree>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        impl_postorder_next!(self)
+    }
+}
 
 pub(crate) struct PostorderIterMut<'tree, T, F>
 where 
@@ -85,7 +82,22 @@ where
         }
     }
 }
-impl_postorder_iter!(PostorderIterMut, BinaryTreeMut, NodeRefMut, TraversalStackMut);
+
+#[gat]
+impl<'tree, T, F> LendingIterator for PostorderIterMut<'tree, T, F>
+where 
+    T: BinaryTreeMut,
+    F: Fn(&T) -> WalkInstruction,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = T::NodeRefMut<'next>;
+
+    fn next(self: &'_ mut PostorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+        impl_postorder_next!(self)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -127,6 +139,30 @@ mod tests {
         path
     }
 
+    fn get_sequence<K, V>(tree: &RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = PostorderIter::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
+    fn get_sequence_mut<K, V>(tree: &mut RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = PostorderIterMut::new(tree, |_| WalkInstruction::Both);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key.clone());
+            }
+            sequence
+    }
+
     #[test]
     fn test_postorder_walk() {
         // Test the postorder iterator for random trees.
@@ -139,16 +175,16 @@ mod tests {
                 tree.insert(key, ());
             }
 
-            let postorder_sequence = {
-                let mut iter = PostorderIterMut::new(&mut tree, |_| WalkInstruction::Both);
-                let mut postorder_sequence = Vec::new();
-                while let Some(node) = iter.next() {
-                    postorder_sequence.push(node.key.clone());
-                }
-                postorder_sequence
-            };
+            // Ensure immutable and mutable iterators yield the same values.
+            for (k1, k2) in Iterator::zip(
+                get_sequence(&tree).iter(), 
+                get_sequence_mut(&mut tree).iter()
+            ) {
+                assert!(k1 == k2);
+            }
             
-            let paths = postorder_sequence.iter()
+            // Verify that the sequence is postorder.
+            let paths = get_sequence(&tree).iter()
                 .map(|key| path_to_key(&tree, key))
                 .collect::<Vec<_>>();
             for window in paths.windows(2) {

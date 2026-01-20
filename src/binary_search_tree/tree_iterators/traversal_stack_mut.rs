@@ -31,8 +31,8 @@ impl<T> StackFrame<T> {
     }
 }
 
-struct TreeState<'tree, T> {
-    tree: &'tree mut T,
+struct TreeState<T> {
+    tree: T,
     is_left_expanded: bool,
     is_right_expanded: bool,
     is_reported: bool,
@@ -42,7 +42,7 @@ pub(super) struct TraversalStackMut<'tree, T>
 where 
     T: BinaryTreeMut,
 {
-    tree_state: Option<TreeState<'tree, T>>,
+    tree_state: Option<TreeState<&'tree mut T>>,
     stack: Vec<StackFrame<T>>,
 }
 
@@ -72,7 +72,7 @@ where
         }
     }
 
-    pub(super) fn last(&self) -> Option<&T> {
+    pub(super) fn last_tree(&self) -> Option<&T> {
         if !self.stack.is_empty() {
             self.stack.last().map(|state| &state.tree)
         } else {
