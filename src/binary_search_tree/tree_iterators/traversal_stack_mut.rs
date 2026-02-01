@@ -1,59 +1,56 @@
-use crate::binary_search_tree::{
-    Side,
-    tree_traits::BinaryTreeMut,
-};
+use crate::binary_search_tree::{Side, tree_traits::BinaryTreeMut};
 
-#[derive(Clone, Copy)]
-enum StackLocation {
-    Index(usize),
-    Root,
+enum Subtree<'tree, T> {
+    MutRef(&'tree mut T),
+    Detached(T, usize, Side), // Detached subtrees have a stackindex of their parent, as well as the side of the parent they were detached from
 }
 
-struct StackFrame<T> {
-    tree: T,
-    parent_location: StackLocation,
-    side_of_parent: Side,
+struct TreeState<'tree, T> {
+    subtree: Subtree<'tree, T>,
     is_left_expanded: bool,
     is_right_expanded: bool,
     is_reported: bool,
 }
 
-impl<T> StackFrame<T> {
-    fn new(tree: T, parent_location: StackLocation, side_of_parent: Side) -> Self {
+impl<'tree, T> TreeState<'tree, T> {
+    fn new_mut(subtree: &'tree mut T) -> Self {
         Self {
-            tree,
-            parent_location,
-            side_of_parent,
+            subtree: Subtree::MutRef(subtree),
             is_left_expanded: false,
             is_right_expanded: false,
             is_reported: false,
         }
     }
-}
 
-struct TreeState<T> {
-    tree: T,
-    is_left_expanded: bool,
-    is_right_expanded: bool,
-    is_reported: bool,
+    fn new_detached(subtree: T, parent_idx: usize, side_of_parent: Side) -> Self {
+        Self {
+            subtree: Subtree::Detached(subtree, parent_idx, side_of_parent),
+            is_left_expanded: false,
+            is_right_expanded: false,
+            is_reported: false,
+        }
+    }
+
+    fn subtree(&self) -> &T {
+        match &self.subtree {
+            Subtree::MutRef(subtree) => subtree,
+            Subtree::Detached(subtree, _, _) => subtree,
+        }
+    }
+    
+    fn subtree_mut(&mut self) -> &mut T {
+        match &mut self.subtree {
+            Subtree::MutRef(subtree) => subtree,
+            Subtree::Detached(subtree, _, _) => subtree,
+        }
+    }
 }
 
 pub(super) struct TraversalStackMut<'tree, T>
 where 
     T: BinaryTreeMut,
 {
-    tree_state: Option<TreeState<&'tree mut T>>,
-    stack: Vec<StackFrame<T>>,
-}
-
-/// Custom drop implementation that unwinds the stack to restore the tree.
-impl<'tree, T> Drop for TraversalStackMut<'tree, T>
-where 
-    T: BinaryTreeMut,
-{
-    fn drop(&mut self) {
-        while let Some(_) = self.pop() {}
-    }
+    stack: Vec<TreeState<'tree, T>>,
 }
 
 impl<'tree, T> TraversalStackMut<'tree, T>
@@ -62,114 +59,65 @@ where
 {
     pub(super) fn new(tree: &'tree mut T) -> Self {
         Self {
-            tree_state: Some(TreeState {
-                tree,
-                is_left_expanded: false,
-                is_right_expanded: false,
-                is_reported: false
-            }),
-            stack: Vec::new(),
+            stack: vec![TreeState::new_mut(tree)],
         }
     }
 
     pub(super) fn last_tree(&self) -> Option<&T> {
-        if !self.stack.is_empty() {
-            self.stack.last().map(|state| &state.tree)
-        } else {
-            self.tree_state.as_ref().map(|state| &*state.tree)
-        }
-    }
-
-    fn last_index(&self) -> StackLocation {
-        if !self.stack.is_empty() {
-            StackLocation::Index(self.stack.len() - 1)
-        } else { StackLocation::Root }
+        self.stack.last()
+            .map(|state| state.subtree())
     }
 
     pub(super) fn is_left_expanded(&self) -> bool {
         self.stack.last()
             .map(|state| state.is_left_expanded)
-            .unwrap_or(self.tree_state.as_ref()
-                .map(|state| state.is_left_expanded)
-                .unwrap_or(true)
-            )
+            .unwrap_or(true)
     }
 
     pub(super) fn is_right_expanded(&self) -> bool {
         self.stack.last()
             .map(|state| state.is_right_expanded)
-            .unwrap_or(self.tree_state.as_ref()
-                .map(|state| state.is_right_expanded)
-                .unwrap_or(true)
-            )
+            .unwrap_or(true)
     }
 
     pub(super) fn is_reported(&self) -> bool {
         self.stack.last()
             .map(|state| state.is_reported)
-            .unwrap_or(self.tree_state.as_ref()
-                .map(|state| state.is_reported)
-                .unwrap_or(true)
-            )
+            .unwrap_or(true)
     }
 
     pub(super) fn report(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
-        if !self.stack.is_empty() && !self.stack.last()?.is_reported {
-            let state = self.stack.last_mut()?;
+        let state = self.stack.last_mut()?;
+        if !state.is_reported {
             state.is_reported = true;
-            state.tree.node_ref_mut()
-        } else if !self.tree_state.as_ref()?.is_reported {
-            self.tree_state.as_mut()?.is_reported = true;
-            self.tree_state.as_mut()?.tree.node_ref_mut()
+            state.subtree_mut().node_ref_mut()
         } else {
             None
         }
     }
 
-    fn pop_stack(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
-        let state = self.stack.pop()?;
-        if let StackLocation::Index(idx) = state.parent_location {
-            let parent = &mut self.stack.get_mut(idx)?.tree;
-            parent.attach_subtree(state.side_of_parent, state.tree);
-            parent.subtree_mut(state.side_of_parent)?
-                .node_ref_mut()
-        } else {
-            self.tree_state.as_mut()?.tree
-                .attach_subtree(state.side_of_parent, state.tree);
-            self.tree_state.as_mut()?.tree
-                .subtree_mut(state.side_of_parent)?
-                .node_ref_mut()
-        }
-    }
-
-    fn pop_main(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
-        self.tree_state.take()?.tree
-            .node_ref_mut()
-    }
-
     pub(super) fn pop(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
-        if !self.stack.is_empty() {
-            self.pop_stack()
-        } else {
-            self.pop_main()
+        let state = self.stack.pop()?;
+        match state.subtree {
+            Subtree::MutRef(subtree) => subtree.node_ref_mut(), // Subtree is still attached to parent (or is root), no need to reattach
+            Subtree::Detached(subtree, parent_idx, side_of_parent) => { // Subtree is detached from parent. Reattach before reporting
+                let parent = self.stack.get_mut(parent_idx)?.subtree_mut();
+                parent.attach_subtree(side_of_parent, subtree);
+                parent.subtree_mut(side_of_parent)?
+                    .node_ref_mut()
+            },
         }
     }
     
     pub(super) fn expand_left(&mut self) -> bool {
         if self.is_left_expanded() { return false; }
 
-        let parent_location = self.last_index();
+        let parent_idx = self.stack.len() - 1;
         let mut is_expanded = false;
         if let Some(state) = self.stack.last_mut() {
             state.is_left_expanded = true;
-            if let Some(left) = state.tree.detach_left() && !left.is_leaf() {
-                self.stack.push(StackFrame::new(left, parent_location, Side::Left));
-                is_expanded = true;
-            }
-        } else if let Some(state) = self.tree_state.as_mut() {
-            state.is_left_expanded = true;
-            if let Some(left) = state.tree.detach_left() && !left.is_leaf() {
-                self.stack.push(StackFrame::new(left, parent_location, Side::Left));
+            if let Some(left) = state.subtree_mut().detach_left() && !left.is_leaf() {
+                self.stack.push(TreeState::new_detached(left, parent_idx, Side::Left));
                 is_expanded = true;
             }
         }
@@ -179,18 +127,12 @@ where
     pub(super) fn expand_right(&mut self) -> bool {
         if self.is_right_expanded() { return false; }
 
-        let parent_location = self.last_index();
+        let parent_idx = self.stack.len() - 1;
         let mut is_expanded = false;
         if let Some(state) = self.stack.last_mut() {
             state.is_right_expanded = true;
-            if let Some(right) = state.tree.detach_right() && !right.is_leaf() {
-                self.stack.push(StackFrame::new(right, parent_location, Side::Right));
-                is_expanded = true;
-            }
-        } else if let Some(state) = self.tree_state.as_mut() {
-            state.is_right_expanded = true;
-            if let Some(right) = state.tree.detach_right() && !right.is_leaf() {
-                self.stack.push(StackFrame::new(right, parent_location, Side::Right));
+            if let Some(right) = state.subtree_mut().detach_right() && !right.is_leaf() {
+                self.stack.push(TreeState::new_detached(right, parent_idx, Side::Right));
                 is_expanded = true;
             }
         }
@@ -200,59 +142,31 @@ where
     pub(super) fn expand_both(&mut self) -> bool {
         if self.is_left_expanded() || self.is_right_expanded() { return false; }
 
-        let parent_location = self.last_index();
+        let parent_idx = self.stack.len() - 1;
         let mut is_expanded = false;
         if let Some(state) = self.stack.last_mut() {
             state.is_left_expanded = true;
             state.is_right_expanded = true;
-            match (state.tree.detach_left(), state.tree.detach_right()) {
+            match (state.subtree_mut().detach_left(), state.subtree_mut().detach_right()) {
                 (Some(left), Some(right)) => {
                     if !right.is_leaf() {
-                        self.stack.push(StackFrame::new(right, parent_location, Side::Right));
+                        self.stack.push(TreeState::new_detached(right, parent_idx, Side::Right));
                         is_expanded = true;
                     }
                     if !left.is_leaf() {
-                        self.stack.push(StackFrame::new(left, parent_location, Side::Left));
+                        self.stack.push(TreeState::new_detached(left, parent_idx, Side::Left));
                         is_expanded = true;
                     }
                 },
                 (Some(left), _) => {
                     if !left.is_leaf() {
-                        self.stack.push(StackFrame::new(left, parent_location, Side::Left));
+                        self.stack.push(TreeState::new_detached(left, parent_idx, Side::Left));
                         is_expanded = true;
                     }
                 },
                 (_, Some(right)) => {
                     if !right.is_leaf() {
-                        self.stack.push(StackFrame::new(right, parent_location, Side::Right));
-                        is_expanded = true;
-                    }
-                },
-                _ => (),
-            }
-        } else if let Some(state) = self.tree_state.as_mut() {
-            state.is_left_expanded = true;
-            state.is_right_expanded = true;
-            match (state.tree.detach_left(), state.tree.detach_right()) {
-                (Some(left), Some(right)) => {
-                    if !right.is_leaf() {
-                        self.stack.push(StackFrame::new(right, parent_location, Side::Right));
-                        is_expanded = true;
-                    }
-                    if !left.is_leaf() {
-                        self.stack.push(StackFrame::new(left, parent_location, Side::Left));
-                        is_expanded = true;
-                    }
-                },
-                (Some(left), _) => {
-                    if !left.is_leaf() {
-                        self.stack.push(StackFrame::new(left, parent_location, Side::Left));
-                        is_expanded = true;
-                    }
-                },
-                (_, Some(right)) => {
-                    if !right.is_leaf() {
-                        self.stack.push(StackFrame::new(right, parent_location, Side::Right));
+                        self.stack.push(TreeState::new_detached(right, parent_idx, Side::Right));
                         is_expanded = true;
                     }
                 },
