@@ -6,7 +6,6 @@ use crate::binary_search_tree::{
         BinaryTreeMut,
     },
     tree_iterators::{
-        WalkInstruction,
         traversal_stack::TraversalStack,
         traversal_stack_mut::TraversalStackMut,
     },
@@ -14,16 +13,20 @@ use crate::binary_search_tree::{
 
 macro_rules! impl_inorder_next {
     ($self: ident) => {{
-        loop {
-            let instruction = ($self.instruction_fn)($self.stack.last_tree()?);
-            if matches!(instruction, WalkInstruction::Left | WalkInstruction::Both) && $self.stack.expand_left() {
+        while let Some(tree) = $self.stack.last_tree() {
+            if !($self.subtree_filter)(tree) {
+                $self.stack.pop();
                 continue;
             }
 
+            if $self.stack.expand_left() {
+                continue;
+            }
+            
             // Left subtree has previously been expanded and reported.
             if !$self.stack.is_reported() {
                 return $self.stack.report();
-            } else if matches!(instruction, WalkInstruction::Right | WalkInstruction::Both) && $self.stack.expand_right() {
+            } else if $self.stack.expand_right() {
                 continue;
             } else {
                 // Tree and right subtree have previously been reported.
@@ -31,27 +34,28 @@ macro_rules! impl_inorder_next {
                 continue;
             }
         }
+        None
     }}
 }
 
 pub struct InorderIter<'tree, T, F>
 where 
     T: BinaryTree + 'tree,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
     stack: TraversalStack<'tree, T>,
-    instruction_fn: F,
+    subtree_filter: F,
 }
 
 impl<'tree, T, F> InorderIter<'tree, T, F> 
 where 
     T: BinaryTree + 'tree,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
-    pub fn new(tree: &'tree T, instruction_fn: F) -> Self {
+    pub fn new(tree: &'tree T, subtree_filter: F) -> Self {
         Self {
             stack: TraversalStack::new(tree),
-            instruction_fn,
+            subtree_filter,
         }
     }
 }
@@ -59,7 +63,7 @@ where
 impl<'tree, T, F> Iterator for InorderIter<'tree, T, F>
 where 
     T: BinaryTree,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
     type Item = T::NodeRef<'tree>;
     
@@ -71,21 +75,21 @@ where
 pub(crate) struct InorderIterMut<'tree, T, F>
 where 
     T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
     stack: TraversalStackMut<'tree, T>,
-    instruction_fn: F,
+    subtree_filter: F,
 }
 
 impl<'tree, T, F> InorderIterMut<'tree, T, F>
 where 
     T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
-    pub(crate) fn new(tree: &'tree mut T, instruction_fn: F) -> Self {
+    pub(crate) fn new(tree: &'tree mut T, subtree_filter: F) -> Self {
         Self {
             stack: TraversalStackMut::new(tree),
-            instruction_fn,
+            subtree_filter,
         }
     }
 }
@@ -94,7 +98,7 @@ where
 impl<'tree, T, F> LendingIterator for InorderIterMut<'tree, T, F>
 where 
     T: BinaryTreeMut,
-    F: Fn(&T) -> WalkInstruction,
+    F: Fn(&T) -> bool,
 {
     type Item<'next>
     where 
@@ -150,7 +154,7 @@ mod tests {
     where 
         K: Ord + Clone,
     {
-            let mut iter = InorderIter::new(tree, |_| WalkInstruction::Both);
+            let mut iter = InorderIter::new(tree, |_| true);
             let mut sequence = Vec::new();
             while let Some(node) = iter.next() {
                 sequence.push(node.key.clone());
@@ -162,7 +166,7 @@ mod tests {
     where 
         K: Ord + Clone,
     {
-            let mut iter = InorderIterMut::new(tree, |_| WalkInstruction::Both);
+            let mut iter = InorderIterMut::new(tree, |_| true);
             let mut sequence = Vec::new();
             while let Some(node) = iter.next() {
                 sequence.push(node.key.clone());

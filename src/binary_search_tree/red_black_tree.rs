@@ -3,7 +3,6 @@ use std::fmt;
 use paste::paste;
 
 use crate::binary_search_tree::tree_iterators::{
-    WalkInstruction,
     inorder::{InorderIter, InorderIterMut},
     postorder::{PostorderIter, PostorderIterMut},
     preorder::{PreorderIter, PreorderIterMut},
@@ -97,16 +96,16 @@ where
     }
 }
 
-macro_rules! make_iters {
+macro_rules! make_iter {
     ($vis: vis, $iter_name: ident, $iter_type: ident) => {
         paste!{
-            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> WalkInstruction> {
-                self.[<$iter_name _with>](|_| WalkInstruction::Both)
+            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> bool> {
+                self.[<$iter_name _filtered>](|_| true)
             }
 
-            $vis fn [<$iter_name _with>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
+            $vis fn [<$iter_name _filtered>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
             where
-                F: Fn(&Self) -> WalkInstruction,
+                F: Fn(&Self) -> bool,
             {
                 $iter_type::new(self, f)
             }
@@ -115,12 +114,12 @@ macro_rules! make_iters {
 }
 
 impl<K, V> RedBlackTree<K, V> {
-    make_iters!(pub, inorder_iter, InorderIter);
-    make_iters!(pub(crate), inorder_iter_mut, InorderIterMut);
-    make_iters!(pub, preorder_iter, PreorderIter);
-    make_iters!(pub(crate), preorder_iter_mut, PreorderIterMut);
-    make_iters!(pub, postorder_iter, PostorderIter);
-    make_iters!(pub(crate), postorder_iter_mut, PostorderIterMut);
+    make_iter!(pub, inorder_iter, InorderIter);
+    make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
+    make_iter!(pub, preorder_iter, PreorderIter);
+    make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
+    make_iter!(pub, postorder_iter, PostorderIter);
+    make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> RedBlackTree<K, V> {
@@ -346,9 +345,9 @@ where
         } else { false }
     }
 
-    /// Inserts the key-data pair into the tree.
+    /// Inserts the key-value pair into the tree.
     /// If the key was not present in the tree yet, None is returned.
-    /// Otherwise, the data stored at the given key is updated, and the old data is returned.
+    /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
