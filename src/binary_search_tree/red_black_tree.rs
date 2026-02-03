@@ -311,8 +311,8 @@ where
         self.rotate_right()
     }
 
-    fn pick_branch(&self, value: &K) -> Option<Side> {
-        match K::cmp(value, self.key()?) {
+    fn pick_branch(&self, key: &K) -> Option<Side> {
+        match K::cmp(key, self.key()?) {
             Ordering::Less => Some(Side::Left),
             Ordering::Greater => Some(Side::Right),
             Ordering::Equal => None,
@@ -460,7 +460,7 @@ mod tests {
 
     use super::*;
 
-    fn assert_binary_search_tree<K, V>(root: &RedBlackTree<K, V>)
+    fn assert_binary_search_tree<K, V>(tree: &RedBlackTree<K, V>)
     where 
         K: Clone + Ord,
     {
@@ -469,18 +469,20 @@ mod tests {
             K: Clone + Ord,
         {
             let RedBlackTree::Node { node, left, right, .. } = tree else { return None; };
-            if let Some(max_left) = assert_binary_search_tree_recursive(left).map(|(_, max)| max) {
+            let left_result = assert_binary_search_tree_recursive(left);
+            let right_result = assert_binary_search_tree_recursive(right);
+            if let Some((_, max_left)) = left_result.as_ref() {
                 assert_eq!(K::cmp(&node.key, &max_left), Ordering::Greater);
             }
-            if let Some(min_right) = assert_binary_search_tree_recursive(right).map(|(min, _)| min) {
+            if let Some((min_right, _)) = right_result.as_ref() {
                 assert_eq!(K::cmp(&node.key, &min_right), Ordering::Less);
             }
             Some((
-                assert_binary_search_tree_recursive(left).map_or(node.key.clone(), |(min, _)| min),
-                assert_binary_search_tree_recursive(right).map_or(node.key.clone(), |(_, max)| max)
+                left_result.map_or(node.key.clone(), |(min, _)| min),
+                right_result.map_or(node.key.clone(), |(_, max)| max)
             ))
         }
-        assert_binary_search_tree_recursive(root);
+        assert_binary_search_tree_recursive(tree);
     }
 
     /// Asserts the given tree is a valid red-black tree.
