@@ -19,25 +19,6 @@ pub trait BinaryTree {
             Side::Right => self.right_subtree(),
         }
     }
-
-    fn has_left_subtree(&self) -> bool {
-        if let Some(left) = self.left_subtree() && !left.is_leaf() {
-            true
-        } else { false }
-    }
-
-    fn has_right_subtree(&self) -> bool {
-        if let Some(right) = self.right_subtree() && !right.is_leaf() {
-            true
-        } else { false }
-    }
-
-    fn has_subtree(&self, side: Side) -> bool {
-        match side {
-            Side::Left => self.has_left_subtree(),
-            Side::Right => self.has_right_subtree(),
-        }
-    }
 }
 
 pub(crate) trait BinaryTreeMut: BinaryTree + Sized {

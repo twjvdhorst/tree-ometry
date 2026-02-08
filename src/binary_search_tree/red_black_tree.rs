@@ -29,11 +29,7 @@ pub struct RedBlackNode<K, V> {
 }
 
 impl<K, V> RedBlackNode<K, V> {
-    fn new(key: K, value: V) -> Self {
-        Self::new_with_color(key, value, Color::Black)
-    }
-
-    fn new_with_color(key: K, value: V, color: Color) -> Self {
+    fn new(key: K, value: V, color: Color) -> Self {
         Self {
             key,
             value,
@@ -124,7 +120,7 @@ impl<K, V> RedBlackTree<K, V> {
 
 impl<K, V> RedBlackTree<K, V> {
     pub fn new() -> Self {
-        Self::Leaf
+        Self::default()
     }
 
     fn node(&self) -> Option<&RedBlackNode<K, V>> {
@@ -311,14 +307,6 @@ where
         self.rotate_right()
     }
 
-    fn pick_branch(&self, value: &K) -> Option<Side> {
-        match K::cmp(value, self.key()?) {
-            Ordering::Less => Some(Side::Left),
-            Ordering::Greater => Some(Side::Right),
-            Ordering::Equal => None,
-        }
-    }
-
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
         if let Some(left) = self.left_subtree() && let Some(right) = self.right_subtree()
@@ -353,68 +341,105 @@ where
         // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
         // To not need multiple mutable references into self, keep track of only the grandparent, together with the sides to take to get to parent and current.
         // We first handle the cases where there is no parent or no current, i.e., the path to the leaf where we put value is too short.
-        if self.is_leaf() {
-            *self = Self::from(RedBlackNode::new(key, value));
+        
+        let mut side1 = if let Some(root_key) = self.key() {
+            match K::cmp(&key, root_key) {
+                Ordering::Less => Side::Left,
+                Ordering::Greater => Side::Right,
+                Ordering::Equal => return Some(std::mem::replace(self.value_mut().unwrap(), value)),
+            }
+        } else {
+            // Tree is empty.
+            *self = Self::from(RedBlackNode::new(key, value, Color::Black));
             return None;
-        }
+        };
 
         // Check for a color swap at every node we come accross.
         self.color_swap();
 
-        let Some(mut side1) = self.pick_branch(&key) else { 
-            // self has the same key as the given key
-            return Some(std::mem::replace(self.value_mut()?, value));
-        };
-        if !self.has_subtree(side1) {
-            // Insert the key-value pair as a child of self.
-            self.attach_subtree(side1, Self::from(RedBlackNode::new_with_color(key, value, Color::Red)));
-            self.color_swap(); // Might need to color swap due to the insertion.
-            self.set_root_color(Color::Black); // Maintain the invariant that the root is black.
-            return None;
-
-        }
-
         // Walk down the tree, updating the tree as we go.
-        let mut grandparent = &mut *self;
+        let mut current = &mut *self;
         loop {
-            if !grandparent.has_subtree(side1) {
-                grandparent.attach_subtree(side1, Self::from(RedBlackNode::new_with_color(key, value, Color::Red)));
-                return None;
-            }
-            let child = grandparent.subtree_mut(side1).unwrap();
+            let child = current.subtree_mut(side1).unwrap(); // Can unwrap safely, we ensure that current is not a leaf.
             child.color_swap();
 
-            let Some(side2) = child.pick_branch(&key) else {
-                // child has the same key as the given key
-                return Some(std::mem::replace(child.value_mut()?, value));
+            let side2 = if let Some(child_key) = child.key() {
+                match K::cmp(&key, child_key) {
+                    Ordering::Less => Side::Left,
+                    Ordering::Greater => Side::Right,
+                    Ordering::Equal => return Some(std::mem::replace(child.value_mut().unwrap(), value)),
+                }
+            } else {
+                // Child tree is empty.
+                *child = Self::from(RedBlackNode::new(key, value, Color::Red));
+                break;
             };
-            if !child.has_subtree(side2) {
-                child.attach_subtree(side2, Self::from(RedBlackNode::new_with_color(key, value, Color::Red)));
-                grandparent.fix_local_violation(side1, side2);
+
+            let grandchild = child.subtree_mut(side2).unwrap(); // Can unwrap safely, we ensure that child is not a leaf.
+            if grandchild.is_leaf() {
+                *grandchild = Self::from(RedBlackNode::new(key, value, Color::Red));
+                current.fix_local_violation(side1, side2);
                 break;
             }
-            let grandchild = child.subtree_mut(side2).unwrap();
             grandchild.color_swap();
 
-            let has_changed = grandparent.fix_local_violation(side1, side2);
-            if has_changed {
-                // Need to do comparison again, grandparent has been changed, and side1 and side2 might have been changed with it.
-                if let Some(side) = grandparent.pick_branch(&key) {
-                    side1 = side;
-                } else {
-                    // grandparent has the same key as the given key
-                    return Some(std::mem::replace(grandparent.value_mut()?, value));
-                }
+            if current.fix_local_violation(side1, side2) {
+                // Need to do comparison again, since tree structure has been changed.
+                // In particular, grandparent has been changed, and side1 and side2 might have been changed with it.
+                side1 = match K::cmp(&key, current.key().unwrap()) {
+                    Ordering::Less => Side::Left,
+                    Ordering::Greater => Side::Right,
+                    Ordering::Equal => return Some(std::mem::replace(current.value_mut().unwrap(), value)),
+                };
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
-                grandparent = grandparent.subtree_mut(side1).unwrap();
+                current = current.subtree_mut(side1).unwrap();
                 side1 = side2;
             }
         }
 
-        // Reset the root color to black
+        // Reset the root color to black.
         self.set_root_color(Color::Black);
         None
+    }
+}
+
+impl<K, V> fmt::Debug for RedBlackTree<K, V>
+where 
+    K: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            K: fmt::Debug,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let RedBlackTree::Node { node, .. } = tree {
+                let c = match node.color {
+                    Color::Red => "r",
+                    Color::Black => "b",
+                };
+                write!(f, "N({:?}, {c})\n", node.key)?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                if let Some(left) = tree.left_subtree() {
+                    recursive_fmt(left, f, &new_prefix, true)?;
+                }
+                if let Some(right) = tree.right_subtree() {
+                    recursive_fmt(right, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+        
+        write!(f, "\n")?;
+        recursive_fmt(self, f, "", false)
     }
 }
     
@@ -526,6 +551,17 @@ mod tests {
 
     #[test]
     fn test_insertion() {
+        // Difficult test case
+        let mut tree = RedBlackTree::new();
+        for key in [17, 29, 2, 28, 4, 22, 27] {//, 19, 23, 20, 30, 6, 21, 16, 11, 1, 3, 8, 15, 12, 24, 10, 26, 5, 25, 14, 13, 7, 9, 18] {
+            if key == 27 {
+                println!("hi");
+            }
+            tree.insert(key, ());
+            dbg!(&tree);
+            assert_valid_tree(&tree);
+        }
+
         // Test inserting values in order.
         let mut tree = RedBlackTree::new();
         for key in 1..=30 {
@@ -535,18 +571,21 @@ mod tests {
 
         // Test inserting values in random order.
         let mut rng = rand::rng();
-        for _ in 0..5 {
+        for _ in 0..50 {
             let mut tree = RedBlackTree::new();
             let mut keys = (1..=30).collect::<Vec<_>>();
             keys.shuffle(&mut rng);
+            let mut inserted = Vec::new();
             for key in keys {
                 tree.insert(key, ());
+                inserted.push(key);
             }
+            println!("{:?}", inserted);
             assert_valid_tree(&tree);
         }
 
         // Test inserting and updating data.
-        for _ in 0..5 {
+        for _ in 0..50 {
             let keys = (1..=5).cycle();
             let mut values = (1..=30).collect::<Vec<_>>();
             values.shuffle(&mut rng);
