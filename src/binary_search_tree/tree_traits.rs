@@ -1,7 +1,5 @@
 use std::cmp::Ordering;
 
-use crate::binary_search_tree::tree_errors::StructureError;
-
 use super::Side;
 
 pub trait BinaryTree {
@@ -64,27 +62,27 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
     }
 
     /// Performs a left tree rotation, changing self to point to the new root.
-    /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
-    fn rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut new_tree = self.detach_right().ok_or(StructureError::EmptyTree)?;
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
+    fn rotate_left(&mut self) -> bool {
+        let Some(mut new_tree) = self.detach_right() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_left() {
             self.replace_right(rotating_subtree);
         }
         std::mem::swap(self, &mut new_tree);
         self.replace_left(new_tree);
-        Ok(())
+        true
     }
 
     /// Performs a right tree rotation, changing self to point to the new root.
-    /// The function returns an error if the tree has an incorrect shape (i.e., is a leaf or has no right subtree).
-    fn rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut new_tree = self.detach_left().ok_or(StructureError::EmptyTree)?;
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
+    fn rotate_right(&mut self) -> bool {
+        let Some(mut new_tree) = self.detach_left() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_right() {
             self.replace_left(rotating_subtree);
         }
         std::mem::swap(self, &mut new_tree);
         self.replace_right(new_tree);
-        Ok(())
+        true
     }
 }
 

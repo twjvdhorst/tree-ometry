@@ -11,10 +11,7 @@ use crate::binary_search_tree::tree_traits::{
     BinarySearchTree, BinaryTree, BinaryTreeMut
 };
 
-use super::{
-    Side,
-    tree_errors::StructureError,
-};
+use super::Side;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Color {
@@ -279,32 +276,34 @@ impl<K, V> RedBlackTree<K, V>
 where 
     K: Ord,
 {
-    fn rotate_left(&mut self) -> Result<(), StructureError> {
-        <Self as BinaryTreeMut>::rotate_left(self)?;
+    fn rotate_left(&mut self) -> bool {
+        if !<Self as BinaryTreeMut>::rotate_left(self) { return false; }
         self.set_root_color(Color::Black);
         self.left_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
-        Ok(())
+        true
     }
 
-    fn rotate_right(&mut self) -> Result<(), StructureError> {
-        <Self as BinaryTreeMut>::rotate_right(self)?;
+    fn rotate_right(&mut self) -> bool {
+        if !<Self as BinaryTreeMut>::rotate_right(self) { return false; }
         self.set_root_color(Color::Black);
         self.right_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
-        Ok(())
+        true
     }
 
-    fn double_rotate_left(&mut self) -> Result<(), StructureError> {
-        let mut right = self.detach_right().ok_or(StructureError::EmptyTree)?;
-        right.rotate_right()?;
+    fn double_rotate_left(&mut self) -> bool {
+        let Some(mut right) = self.detach_right() else { return false; };
+        if !right.rotate_right() { return false; }
         self.replace_right(right);
-        self.rotate_left()
+        self.rotate_left();
+        true
     }
 
-    fn double_rotate_right(&mut self) -> Result<(), StructureError> {
-        let mut left = self.detach_left().ok_or(StructureError::EmptyTree)?;
-        left.rotate_left()?;
+    fn double_rotate_right(&mut self) -> bool {
+        let Some(mut left) = self.detach_left() else { return false; };
+        if !left.rotate_left() { return false; }
         self.replace_left(left);
-        self.rotate_right()
+        self.rotate_right();
+        true
     }
 
     /// Swaps the colors of self and its children if both children (exist and) are red.
@@ -324,12 +323,11 @@ where
         {
             match (side1, side2) {
                 // Can safely ignore the result of the performed rotation, as the existing child and grandchild nodes imply the rotation won't fail
-                (Side::Left, Side::Left) => self.rotate_right().unwrap(),
-                (Side::Right, Side::Right) => self.rotate_left().unwrap(),
-                (Side::Left, Side::Right) => self.double_rotate_right().unwrap(),
-                (Side::Right, Side::Left) => self.double_rotate_left().unwrap(),
+                (Side::Left, Side::Left) => self.rotate_right(),
+                (Side::Right, Side::Right) => self.rotate_left(),
+                (Side::Left, Side::Right) => self.double_rotate_right(),
+                (Side::Right, Side::Left) => self.double_rotate_left(),
             }
-            true
         } else { false }
     }
 
