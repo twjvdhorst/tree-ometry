@@ -36,7 +36,6 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
             Side::Right => self.right_subtree_mut(),
         }
     }
-    fn subtrees_mut(&mut self) -> Option<(&mut Self, &mut Self)>;
 
     fn attach_left(&mut self, tree: impl Into<Self>) -> bool;
     fn attach_right(&mut self, tree: impl Into<Self>) -> bool;

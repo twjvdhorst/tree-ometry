@@ -28,6 +28,20 @@ impl Color {
     }
 }
 
+pub struct RedBlackNode<K, V>  {
+    key: K,
+    value: V,
+    left: Box<RedBlackTree<K, V>>,
+    right: Box<RedBlackTree<K, V>>,
+    color: Color,
+    accessed_mut: bool,
+}
+
+pub enum RedBlackTree<K, V> {
+    Internal(RedBlackNode<K, V>),
+    Leaf,
+}
+
 pub struct RBNodeRef<'tree, K, V> {
     pub key: &'tree K,
     pub value: &'tree V,
@@ -42,16 +56,29 @@ pub(crate) struct RBNodeRefMut<'tree, K, V> {
     pub(crate) right: &'tree RedBlackTree<K, V>,
 }
 
-pub enum RedBlackTree<K, V> {
-    Internal {
-        key: K,
-        value: V,
-        left: Box<Self>,
-        right: Box<Self>,
-        color: Color,
-        accessed_mut: bool,
-    },
-    Leaf,
+impl<K, V> RedBlackNode<K, V> {
+    fn new(key: K, value: V, color: Color) -> Self {
+        Self {
+            key,
+            value,
+            left: Box::default(),
+            right: Box::default(),
+            color,
+            accessed_mut: false,
+        }
+    }
+
+    pub fn key(&self) -> &K {
+        &self.key
+    }
+
+    pub fn value(&self) -> &V {
+        &self.value
+    }
+
+    pub(crate) fn value_mut(&mut self) -> &mut V {
+        &mut self.value
+    }
 }
 
 impl<K, V> Default for RedBlackTree<K, V> {
@@ -104,17 +131,58 @@ impl<K, V> RedBlackTree<K, V> {
         Self::default()
     }
 
-    fn new_internal(key: K, value: V, color: Color) -> Self {
-        Self::Internal {
-            key,
-            value,
-            left: Box::default(),
-            right: Box::default(),
-            color,
-            accessed_mut: false,
+    fn new_internal(node: RedBlackNode<K, V>) -> Self {
+        Self::Internal(node)
+    }
+
+    fn root(&self) -> Option<&RedBlackNode<K, V>> {
+        if let Self::Internal(node) = self {
+            Some(node)
+        } else { None }
+    }
+
+    fn root_mut(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        if let Self::Internal(node) = self {
+            Some(node)
+        } else { None }
+    }
+
+    fn into_root(self) -> Option<RedBlackNode<K, V>> {
+        if let Self::Internal(node) = self {
+            Some(node)
+        } else { None }
+    }
+
+    fn data_mut(&mut self) -> Option<(&mut K, &mut V)> {
+        self.root_mut().map(|root| (&mut root.key, &mut root.value))
+    }
+
+    fn into_data(self) -> Option<(K, V)> {
+        self.into_root().map(|root| (root.key, root.value))
+    }
+
+    fn replace_value(&mut self, new_value: V) -> Option<V> {
+        if let Some(root) = self.root_mut() {
+            Some(std::mem::replace(&mut root.value, new_value))
+        } else { None }
+    }
+
+    fn get_color(&self) -> Option<Color> {
+        self.root().map(|root| root.color)
+    }
+
+    fn set_color(&mut self, new_color: Color) {
+        if let Self::Internal(node) = self {
+            node.color = new_color;
         }
     }
 
+    fn mark_accessed(&mut self) {
+        if let Self::Internal(node) = self {
+            node.accessed_mut = true;
+        }
+    }
+/*
     fn value_mut(&mut self) -> Option<&mut V> {
         if let Self::Internal { value, .. } = self {
             Some(value)
@@ -127,23 +195,12 @@ impl<K, V> RedBlackTree<K, V> {
         } else { None }
     }
 
-    fn into_data(self) -> Option<(K, V)> {
-        if let Self::Internal { key, value, .. } = self {
-            Some((key, value))
-        } else { None }
-    }
-
     fn root_color(&self) -> Option<Color> {
         if let Self::Internal { color, .. } = self {
             Some(*color)
         } else { None }
     }
-
-    fn set_root_color(&mut self, new_color: Color) {
-        if let Self::Internal { color, .. } = self {
-            *color = new_color;
-        }
-    }
+*/
 }
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
@@ -151,12 +208,12 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
     where Self: 'tree;
 
     fn node_ref(&'_ self) -> Option<Self::NodeRef<'_>> {
-        if let Self::Internal { key, value, left, right, .. } = self {
+        if let Self::Internal(node) = self {
             Some(Self::NodeRef {
-                key,
-                value,
-                left,
-                right,
+                key: &node.key,
+                value: &node.value,
+                left: &node.left,
+                right: &node.right,
             })
         } else { None }
     }
@@ -169,17 +226,11 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
     }
 
     fn left_subtree(&self) -> Option<&Self> {
-        match self {
-            Self::Internal { left, .. } => Some(left),
-            Self::Leaf => None,
-        }
+        self.root().map(|root| root.left.as_ref())
     }
 
     fn right_subtree(&self) -> Option<&Self> {
-        match self {
-            Self::Internal { right, .. } => Some(right),
-            Self::Leaf => None,
-        }
+        self.root().map(|root| root.right.as_ref())
     }
 }
 
@@ -188,44 +239,24 @@ impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
     where Self: 'tree;
 
     fn node_ref_mut(&'_ mut self) -> Option<Self::NodeRefMut<'_>> {
-        if let Self::Internal { key, value, left, right, .. } = self {
+        if let Self::Internal(node) = self {
             Some(Self::NodeRefMut {
-                key: &*key,
-                value: value,
-                left,
-                right,
+                key: &node.key,
+                value: &mut node.value,
+                left: &node.left,
+                right: &node.right,
             })
         } else { None }
     }
 
     fn left_subtree_mut(&mut self) -> Option<&mut Self> {
-        match self {
-            Self::Internal { left, accessed_mut, .. } => {
-                *accessed_mut = true;
-                Some(left)
-            },
-            Self::Leaf => None,
-        }
+        self.mark_accessed();
+        self.root_mut().map(|root| root.left.as_mut())
     }
 
     fn right_subtree_mut(&mut self) -> Option<&mut Self> {
-        match self {
-            Self::Internal { right, accessed_mut, .. } => {
-                *accessed_mut = true;
-                Some(right)
-            },
-            Self::Leaf => None,
-        }
-    }
-
-    fn subtrees_mut(&mut self) -> Option<(&mut Self, &mut Self)> {
-        match self {
-            Self::Internal { left, right, accessed_mut, .. } => {
-                *accessed_mut = true;
-                Some((left, right))
-            },
-            Self::Leaf => None,
-        }
+        self.mark_accessed();
+        self.root_mut().map(|root| root.right.as_mut())
     }
 
     fn attach_left(&mut self, tree: impl Into<Self>) -> bool {
@@ -267,15 +298,11 @@ where
     type Value = V;
 
     fn key(&self) -> Option<&Self::Key> {
-        if let Self::Internal { key, .. } = self {
-            Some(key)
-        } else { None }
+        self.root().map(|root| &root.key)
     }
 
     fn value(&self) -> Option<&Self::Value> {
-        if let Self::Internal { value, .. } = self {
-            Some(value)
-        } else { None }
+        self.root().map(|root| &root.value)
     }
 }
 
@@ -286,15 +313,15 @@ where
 {
     fn rotate_left(&mut self) -> bool {
         if !<Self as BinaryTreeMut>::rotate_left(self) { return false; }
-        self.set_root_color(Color::Black);
-        self.left_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
+        self.set_color(Color::Black);
+        self.left_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
     }
 
     fn rotate_right(&mut self) -> bool {
         if !<Self as BinaryTreeMut>::rotate_right(self) { return false; }
-        self.set_root_color(Color::Black);
-        self.right_subtree_mut().unwrap().set_root_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
+        self.set_color(Color::Black);
+        self.right_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
     }
 
@@ -317,17 +344,17 @@ where
     /// Swaps the colors of self and its children if both children (exist and) are red.
     fn color_swap(&mut self) {
         if let Some(left) = self.left_subtree() && let Some(right) = self.right_subtree()
-            && left.root_color() == Some(Color::Red) && right.root_color() == Some(Color::Red)
+            && left.get_color() == Some(Color::Red) && right.get_color() == Some(Color::Red)
         {
-            self.set_root_color(Color::Red);
-            self.left_subtree_mut().unwrap().set_root_color(Color::Black);
-            self.right_subtree_mut().unwrap().set_root_color(Color::Black);
+            self.set_color(Color::Red);
+            self.left_subtree_mut().unwrap().set_color(Color::Black);
+            self.right_subtree_mut().unwrap().set_color(Color::Black);
         }
     }
 
     fn fix_local_violation(&mut self, side1: Side, side2: Side) -> bool {
         if let Some(child) = self.subtree(side1) && let Some(grandchild) = child.subtree(side2)
-            && child.root_color() == Some(Color::Red) && grandchild.root_color() == Some(Color::Red)
+            && child.get_color() == Some(Color::Red) && grandchild.get_color() == Some(Color::Red)
         {
             match (side1, side2) {
                 // Can safely ignore the result of the performed rotation, as the existing child and grandchild nodes imply the rotation won't fail
@@ -352,11 +379,11 @@ where
             match K::cmp(&key, root_key) {
                 Ordering::Less => Side::Left,
                 Ordering::Greater => Side::Right,
-                Ordering::Equal => return Some(std::mem::replace(self.value_mut().unwrap(), value)),
+                Ordering::Equal => return self.replace_value(value),
             }
         } else {
             // Tree is empty.
-            *self = Self::new_internal(key, value, Color::Black);
+            *self = Self::new_internal(RedBlackNode::new(key, value, Color::Black));
             return None;
         };
 
@@ -373,17 +400,17 @@ where
                 match K::cmp(&key, child_key) {
                     Ordering::Less => Side::Left,
                     Ordering::Greater => Side::Right,
-                    Ordering::Equal => return Some(std::mem::replace(child.value_mut().unwrap(), value)),
+                    Ordering::Equal => return child.replace_value(value),
                 }
             } else {
                 // Child tree is empty.
-                *child = Self::new_internal(key, value, Color::Red);
+                *child = Self::new_internal(RedBlackNode::new(key, value, Color::Red));
                 break;
             };
 
             let grandchild = child.subtree_mut(side2).unwrap(); // Can unwrap safely, we ensure that child is not a leaf.
             if grandchild.is_leaf() {
-                *grandchild = Self::new_internal(key, value, Color::Red);
+                *grandchild = Self::new_internal(RedBlackNode::new(key, value, Color::Red));
                 current.fix_local_violation(side1, side2);
                 break;
             }
@@ -395,7 +422,7 @@ where
                 side1 = match K::cmp(&key, current.key().unwrap()) {
                     Ordering::Less => Side::Left,
                     Ordering::Greater => Side::Right,
-                    Ordering::Equal => return Some(std::mem::replace(current.value_mut().unwrap(), value)),
+                    Ordering::Equal => return current.replace_value(value),
                 };
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
@@ -405,7 +432,7 @@ where
         }
 
         // Reset the root color to black.
-        self.set_root_color(Color::Black);
+        self.set_color(Color::Black);
         None
     }
 }
@@ -416,11 +443,11 @@ where
     K: Ord,
 {
     fn left_color(&self) -> Option<Color> {
-        self.left_subtree()?.root_color()
+        self.left_subtree()?.get_color()
     }
 
     fn right_color(&self) -> Option<Color> {
-        self.right_subtree()?.root_color()
+        self.right_subtree()?.get_color()
     }
 
     fn subtree_color(&self, side: Side) -> Option<Color> {
@@ -431,24 +458,24 @@ where
     }
 
     fn flip_root_color(&mut self) {
-        if let Some(root_color) = self.root_color() {
-            self.set_root_color(root_color.opposite());
+        if let Some(root_color) = self.get_color() {
+            self.set_color(root_color.opposite());
         }
     }
 
     fn color_flip(&mut self) {
         self.flip_root_color();
-        if let Self::Internal { left, right, .. } = self {
-            left.flip_root_color();
-            right.flip_root_color();
+        if let Self::Internal(root) = self {
+            root.left.flip_root_color();
+            root.right.flip_root_color();
         }
     }
 
     fn rotate(&mut self, side: Side) -> bool {
-        let Some(col_root) = self.root_color() else { return false; };
+        let Some(col_root) = self.get_color() else { return false; };
         if <Self as BinaryTreeMut>::rotate(self, side.opposite()) { // TODO: Change rotation code to be about rotating edges, so this opposite side is not needed.
-            self.set_root_color(col_root);
-            self.subtree_mut(side.opposite()).unwrap().set_root_color(Color::Red);
+            self.set_color(col_root);
+            self.subtree_mut(side.opposite()).unwrap().set_color(Color::Red);
             true
         } else { false }
     }
@@ -476,15 +503,15 @@ where
     /// Returns None if the root has both subtrees attached.
     /// Colors the new root black.
     fn remove_root_single_child(&mut self) -> Option<(K, V)> {
-        let Self::Internal { left, right, .. } = self else { return None; };
-        if left.is_leaf() {
+        let Self::Internal(root) = self else { return None; };
+        if root.left.is_leaf() {
             let mut right = self.detach_right().unwrap();
-            right.set_root_color(Color::Black);
+            right.set_color(Color::Black);
             let old = std::mem::replace(self, right);
             old.into_data()
-        } else if right.is_leaf() {
+        } else if root.right.is_leaf() {
             let mut left = self.detach_left().unwrap();
-            left.set_root_color(Color::Black);
+            left.set_color(Color::Black);
             let old = std::mem::replace(self, left);
             old.into_data()
         } else {
@@ -503,8 +530,8 @@ where
         // By advancing down one level, the subtree becomes valid again.
 
         let mut current = &mut *self;
-        while let Self::Internal { key: curr_key, .. } = current {
-            let (side, found) = match Q::cmp(key, (&*curr_key).borrow()) {
+        while let Self::Internal(node) = current {
+            let (side, found) = match Q::cmp(key, node.key.borrow()) {
                 Ordering::Less => (Side::Left, false),
                 Ordering::Greater => (Side::Right, false),
                 Ordering::Equal => {
@@ -512,7 +539,7 @@ where
                     // The remove_root_single_child function handles the no-child case as well, as by this point,
                     // the tree has been restructured sufficiently to be valid after deleting the node.
                     if let Some(data) = current.remove_root_single_child() {
-                        self.set_root_color(Color::Black);
+                        self.set_color(Color::Black);
                         return Some(data);
                     } else {
                         (Side::Left, true)
@@ -569,7 +596,7 @@ where
             }
         }
 
-        self.set_root_color(Color::Black);
+        self.set_color(Color::Black);
         None
     }
 }
@@ -589,12 +616,12 @@ where
             } else {
                 write!(f, "└──")?;
             };
-            if let RedBlackTree::Internal { key, color, .. } = tree {
-                let c = match color {
+            if let RedBlackTree::Internal(node) = tree {
+                let c = match node.color {
                     Color::Red => "r",
                     Color::Black => "b",
                 };
-                write!(f, "N({:?}, {c})\n", key)?;
+                write!(f, "N({:?}, {c})\n", node.key)?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 if let Some(left) = tree.left_subtree() {
                     recursive_fmt(left, f, &new_prefix, true)?;
@@ -628,8 +655,8 @@ where
             } else {
                 write!(f, "└──")?;
             };
-            if let RedBlackTree::Internal { key, .. } = tree {
-                write!(f, "N({})\n", key)?;
+            if let RedBlackTree::Internal(node) = tree {
+                write!(f, "N({})\n", node.key)?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 if let Some(left) = tree.left_subtree() {
                     recursive_fmt(left, f, &new_prefix, true)?;
@@ -663,18 +690,18 @@ mod tests {
         where
             K: Clone + Ord,
         {
-            let RedBlackTree::Internal { key, left, right, .. } = tree else { return None; };
-            let left_result = assert_binary_search_tree_recursive(left);
-            let right_result = assert_binary_search_tree_recursive(right);
+            let RedBlackTree::Internal(node) = tree else { return None; };
+            let left_result = assert_binary_search_tree_recursive(&node.left);
+            let right_result = assert_binary_search_tree_recursive(&node.right);
             if let Some((_, max_left)) = left_result.as_ref() {
-                assert_eq!(K::cmp(key, &max_left), Ordering::Greater);
+                assert_eq!(K::cmp(&node.key, &max_left), Ordering::Greater);
             }
             if let Some((min_right, _)) = right_result.as_ref() {
-                assert_eq!(K::cmp(key, &min_right), Ordering::Less);
+                assert_eq!(K::cmp(&node.key, &min_right), Ordering::Less);
             }
             Some((
-                left_result.map_or(key.clone(), |(min, _)| min),
-                right_result.map_or(key.clone(), |(_, max)| max)
+                left_result.map_or(node.key.clone(), |(min, _)| min),
+                right_result.map_or(node.key.clone(), |(_, max)| max)
             ))
         }
         assert_binary_search_tree_recursive(tree);
@@ -691,31 +718,31 @@ mod tests {
             K: Clone + Ord,
         {
             // Leaves are considered black.
-            let RedBlackTree::Internal { left, right, color, .. } = tree else { return 1; };
+            let RedBlackTree::Internal(node) = tree else { return 1; };
 
             // Assert no consecutive red nodes.
-            if *color == Color::Red {
-                assert_ne!(left.root_color(), Some(Color::Red));
-                assert_ne!(right.root_color(), Some(Color::Red));
+            if node.color == Color::Red {
+                assert_ne!(node.left.get_color(), Some(Color::Red));
+                assert_ne!(node.right.get_color(), Some(Color::Red));
             }
 
             // Assert validity of subtrees.
-            let num_black_left = assert_valid_tree_recursive(left);
-            let num_black_right = assert_valid_tree_recursive(right);
+            let num_black_left = assert_valid_tree_recursive(&node.left);
+            let num_black_right = assert_valid_tree_recursive(&node.right);
 
             // Assert black counts match.
             assert_eq!(num_black_left, num_black_right);
 
             // Return number of black nodes on any root-to-leaf path.
-            if *color == Color::Red {
+            if node.color == Color::Red {
                 num_black_left
             } else {
                 1 + num_black_left
             }
         }
 
-        if let RedBlackTree::Internal { color, .. } = tree {
-            assert_eq!(*color, Color::Black);
+        if let RedBlackTree::Internal(node) = tree {
+            assert_eq!(node.color, Color::Black);
         }
         assert_binary_search_tree(tree);
         assert_valid_tree_recursive(tree);
