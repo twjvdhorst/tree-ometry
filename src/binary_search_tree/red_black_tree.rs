@@ -261,14 +261,14 @@ where
     K: Ord,
 {
     fn rotate_left(&mut self) -> bool {
-        if !<Self as BinaryTreeMut>::rotate_left(self) { return false; }
+        if !<Self as BinaryTreeMut>::rotate_counter_clockwise(self) { return false; }
         self.set_color(Color::Black);
         self.left_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
     }
 
     fn rotate_right(&mut self) -> bool {
-        if !<Self as BinaryTreeMut>::rotate_right(self) { return false; }
+        if !<Self as BinaryTreeMut>::rotate_clockwise(self) { return false; }
         self.set_color(Color::Black);
         self.right_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
@@ -420,9 +420,9 @@ where
         }
     }
 
-    fn rotate(&mut self, side: Side) -> bool {
+    fn rotate_edge(&mut self, side: Side) -> bool {
         let Some(col_root) = self.get_color() else { return false; };
-        if <Self as BinaryTreeMut>::rotate(self, side.opposite()) { // TODO: Change rotation code to be about rotating edges, so this opposite side is not needed.
+        if <Self as BinaryTreeMut>::rotate_edge(self, side) {
             self.set_color(col_root);
             self.subtree_mut(side.opposite()).unwrap().set_color(Color::Red);
             true
@@ -468,6 +468,20 @@ where
         }
     }
 
+    /// Removes the node with the given key from the tree.
+    /// Returns the associated value.
+    /// Time complexity: O(log n).
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.remove_entry(key).map(|(_, v)| v)
+    }
+
+    /// Removes the node with the given key from the tree.
+    /// Returns the key and associated value.
+    /// Time complexity: O(log n).
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where 
         K: Borrow<Q>,
@@ -512,7 +526,7 @@ where
             // Second phase.
             if current.subtree_color(side.opposite()) == Some(Color::Red) {
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate(side.opposite());
+                current.rotate_edge(side.opposite());
                 current = current.subtree_mut(side)?;
             }
 
@@ -535,11 +549,11 @@ where
             let sibling_child = current.subtree_mut(side.opposite())?;
             if sibling_child.left_color() == Some(Color::Red) || sibling_child.right_color() == Some(Color::Red) {
                 if sibling_child.subtree_color(side.opposite()) != Some(Color::Red) {
-                    sibling_child.rotate(side);
+                    sibling_child.rotate_edge(side);
                 }
 
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate(side.opposite());
+                current.rotate_edge(side.opposite());
                 current.color_flip();
                 current = current.subtree_mut(side)?;
             }

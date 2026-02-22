@@ -63,24 +63,9 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         }
     }
 
-    /// Performs a left tree rotation, changing self to point to the new root.
+    /// Performs a clockwise tree rotation, changing self to point to the new root.
     /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_left(&mut self) -> bool {
-        let Some(mut new_tree) = self.detach_right() else { return false; };
-        if let Some(rotating_subtree) = new_tree.detach_left() {
-            self.replace_right(rotating_subtree);
-            std::mem::swap(self, &mut new_tree);
-            self.replace_left(new_tree);
-            true
-        } else {
-            // Right subtree is a leaf.
-            false
-        }
-    }
-
-    /// Performs a right tree rotation, changing self to point to the new root.
-    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_right(&mut self) -> bool {
+    fn rotate_clockwise(&mut self) -> bool {
         let Some(mut new_tree) = self.detach_left() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_right() {
             self.replace_left(rotating_subtree);
@@ -93,10 +78,25 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         }
     }
 
-    fn rotate(&mut self, side: Side) -> bool {
+    /// Performs a counter-clockwise tree rotation, changing self to point to the new root.
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
+    fn rotate_counter_clockwise(&mut self) -> bool {
+        let Some(mut new_tree) = self.detach_right() else { return false; };
+        if let Some(rotating_subtree) = new_tree.detach_left() {
+            self.replace_right(rotating_subtree);
+            std::mem::swap(self, &mut new_tree);
+            self.replace_left(new_tree);
+            true
+        } else {
+            // Right subtree is a leaf.
+            false
+        }
+    }
+
+    fn rotate_edge(&mut self, side: Side) -> bool {
         match side {
-            Side::Left => self.rotate_left(),
-            Side::Right => self.rotate_right(),
+            Side::Left => self.rotate_clockwise(),
+            Side::Right => self.rotate_counter_clockwise(),
         }
     }
 }
