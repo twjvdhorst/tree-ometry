@@ -178,7 +178,7 @@ mod tests {
     fn test_inorder_walk() {
         // Test the inorder iterator for random trees.
         let mut rng = rand::rng();
-        for _ in 0..5 {
+        for _ in 0..50 {
             let mut tree = RedBlackTree::new();
             let mut keys = (1..=30).collect::<Vec<_>>();
             keys.shuffle(&mut rng);

@@ -1,5 +1,4 @@
 pub mod red_black_tree;
-pub mod tree_errors;
 pub mod tree_iterators;
 pub mod tree_traits;
 
@@ -7,4 +6,13 @@ pub mod tree_traits;
 pub enum Side {
     Left,
     Right,
+}
+
+impl Side {
+    pub fn opposite(&self) -> Side {
+        match self {
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
 }

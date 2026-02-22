@@ -172,7 +172,7 @@ mod tests {
     fn test_preorder_walk() {
         // Test the preorder iterator for random trees.
         let mut rng = rand::rng();
-        for _ in 0..5 {
+        for _ in 0..50 {
             let mut tree = RedBlackTree::new();
             let mut keys = (1..=30).collect::<Vec<_>>();
             keys.shuffle(&mut rng);
