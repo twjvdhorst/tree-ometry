@@ -17,6 +17,9 @@ pub trait BinaryTree {
             Side::Right => self.right_subtree(),
         }
     }
+    fn subtrees(&self) -> Option<(&Self, &Self)> {
+        Option::zip(self.left_subtree(), self.right_subtree())
+    }
 }
 
 pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
@@ -33,6 +36,7 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
             Side::Right => self.right_subtree_mut(),
         }
     }
+    fn subtrees_mut(&mut self) -> Option<(&mut Self, &mut Self)>;
 
     fn attach_left(&mut self, tree: impl Into<Self>) -> bool;
     fn attach_right(&mut self, tree: impl Into<Self>) -> bool;
@@ -51,7 +55,10 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
             Side::Right => self.detach_right(),
         }
     }
-    
+    fn detach_both(&mut self) -> Option<(Self, Self)> {
+        Option::zip(self.detach_left(), self.detach_right())
+    }
+
     fn replace_left(&mut self, tree: impl Into<Self>) -> Option<Self>;
     fn replace_right(&mut self, tree: impl Into<Self>) -> Option<Self>;
     fn replace_subtree(&mut self, side: Side, tree: impl Into<Self>) -> Option<Self> {
@@ -67,10 +74,13 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         let Some(mut new_tree) = self.detach_right() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_left() {
             self.replace_right(rotating_subtree);
+            std::mem::swap(self, &mut new_tree);
+            self.replace_left(new_tree);
+            true
+        } else {
+            // Right subtree is a leaf.
+            false
         }
-        std::mem::swap(self, &mut new_tree);
-        self.replace_left(new_tree);
-        true
     }
 
     /// Performs a right tree rotation, changing self to point to the new root.
@@ -79,10 +89,20 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         let Some(mut new_tree) = self.detach_left() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_right() {
             self.replace_left(rotating_subtree);
+            std::mem::swap(self, &mut new_tree);
+            self.replace_right(new_tree);
+            true
+        } else {
+            // Left subtree is a leaf.
+            false
         }
-        std::mem::swap(self, &mut new_tree);
-        self.replace_right(new_tree);
-        true
+    }
+
+    fn rotate(&mut self, side: Side) -> bool {
+        match side {
+            Side::Left => self.rotate_left(),
+            Side::Right => self.rotate_right(),
+        }
     }
 }
 

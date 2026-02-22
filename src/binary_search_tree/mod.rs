@@ -7,3 +7,12 @@ pub enum Side {
     Left,
     Right,
 }
+
+impl Side {
+    pub fn opposite(&self) -> Side {
+        match self {
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
+}
