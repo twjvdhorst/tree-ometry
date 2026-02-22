@@ -42,20 +42,6 @@ pub enum RedBlackTree<K, V> {
     Leaf,
 }
 
-pub struct RBNodeRef<'tree, K, V> {
-    pub key: &'tree K,
-    pub value: &'tree V,
-    pub left: &'tree RedBlackTree<K, V>,
-    pub right: &'tree RedBlackTree<K, V>,
-}
-
-pub(crate) struct RBNodeRefMut<'tree, K, V> {
-    pub(crate) key: &'tree K,
-    pub(crate) value: &'tree mut V,
-    pub(crate) left: &'tree RedBlackTree<K, V>,
-    pub(crate) right: &'tree RedBlackTree<K, V>,
-}
-
 impl<K, V> RedBlackNode<K, V> {
     fn new(key: K, value: V, color: Color) -> Self {
         Self {
@@ -78,6 +64,14 @@ impl<K, V> RedBlackNode<K, V> {
 
     pub(crate) fn value_mut(&mut self) -> &mut V {
         &mut self.value
+    }
+
+    pub fn left(&self) -> &RedBlackTree<K, V> {
+        &self.left
+    }
+
+    pub fn right(&self) -> &RedBlackTree<K, V> {
+        &self.right
     }
 }
 
@@ -135,18 +129,6 @@ impl<K, V> RedBlackTree<K, V> {
         Self::Internal(node)
     }
 
-    fn root(&self) -> Option<&RedBlackNode<K, V>> {
-        if let Self::Internal(node) = self {
-            Some(node)
-        } else { None }
-    }
-
-    fn root_mut(&mut self) -> Option<&mut RedBlackNode<K, V>> {
-        if let Self::Internal(node) = self {
-            Some(node)
-        } else { None }
-    }
-
     fn into_root(self) -> Option<RedBlackNode<K, V>> {
         if let Self::Internal(node) = self {
             Some(node)
@@ -182,39 +164,14 @@ impl<K, V> RedBlackTree<K, V> {
             node.accessed_mut = true;
         }
     }
-/*
-    fn value_mut(&mut self) -> Option<&mut V> {
-        if let Self::Internal { value, .. } = self {
-            Some(value)
-        } else { None }
-    }
-
-    fn data_mut(&mut self) -> Option<(&mut K, &mut V)> {
-        if let Self::Internal { key, value, .. } = self {
-            Some((key, value))
-        } else { None }
-    }
-
-    fn root_color(&self) -> Option<Color> {
-        if let Self::Internal { color, .. } = self {
-            Some(*color)
-        } else { None }
-    }
-*/
 }
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
-    type NodeRef<'tree> = RBNodeRef<'tree, K, V>
-    where Self: 'tree;
+    type Node = RedBlackNode<K, V>;
 
-    fn node_ref(&'_ self) -> Option<Self::NodeRef<'_>> {
+    fn root(&self) -> Option<&RedBlackNode<K, V>> {
         if let Self::Internal(node) = self {
-            Some(Self::NodeRef {
-                key: &node.key,
-                value: &node.value,
-                left: &node.left,
-                right: &node.right,
-            })
+            Some(node)
         } else { None }
     }
 
@@ -235,17 +192,9 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
 }
 
 impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
-    type NodeRefMut<'tree> = RBNodeRefMut<'tree, K, V>
-    where Self: 'tree;
-
-    fn node_ref_mut(&'_ mut self) -> Option<Self::NodeRefMut<'_>> {
+    fn root_mut(&mut self) -> Option<&mut RedBlackNode<K, V>> {
         if let Self::Internal(node) = self {
-            Some(Self::NodeRefMut {
-                key: &node.key,
-                value: &mut node.value,
-                left: &node.left,
-                right: &node.right,
-            })
+            Some(node)
         } else { None }
     }
 

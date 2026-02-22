@@ -62,18 +62,18 @@ where
             .unwrap_or(true)
     }
 
-    pub(super) fn report(&mut self) -> Option<T::NodeRef<'tree>> {
+    pub(super) fn report(&mut self) -> Option<&'tree T::Node> {
         let state = self.stack.last_mut()?;
         if !state.is_reported {
             state.is_reported = true;
-            state.tree.node_ref()
+            state.tree.root()
         } else {
             None
         }
     }
 
-    pub(super) fn pop(&mut self) -> Option<T::NodeRef<'tree>> {
-        self.stack.pop()?.tree.node_ref()
+    pub(super) fn pop(&mut self) -> Option<&'tree T::Node> {
+        self.stack.pop()?.tree.root()
     }
     
     pub(super) fn expand_left(&mut self) -> bool {

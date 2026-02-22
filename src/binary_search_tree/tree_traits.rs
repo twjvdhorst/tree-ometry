@@ -3,11 +3,10 @@ use std::cmp::Ordering;
 use super::Side;
 
 pub trait BinaryTree {
-    type NodeRef<'tree>
-    where Self: 'tree;
+    type Node;
 
     fn is_leaf(&self) -> bool;
-    fn node_ref(&'_ self) -> Option<Self::NodeRef<'_>>;
+    fn root(&self) -> Option<&Self::Node>;
 
     fn left_subtree(&self) -> Option<&Self>;
     fn right_subtree(&self) -> Option<&Self>;
@@ -23,10 +22,7 @@ pub trait BinaryTree {
 }
 
 pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
-    type NodeRefMut<'tree>
-    where Self: 'tree;
-
-    fn node_ref_mut(&'_ mut self) -> Option<Self::NodeRefMut<'_>>;
+    fn root_mut(&mut self) -> Option<&mut Self::Node>;
 
     fn left_subtree_mut(&mut self) -> Option<&mut Self>;
     fn right_subtree_mut(&mut self) -> Option<&mut Self>;

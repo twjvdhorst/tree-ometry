@@ -86,25 +86,25 @@ where
             .unwrap_or(true)
     }
 
-    pub(super) fn report(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
+    pub(super) fn report(&'_ mut self) -> Option<&'_ mut T::Node> {
         let state = self.stack.last_mut()?;
         if !state.is_reported {
             state.is_reported = true;
-            state.subtree_mut().node_ref_mut()
+            state.subtree_mut().root_mut()
         } else {
             None
         }
     }
 
-    pub(super) fn pop(&'_ mut self) -> Option<T::NodeRefMut<'_>> {
+    pub(super) fn pop(&'_ mut self) -> Option<&'_ mut T::Node> {
         let state = self.stack.pop()?;
         match state.subtree {
-            Subtree::MutRef(subtree) => subtree.node_ref_mut(), // Subtree is still attached to parent (or is root), no need to reattach
+            Subtree::MutRef(subtree) => subtree.root_mut(), // Subtree is still attached to parent (or is root), no need to reattach
             Subtree::Detached(subtree, parent_idx, side_of_parent) => { // Subtree is detached from parent. Reattach before reporting
                 let parent = self.stack.get_mut(parent_idx)?.subtree_mut();
                 parent.attach_subtree(side_of_parent, subtree);
                 parent.subtree_mut(side_of_parent)?
-                    .node_ref_mut()
+                    .root_mut()
             },
         }
     }

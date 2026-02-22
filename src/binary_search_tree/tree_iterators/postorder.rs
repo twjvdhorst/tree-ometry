@@ -50,7 +50,7 @@ where
     T: BinaryTree,
     F: Fn(&T) -> bool,
 {
-    type Item = T::NodeRef<'tree>;
+    type Item = &'tree T::Node;
     
     fn next(&mut self) -> Option<Self::Item> {
         impl_postorder_next!(self)
@@ -88,9 +88,9 @@ where
     type Item<'next>
     where 
         Self: 'next,
-        = T::NodeRefMut<'next>;
+        = &'next mut T::Node;
 
-    fn next(self: &'_ mut PostorderIterMut<'tree, T, F>) -> Option<T::NodeRefMut<'_>> {
+    fn next(self: &'_ mut PostorderIterMut<'tree, T, F>) -> Option<&'_ mut T::Node> {
         impl_postorder_next!(self)
     }
 }
@@ -142,7 +142,7 @@ mod tests {
             let mut iter = PostorderIter::new(tree, |_| true);
             let mut sequence = Vec::new();
             while let Some(node) = iter.next() {
-                sequence.push(node.key.clone());
+                sequence.push(node.key().clone());
             }
             sequence
     }
@@ -154,7 +154,7 @@ mod tests {
             let mut iter = PostorderIterMut::new(tree, |_| true);
             let mut sequence = Vec::new();
             while let Some(node) = iter.next() {
-                sequence.push(node.key.clone());
+                sequence.push(node.key().clone());
             }
             sequence
     }
