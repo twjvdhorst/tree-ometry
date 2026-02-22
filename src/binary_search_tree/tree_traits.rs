@@ -63,9 +63,9 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         }
     }
 
-    /// Performs a clockwise tree rotation, changing self to point to the new root.
+    /// Rotates the left edge, making the left child the new root.
     /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_clockwise(&mut self) -> bool {
+    fn rotate_left(&mut self) -> bool {
         let Some(mut new_tree) = self.detach_left() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_right() {
             self.replace_left(rotating_subtree);
@@ -78,9 +78,9 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
         }
     }
 
-    /// Performs a counter-clockwise tree rotation, changing self to point to the new root.
+    /// Rotates the right edge, making the right child the new root.
     /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_counter_clockwise(&mut self) -> bool {
+    fn rotate_right(&mut self) -> bool {
         let Some(mut new_tree) = self.detach_right() else { return false; };
         if let Some(rotating_subtree) = new_tree.detach_left() {
             self.replace_right(rotating_subtree);
@@ -95,8 +95,8 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
 
     fn rotate_edge(&mut self, side: Side) -> bool {
         match side {
-            Side::Left => self.rotate_clockwise(),
-            Side::Right => self.rotate_counter_clockwise(),
+            Side::Left => self.rotate_left(),
+            Side::Right => self.rotate_right(),
         }
     }
 }

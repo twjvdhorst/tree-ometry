@@ -154,14 +154,8 @@ impl<K, V> RedBlackTree<K, V> {
     }
 
     fn set_color(&mut self, new_color: Color) {
-        if let Self::Internal(node) = self {
-            node.color = new_color;
-        }
-    }
-
-    fn mark_accessed(&mut self) {
-        if let Self::Internal(node) = self {
-            node.accessed_mut = true;
+        if let Some(root) = self.root_mut() {
+            root.color = new_color;
         }
     }
 }
@@ -194,17 +188,16 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
 impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
     fn root_mut(&mut self) -> Option<&mut RedBlackNode<K, V>> {
         if let Self::Internal(node) = self {
+            node.accessed_mut = true;
             Some(node)
         } else { None }
     }
 
     fn left_subtree_mut(&mut self) -> Option<&mut Self> {
-        self.mark_accessed();
         self.root_mut().map(|root| root.left.as_mut())
     }
 
     fn right_subtree_mut(&mut self) -> Option<&mut Self> {
-        self.mark_accessed();
         self.root_mut().map(|root| root.right.as_mut())
     }
 
@@ -260,33 +253,17 @@ impl<K, V> RedBlackTree<K, V>
 where 
     K: Ord,
 {
-    fn rotate_left(&mut self) -> bool {
-        if !<Self as BinaryTreeMut>::rotate_counter_clockwise(self) { return false; }
-        self.set_color(Color::Black);
-        self.left_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
-        true
-    }
-
-    fn rotate_right(&mut self) -> bool {
-        if !<Self as BinaryTreeMut>::rotate_clockwise(self) { return false; }
+    fn rotate_left_insertion(&mut self) -> bool {
+        if !<Self as BinaryTreeMut>::rotate_left(self) { return false; }
         self.set_color(Color::Black);
         self.right_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
     }
 
-    fn double_rotate_left(&mut self) -> bool {
-        let Some(mut right) = self.detach_right() else { return false; };
-        if !right.rotate_right() { return false; }
-        self.replace_right(right);
-        self.rotate_left();
-        true
-    }
-
-    fn double_rotate_right(&mut self) -> bool {
-        let Some(mut left) = self.detach_left() else { return false; };
-        if !left.rotate_left() { return false; }
-        self.replace_left(left);
-        self.rotate_right();
+    fn rotate_right_insertion(&mut self) -> bool {
+        if !<Self as BinaryTreeMut>::rotate_right(self) { return false; }
+        self.set_color(Color::Black);
+        self.left_subtree_mut().unwrap().set_color(Color::Red); // Can unwrap safely: left subtree exists since the rotation was successful.
         true
     }
 
@@ -306,11 +283,20 @@ where
             && child.get_color() == Some(Color::Red) && grandchild.get_color() == Some(Color::Red)
         {
             match (side1, side2) {
-                // Can safely ignore the result of the performed rotation, as the existing child and grandchild nodes imply the rotation won't fail
-                (Side::Left, Side::Left) => self.rotate_right(),
-                (Side::Right, Side::Right) => self.rotate_left(),
-                (Side::Left, Side::Right) => self.double_rotate_right(),
-                (Side::Right, Side::Left) => self.double_rotate_left(),
+                (Side::Left, Side::Left) => self.rotate_left_insertion(),
+                (Side::Right, Side::Right) => self.rotate_right_insertion(),
+                (Side::Left, Side::Right) => {
+                    // Perform a double left rotation.
+                    let Some(left) = self.left_subtree_mut() else { return false; };
+                    if !left.rotate_right_insertion() { return false; }
+                    self.rotate_left_insertion()
+                },
+                (Side::Right, Side::Left) => {
+                    // Perform a double right rotation.
+                    let Some(right) = self.right_subtree_mut() else { return false; };
+                    if !right.rotate_left_insertion() { return false; }
+                    self.rotate_right_insertion()
+                },
             }
         } else { false }
     }
@@ -414,13 +400,13 @@ where
 
     fn color_flip(&mut self) {
         self.flip_root_color();
-        if let Self::Internal(root) = self {
+        if let Some(root) = self.root_mut() {
             root.left.flip_root_color();
             root.right.flip_root_color();
         }
     }
 
-    fn rotate_edge(&mut self, side: Side) -> bool {
+    fn rotate_edge_deletion(&mut self, side: Side) -> bool {
         let Some(col_root) = self.get_color() else { return false; };
         if <Self as BinaryTreeMut>::rotate_edge(self, side) {
             self.set_color(col_root);
@@ -452,7 +438,7 @@ where
     /// Returns None if the root has both subtrees attached.
     /// Colors the new root black.
     fn remove_root_single_child(&mut self) -> Option<(K, V)> {
-        let Self::Internal(root) = self else { return None; };
+        let Some(root) = self.root_mut() else { return None; };
         if root.left.is_leaf() {
             let mut right = self.detach_right().unwrap();
             right.set_color(Color::Black);
@@ -493,7 +479,7 @@ where
         // By advancing down one level, the subtree becomes valid again.
 
         let mut current = &mut *self;
-        while let Self::Internal(node) = current {
+        while let Some(node) = current.root() {
             let (side, found) = match Q::cmp(key, node.key.borrow()) {
                 Ordering::Less => (Side::Left, false),
                 Ordering::Greater => (Side::Right, false),
@@ -526,7 +512,7 @@ where
             // Second phase.
             if current.subtree_color(side.opposite()) == Some(Color::Red) {
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate_edge(side.opposite());
+                current.rotate_edge_deletion(side.opposite());
                 current = current.subtree_mut(side)?;
             }
 
@@ -549,11 +535,11 @@ where
             let sibling_child = current.subtree_mut(side.opposite())?;
             if sibling_child.left_color() == Some(Color::Red) || sibling_child.right_color() == Some(Color::Red) {
                 if sibling_child.subtree_color(side.opposite()) != Some(Color::Red) {
-                    sibling_child.rotate_edge(side);
+                    sibling_child.rotate_edge_deletion(side);
                 }
 
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate_edge(side.opposite());
+                current.rotate_edge_deletion(side.opposite());
                 current.color_flip();
                 current = current.subtree_mut(side)?;
             }
