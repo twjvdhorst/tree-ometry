@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{borrow::Borrow, cmp::Ordering};
 
 use super::Side;
 
@@ -105,49 +105,106 @@ pub trait BinarySearchTree: BinaryTree {
     type Key: Ord;
     type Value;
 
-    fn key(&self) -> Option<&Self::Key>;
-    fn value(&self) -> Option<&Self::Value>;
-
-    fn predecessor<Q>(&self, value: &Q) -> Option<&Self::Key>
-    where
-        Self::Key: AsRef<Q>,
-        Q: Ord + ?Sized,
-    {
-        let key = self.key()?;
-        match Q::cmp(value, key.as_ref()) {
-            Ordering::Equal => Some(key),
-            Ordering::Less => self.left_subtree()?.predecessor(value),
-            Ordering::Greater => self.right_subtree()
-                .and_then(|right| right.predecessor(value))
-                .or(Some(key)),
-        }
+    #[inline]
+    fn key(&self) -> Option<&Self::Key> {
+        self.data().map(|(k, _)| k)
+    }
+    
+    #[inline]
+    fn value(&self) -> Option<&Self::Value> {
+        self.data().map(|(_, v)| v)
     }
 
-    fn successor<Q>(&self, value: &Q) -> Option<&Self::Key>
+    fn data(&self) -> Option<(&Self::Key, &Self::Value)>;
+
+    fn predecessor<Q>(&self, key: &Q) -> Option<&Self::Key>
     where
-        Self::Key: AsRef<Q>,
+        Self::Key: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        let key = self.key()?;
-        match Q::cmp(value, key.as_ref()) {
-            Ordering::Equal => Some(key),
-            Ordering::Greater => self.right_subtree()?.successor(value),
-            Ordering::Less => self.left_subtree()
-                .and_then(|left| left.successor(value))
-                .or(Some(key)),
+        let mut current = self;
+        let mut pred_key = None;
+        while let Some(curr_key) = current.key() {
+            match Q::cmp(key, curr_key.borrow()) {
+                Ordering::Equal => return Some(curr_key),
+                Ordering::Less => current = current.left_subtree()?,
+                Ordering::Greater => {
+                    pred_key = Some(curr_key);
+                    current = current.right_subtree()?;
+                },
+            }
         }
+        pred_key
     }
 
-    fn get<Q>(&self, value: &Q) -> Option<&Self::Value>
+    fn successor<Q>(&self, key: &Q) -> Option<&Self::Key>
     where
-        Self::Key: AsRef<Q>,
+        Self::Key: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        let key = self.key()?;
-        match Q::cmp(value, key.as_ref()) {
-            Ordering::Equal => self.value(),
-            Ordering::Greater => self.right_subtree()?.get(value),
-            Ordering::Less => self.left_subtree()?.get(value),
+        let mut current = self;
+        let mut pred_key = None;
+        while let Some(curr_key) = current.key() {
+            match Q::cmp(key, curr_key.borrow()) {
+                Ordering::Equal => return Some(curr_key),
+                Ordering::Less => {
+                    pred_key = Some(curr_key);
+                    current = current.left_subtree()?;
+                },
+                Ordering::Greater =>  current = current.right_subtree()?,
+            }
+        }
+        pred_key
+    }
+
+    fn min(&self) -> Option<&Self::Key> {
+        let mut current = self;
+        while let Some(child) = current.left_subtree()
+            && !child.is_leaf()
+        {
+            current = child;
+        }
+        current.key()
+    }
+
+    fn max(&self) -> Option<&Self::Key> {
+        let mut current = self;
+        while let Some(child) = current.right_subtree()
+            && !child.is_leaf()
+        {
+            current = child;
+        }
+        current.key()
+    }
+
+    #[inline]
+    fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        Self::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.get(key).is_some()
+    }
+
+    #[inline]
+    fn get<Q>(&self, key: &Q) -> Option<&Self::Value>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.get_key_value(key).map(|(_, v)| v)
+    }
+
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&Self::Key, &Self::Value)>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let root_key = self.key()?;
+        match Q::cmp(key, root_key.borrow()) {
+            Ordering::Equal => self.data(),
+            Ordering::Greater => self.right_subtree()?.get_key_value(key),
+            Ordering::Less => self.left_subtree()?.get_key_value(key),
         }
     }
 }

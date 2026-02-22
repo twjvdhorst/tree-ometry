@@ -81,15 +81,24 @@ impl<K, V> Default for RedBlackTree<K, V> {
     }
 }
 
+impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
+where 
+    K: Ord,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for (key, value) in iter {
+            self.insert(key, value);
+        }
+    }
+}
+
 impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
 where 
     K: Ord,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut tree = Self::default();
-        for (key, value) in iter {
-            tree.insert(key, value);
-        }
+        tree.extend(iter);
         tree
     }
 }
@@ -125,8 +134,8 @@ impl<K, V> RedBlackTree<K, V> {
         Self::default()
     }
 
-    fn new_internal(node: RedBlackNode<K, V>) -> Self {
-        Self::Internal(node)
+    fn new_internal(key: K, value: V, color: Color) -> Self {
+        Self::Internal(RedBlackNode::new(key, value, color))
     }
 
     fn into_root(self) -> Option<RedBlackNode<K, V>> {
@@ -239,12 +248,8 @@ where
     type Key = K;
     type Value = V;
 
-    fn key(&self) -> Option<&Self::Key> {
-        self.root().map(|root| &root.key)
-    }
-
-    fn value(&self) -> Option<&Self::Value> {
-        self.root().map(|root| &root.value)
+    fn data(&self) -> Option<(&Self::Key, &Self::Value)> {
+        self.root().map(|root| (&root.key, &root.value))
     }
 }
 
@@ -289,13 +294,15 @@ where
                     // Perform a double left rotation.
                     let Some(left) = self.left_subtree_mut() else { return false; };
                     if !left.rotate_right_insertion() { return false; }
-                    self.rotate_left_insertion()
+                    self.rotate_left_insertion();
+                    true
                 },
                 (Side::Right, Side::Left) => {
                     // Perform a double right rotation.
                     let Some(right) = self.right_subtree_mut() else { return false; };
                     if !right.rotate_left_insertion() { return false; }
-                    self.rotate_right_insertion()
+                    self.rotate_right_insertion();
+                    true
                 },
             }
         } else { false }
@@ -318,7 +325,7 @@ where
             }
         } else {
             // Tree is empty.
-            *self = Self::new_internal(RedBlackNode::new(key, value, Color::Black));
+            *self = Self::new_internal(key, value, Color::Black);
             return None;
         };
 
@@ -339,13 +346,13 @@ where
                 }
             } else {
                 // Child tree is empty.
-                *child = Self::new_internal(RedBlackNode::new(key, value, Color::Red));
+                *child = Self::new_internal(key, value, Color::Red);
                 break;
             };
 
             let grandchild = child.subtree_mut(side2).unwrap(); // Can unwrap safely, we ensure that child is not a leaf.
             if grandchild.is_leaf() {
-                *grandchild = Self::new_internal(RedBlackNode::new(key, value, Color::Red));
+                *grandchild = Self::new_internal(key, value, Color::Red);
                 current.fix_local_violation(side1, side2);
                 break;
             }
@@ -366,7 +373,7 @@ where
             }
         }
 
-        // Reset the root color to black.
+        // Maintain the invariant that the root is black.
         self.set_color(Color::Black);
         None
     }
@@ -425,13 +432,11 @@ where
             current = current.right_subtree_mut().unwrap();
         }
 
-        if let Some((key, value)) = self.data_mut()
-            && let Some((pred_key, pred_value)) = current.data_mut()
-        {
-            std::mem::swap(key, pred_key);
-            std::mem::swap(value, pred_value);
-            self.attach_left(left);
-        }
+        let (key, value) = self.data_mut().unwrap();
+        let (pred_key, pred_value) = current.data_mut().unwrap();
+        std::mem::swap(key, pred_key);
+        std::mem::swap(value, pred_value);
+        self.attach_left(left);
     }
 
     /// Helper function for removing roots with at most one subtree attached.
