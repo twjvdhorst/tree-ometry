@@ -36,6 +36,30 @@ pub struct RedBlackNode<K, V, T>  {
     color: Color,
 }
 
+impl<K, V, T> fmt::Debug for RedBlackNode<K, V, T>
+where
+    K: fmt::Debug,
+    V: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let c = match self.color {
+            Color::Red => "r",
+            Color::Black => "b",
+        };
+        write!(f, "({:?}, {:?}, {c})", &self.key, &self.value)
+    }
+}
+
+impl<K, V, T> fmt::Display for RedBlackNode<K, V, T>
+where
+    K: fmt::Display,
+    V: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", &self.key, &self.value)
+    }
+}
+
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     T: BinaryTree,

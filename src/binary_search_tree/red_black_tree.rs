@@ -9,7 +9,7 @@ use crate::binary_search_tree::red_black_node::{Color, RedBlackNode};
     preorder::{PreorderIter, PreorderIterMut},
 };*/
 use crate::binary_search_tree::tree_traits::{
-    BinaryTree
+    BinaryTree, BinaryTreeNode
 };
 
 use super::Side;
@@ -172,15 +172,16 @@ where
     }
 }
 
-/*
 impl<K, V> fmt::Debug for RedBlackTree<K, V>
 where 
     K: fmt::Debug,
+    V: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
             K: fmt::Debug,
+            V: fmt::Debug,
         {
             write!(f, "{prefix}")?;
             if is_left {
@@ -188,19 +189,11 @@ where
             } else {
                 write!(f, "└──")?;
             };
-            if let RedBlackTree::Internal(node) = tree {
-                let c = match node.color {
-                    Color::Red => "r",
-                    Color::Black => "b",
-                };
-                write!(f, "N({:?}, {c})\n", node.key)?;
+            if let Some(root) = tree.root() {
+                write!(f, "{root:?}\n")?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                if let Some(left) = tree.left_subtree() {
-                    recursive_fmt(left, f, &new_prefix, true)?;
-                }
-                if let Some(right) = tree.right_subtree() {
-                    recursive_fmt(right, f, &new_prefix, false)?;
-                }
+                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
+                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
                 Ok(())
             } else {
                 write!(f, "L\n")
@@ -215,11 +208,13 @@ where
 impl<K, V> fmt::Display for RedBlackTree<K, V>
 where 
     K: fmt::Display,
+    V: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
             K: fmt::Display,
+            V: fmt::Display,
         {
             write!(f, "{prefix}")?;
             if is_left {
@@ -227,22 +222,18 @@ where
             } else {
                 write!(f, "└──")?;
             };
-            if let RedBlackTree::Internal(node) = tree {
-                write!(f, "N({})\n", node.key)?;
+            if let Some(root) = tree.root() {
+                write!(f, "{root}\n")?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                if let Some(left) = tree.left_subtree() {
-                    recursive_fmt(left, f, &new_prefix, true)?;
-                }
-                if let Some(right) = tree.right_subtree() {
-                    recursive_fmt(right, f, &new_prefix, false)?;
-                }
+                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
+                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
                 Ok(())
             } else {
                 write!(f, "L\n")
             }
         }
-
+        
+        write!(f, "\n")?;
         recursive_fmt(self, f, "", false)
     }
 }
-*/
