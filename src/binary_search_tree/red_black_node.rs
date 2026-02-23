@@ -2,13 +2,8 @@ use std::{borrow::Borrow, cmp::Ordering};
 use std::fmt;
 use paste::paste;
 
-/*use crate::binary_search_tree::tree_iterators::{
-    inorder::{InorderIter, InorderIterMut},
-    postorder::{PostorderIter, PostorderIterMut},
-    preorder::{PreorderIter, PreorderIterMut},
-};*/
 use crate::binary_search_tree::tree_traits::{
-    BinarySearchTreeNode, BinaryTree, BinaryTreeNode, BinaryTreeNodeMut
+    BinaryTree, BinaryTreeNode, BinaryTreeNodeMut
 };
 
 use super::Side;
@@ -73,7 +68,9 @@ where
             color,
         }
     }
+}
 
+impl<K, V, T> RedBlackNode<K, V, T> {
     pub fn key(&self) -> &K {
         &self.key
     }
@@ -86,6 +83,14 @@ where
         &mut self.value
     }
 
+    pub fn data(&self) -> (&K, &V) {
+        (&self.key, &self.value)
+    }
+
+    fn into_data(self) -> (K, V) {
+        (self.key, self.value)
+    }
+
     pub fn left(&self) -> &T {
         &self.left
     }
@@ -94,95 +99,6 @@ where
         &self.right
     }
 }
-/*
-impl<K, V> Extend<(K, V)> for RedBlackNode<K, V>
-where 
-    K: Ord,
-{
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        for (key, value) in iter {
-            self.insert(key, value);
-        }
-    }
-}
-
-impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
-where 
-    K: Ord,
-{
-    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        let mut tree = Self::default();
-        tree.extend(iter);
-        tree
-    }
-}
-
-macro_rules! make_iter {
-    ($vis: vis, $iter_name: ident, $iter_type: ident) => {
-        paste!{
-            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> bool> {
-                self.[<$iter_name _filtered>](|_| true)
-            }
-
-            $vis fn [<$iter_name _filtered>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
-            where
-                F: Fn(&Self) -> bool,
-            {
-                $iter_type::new(self, f)
-            }
-        }
-    };
-}
-
-impl<K, V> RedBlackTree<K, V> {
-    make_iter!(pub, inorder_iter, InorderIter);
-    make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
-    make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
-    make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
-}
-
-impl<K, V> RedBlackTree<K, V> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    fn new_internal(key: K, value: V, color: Color) -> Self {
-        Self::Internal(RedBlackNode::new(key, value, color))
-    }
-
-    fn into_root(self) -> Option<RedBlackNode<K, V>> {
-        if let Self::Internal(node) = self {
-            Some(node)
-        } else { None }
-    }
-
-    fn data_mut(&mut self) -> Option<(&mut K, &mut V)> {
-        self.root_mut().map(|root| (&mut root.key, &mut root.value))
-    }
-
-    fn into_data(self) -> Option<(K, V)> {
-        self.into_root().map(|root| (root.key, root.value))
-    }
-
-    fn replace_value(&mut self, new_value: V) -> Option<V> {
-        if let Some(root) = self.root_mut() {
-            Some(std::mem::replace(&mut root.value, new_value))
-        } else { None }
-    }
-
-    fn get_color(&self) -> Option<Color> {
-        self.root().map(|root| root.color)
-    }
-
-    fn set_color(&mut self, new_color: Color) {
-        if let Some(root) = self.root_mut() {
-            root.color = new_color;
-        }
-    }
-}
-    */
 
 impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T> {
     type Tree = T;
@@ -240,19 +156,6 @@ where
     
     fn replace_right(&mut self, tree: Self::Tree) -> Self::Tree {
         std::mem::replace(&mut self.right, tree)
-    }
-}
-
-impl<K, V, T> BinarySearchTreeNode for RedBlackNode<K, V, T>
-where
-    K: Ord,
-    T: BinaryTree<Node = Self>
-{
-    type Key = K;
-    type Value = V;
-
-    fn data(&self) -> (&Self::Key, &Self::Value) {
-        (&self.key, &self.value)
     }
 }
 
@@ -382,24 +285,31 @@ where
     K: Ord,
     T: BinaryTree<Node = Self>,
 {
-    fn left_color(&self) -> Option<Color> {
-        Some(self.left_subtree().root()?.color)
+    fn left_color(tree: &T) -> Option<Color> {
+        Some(tree.root()?.left_subtree().root()?.color)
     }
 
-    fn right_color(&self) -> Option<Color> {
-        Some(self.right_subtree().root()?.color)
+    fn right_color(tree: &T) -> Option<Color> {
+        Some(tree.root()?.right_subtree().root()?.color)
     }
 
-    fn subtree_color(&self, side: Side) -> Option<Color> {
+    fn subtree_color(tree: &T, side: Side) -> Option<Color> {
         match side {
-            Side::Left => self.left_color(),
-            Side::Right => self.right_color(),
+            Side::Left => Self::left_color(tree),
+            Side::Right => Self::right_color(tree),
         }
     }
 
-    fn color_flip(&mut self) {
-        self.color = self.color.opposite();
-        let (left, right) = self.subtrees_mut();
+    fn set_root_color(tree: &mut T, color: Color) {
+        if let Some(root) = tree.root_mut() {
+            root.color = color;
+        }
+    }
+
+    fn color_flip(tree: &mut T) {
+        let Some(root) = tree.root_mut() else { return; };
+        root.color = root.color.opposite();
+        let (left, right) = root.subtrees_mut();
         if let Some(left) = left.root_mut() {
             left.color = left.color.opposite();
         }
@@ -408,26 +318,28 @@ where
         }
     }
 
-    fn rotate_edge_deletion(&mut self, side: Side) -> bool {
-        let col_root = self.color;
-        if <Self as BinaryTreeNodeMut>::rotate_edge(self, side) {
-            self.color = col_root;
-            self.subtree_mut(side.opposite()).root_mut().unwrap().color = Color::Red;
+    fn rotate_edge_deletion(tree: &mut T, side: Side) -> bool {
+        let Some(root) = tree.root_mut() else { return false; };
+        let col_root = root.color;
+        if <Self as BinaryTreeNodeMut>::rotate_edge(root, side) {
+            root.color = col_root;
+            Self::set_root_color(root.subtree_mut(side.opposite()), Color::Red);
             true
         } else { false }
     }
 
-    fn swap_with_predecessor(&mut self) {
-        let mut left_tree = self.detach_left();
+    fn swap_root_with_predecessor(tree: &mut T) {
+        let Some(root) = tree.root_mut() else { return; };
+        let mut left_tree = root.detach_left();
 
         let Some(mut current) = left_tree.root_mut() else { return; };
         while !current.right_subtree().is_leaf() {
             current = current.right_subtree_mut().root_mut().unwrap();
         }
 
-        std::mem::swap(&mut self.key, &mut current.key);
-        std::mem::swap(&mut self.value, &mut current.value);
-        self.attach_left(left_tree);
+        std::mem::swap(&mut root.key, &mut current.key);
+        std::mem::swap(&mut root.value, &mut current.value);
+        root.attach_left(left_tree);
     }
 
     /// Helper function for removing roots with at most one subtree attached.
@@ -437,16 +349,14 @@ where
         let Some(root) = tree.root_mut() else { return None; };
         if root.left.is_leaf() {
             let mut right_tree = root.detach_right();
-            if let Some(right) = right_tree.root_mut() {
-                right.color = Color::Black;
-            }
+            Self::set_root_color(&mut right_tree, Color::Black);
             let old = std::mem::replace(tree, right_tree);
-            old.into_root().map(|root| (root.key, root.value))
+            old.into_root().map(Self::into_data)
         } else if root.right.is_leaf() {
             let mut left_tree = root.detach_left();
-            left_tree.root_mut().unwrap().color = Color::Black; // Can unwrap safely; the left tree is not a leaf.
+            Self::set_root_color(&mut left_tree, Color::Black);
             let old = std::mem::replace(tree, left_tree);
-            old.into_root().map(|root| (root.key, root.value))
+            old.into_root().map(Self::into_data)
         } else {
             None
         }
@@ -475,9 +385,7 @@ where
                     // The remove_root_single_child function handles the no-child case as well, as by this point,
                     // the tree has been restructured sufficiently to be valid after deleting the node.
                     if let Some(data) = Self::remove_root_single_child(current) {
-                        if let Some(root) = tree.root_mut() {
-                            root.color = Color::Black;
-                        }
+                        Self::set_root_color(tree, Color::Black);
                         return Some(data);
                     } else {
                         (Side::Left, true)
@@ -486,145 +394,163 @@ where
             };
 
             // First phase.
-            if current.root().and_then(|root| root.subtree_color(side)) == Some(Color::Red) {
+            if Self::subtree_color(current, side) == Some(Color::Red) {
                 // We advance without changing the location of the to-be-deleted current node.
                 // The subtree we advance to contains the predecessor of current, and not current itself.
                 // Thus, swapping current with its predecessor keeps the subtree valid.
-                let curr_root = current.root_mut().unwrap();
                 if found {
-                    curr_root.swap_with_predecessor();
+                    Self::swap_root_with_predecessor(current);
                 }
 
-                current = curr_root.subtree_mut(side);
+                current = current.root_mut().unwrap().subtree_mut(side);
                 continue;
             }
 
             // Second phase.
-            if current.root().and_then(|root| root.subtree_color(side.opposite())) == Some(Color::Red) {
+            if Self::subtree_color(current, side.opposite()) == Some(Color::Red) {
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                let curr_root = current.root_mut().unwrap();
-                curr_root.rotate_edge_deletion(side.opposite());
-                current = curr_root.subtree_mut(side);
+                Self::rotate_edge_deletion(current, side.opposite());
+                current = current.root_mut().unwrap().subtree_mut(side);
             }
 
             // Third phase.
-            if let Some(child) = current.root().and_then(|root| root.subtree(side).root())
-                && (child.left_color() == Some(Color::Red) || child.right_color() == Some(Color::Red))
+            if let Some(child_tree) = current.root().map(|root| root.subtree(side))
+                && (Self::left_color(child_tree) == Some(Color::Red) || Self::right_color(child_tree) == Some(Color::Red))
             {
                 // We advance without changing the location of the to-be-deleted current node.
                 // The subtree we advance to contains the predecessor of current, and not current itself.
                 // Thus, swapping current with its predecessor keeps the subtree valid.
-                let curr_root = current.root_mut().unwrap();
                 if found {
-                    curr_root.swap_with_predecessor();
+                    Self::swap_root_with_predecessor(current);
                 }
 
-                current = curr_root.subtree_mut(side);
+                current = current.root_mut().unwrap().subtree_mut(side);
                 continue;
             }
 
-            if !current.is_leaf() {
-                let curr_root = current.root_mut().unwrap();
-                curr_root.color_flip();
-            }
-
-            if let Some(sibling_child) = current.root().and_then(|root| root.subtree(side.opposite()).root())
-                && (sibling_child.left_color() == Some(Color::Red) || sibling_child.right_color() == Some(Color::Red))
+            Self::color_flip(current);
+            if let Some(sibling_tree) = current.root_mut().map(|root| root.subtree_mut(side.opposite()))
+                && (Self::left_color(sibling_tree) == Some(Color::Red) || Self::right_color(sibling_tree) == Some(Color::Red))
             {
-                if sibling_child.subtree_color(side.opposite()) != Some(Color::Red) {
-                    let sibling_child = current.root_mut().unwrap().subtree_mut(side.opposite()).root_mut().unwrap();
-                    sibling_child.rotate_edge_deletion(side);
+                if Self::subtree_color(sibling_tree, side.opposite()) != Some(Color::Red) {
+                    Self::rotate_edge_deletion(sibling_tree, side);
                 }
 
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                let curr_root = current.root_mut().unwrap();
-                curr_root.rotate_edge_deletion(side.opposite());
-                curr_root.color_flip();
-                current = curr_root.subtree_mut(side);
+                Self::rotate_edge_deletion(current, side.opposite());
+                Self::color_flip(current);
+                current = current.root_mut().unwrap().subtree_mut(side);
             }
         }
 
-        if let Some(root) = tree.root_mut() {
-            root.color = Color::Black;
-        }
+        Self::set_root_color(tree, Color::Black);
         None
     }
 }
 
-/*
-impl<K, V> fmt::Debug for RedBlackTree<K, V>
-where 
-    K: fmt::Debug,
+// Queries.
+impl<K, V, T> RedBlackNode<K, V, T>
+where
+    K: Ord,
+    T: BinaryTree<Node = Self>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Debug,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let RedBlackTree::Internal(node) = tree {
-                let c = match node.color {
-                    Color::Red => "r",
-                    Color::Black => "b",
-                };
-                write!(f, "N({:?}, {c})\n", node.key)?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                if let Some(left) = tree.left_subtree() {
-                    recursive_fmt(left, f, &new_prefix, true)?;
-                }
-                if let Some(right) = tree.right_subtree() {
-                    recursive_fmt(right, f, &new_prefix, false)?;
-                }
-                Ok(())
-            } else {
-                write!(f, "L\n")
+    pub fn predecessor<Q>(&self, key: &Q) -> Option<&K>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut current = self;
+        let mut pred_key = None;
+        loop {
+            match Q::cmp(key, current.key.borrow()) {
+                Ordering::Equal => return Some(&current.key),
+                Ordering::Less => {
+                    let Some(left) = current.left_subtree().root() else { break; };
+                    current = left;
+                },
+                Ordering::Greater => {
+                    pred_key = Some(&current.key);
+                    let Some(right) = current.right_subtree().root() else { break; };
+                    current = right;
+                },
             }
         }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self, f, "", false)
+        pred_key
     }
-}
-    
-impl<K, V> fmt::Display for RedBlackTree<K, V>
-where 
-    K: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Display,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let RedBlackTree::Internal(node) = tree {
-                write!(f, "N({})\n", node.key)?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                if let Some(left) = tree.left_subtree() {
-                    recursive_fmt(left, f, &new_prefix, true)?;
-                }
-                if let Some(right) = tree.right_subtree() {
-                    recursive_fmt(right, f, &new_prefix, false)?;
-                }
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
 
-        recursive_fmt(self, f, "", false)
+    pub fn successor<Q>(&self, key: &Q) -> Option<&K>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut current = self;
+        let mut succ_key = None;
+        loop {
+            match Q::cmp(key, current.key.borrow()) {
+                Ordering::Equal => return Some(&current.key),
+                Ordering::Less => {
+                    succ_key = Some(&current.key);
+                    let Some(left) = current.left_subtree().root() else { break; };
+                    current = left;
+                },
+                Ordering::Greater => {
+                    let Some(right) = current.right_subtree().root() else { break; };
+                    current = right;
+                },
+            }
+        }
+        succ_key
+    }
+
+    pub fn min(&self) -> &K {
+        let mut current = self;
+        while let Some(child) = current.left_subtree().root() {
+            current = child;
+        }
+        current.key()
+    }
+
+    pub fn max(&self) -> &K {
+        let mut current = self;
+        while let Some(child) = current.right_subtree().root() {
+            current = child;
+        }
+        current.key()
+    }
+
+    #[inline]
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.get(key).is_some()
+    }
+
+    #[inline]
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.get_key_value(key).map(|(_, v)| v)
+    }
+
+    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut current = self;
+        loop {
+            match Q::cmp(key, current.key.borrow()) {
+                Ordering::Equal => return Some(current.data()),
+                Ordering::Less => current = current.left_subtree().root()?,
+                Ordering::Greater => current = current.right_subtree().root()?,
+            }
+        }
     }
 }
-    */
 
 #[cfg(test)]
 mod tests {
