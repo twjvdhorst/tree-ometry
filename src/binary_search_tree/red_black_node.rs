@@ -8,7 +8,7 @@ use paste::paste;
     preorder::{PreorderIter, PreorderIterMut},
 };*/
 use crate::binary_search_tree::tree_traits::{
-    BinarySearchTreeNode, BinaryTree, BinaryTreeMut, BinaryTreeNode, BinaryTreeNodeMut
+    BinarySearchTreeNode, BinaryTree, BinaryTreeNode, BinaryTreeNodeMut
 };
 
 use super::Side;
@@ -174,7 +174,7 @@ impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T> {
 
 impl<K, V, T> BinaryTreeNodeMut for RedBlackNode<K, V, T>
 where 
-    T: BinaryTreeMut<Node = Self>,
+    T: BinaryTree<Node = Self>,
 {
     fn left_subtree_mut(&mut self) -> &mut Self::Tree {
         self.left.as_mut()
@@ -236,7 +236,7 @@ where
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
-    T: BinaryTreeMut<Node = Self>,
+    T: BinaryTree<Node = Self>,
 {
     fn rotate_left_insertion(&mut self) -> bool {
         if !<Self as BinaryTreeNodeMut>::rotate_left(self) { return false; }

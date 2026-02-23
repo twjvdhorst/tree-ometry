@@ -7,8 +7,11 @@ pub trait BinaryTree {
 
     fn new_leaf() -> Self;
     fn new_node(node: Self::Node) -> Self;
+
     fn is_leaf(&self) -> bool;
+
     fn root(&self) -> Option<&Self::Node>;
+    fn root_mut(&mut self) -> Option<&mut Self::Node>;
 }
 
 pub trait BinaryTreeNode {
@@ -27,13 +30,9 @@ pub trait BinaryTreeNode {
     }
 }
 
-pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
-    fn root_mut(&mut self) -> Option<&mut Self::Node>;
-}
-
 pub(crate) trait BinaryTreeNodeMut: BinaryTreeNode + Sized
 where 
-    Self::Tree: BinaryTreeMut<Node = Self>,
+    Self::Tree: BinaryTree<Node = Self>,
 {
     fn left_subtree_mut(&mut self) -> &mut Self::Tree;
     fn right_subtree_mut(&mut self) -> &mut Self::Tree;

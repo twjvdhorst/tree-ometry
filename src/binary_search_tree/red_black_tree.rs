@@ -9,7 +9,7 @@ use crate::binary_search_tree::red_black_node::{Color, RedBlackNode};
     preorder::{PreorderIter, PreorderIterMut},
 };*/
 use crate::binary_search_tree::tree_traits::{
-    BinaryTree, BinaryTreeMut
+    BinaryTree
 };
 
 use super::Side;
@@ -133,9 +133,7 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
     fn root(&self) -> Option<&Self::Node> {
         self.0.as_ref()
     }
-}
 
-impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
     fn root_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.as_mut()
     }
