@@ -159,58 +159,116 @@ where
     }
 }
 
+/// Helpers for dynamic functions.
+impl<K, V, T> RedBlackNode<K, V, T>
+where 
+    K: Ord,
+    T: BinaryTree<Node = Self>,
+{
+    /// Rotates the left edge, making the left child the new root.
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
+    fn rotate_left(tree: &mut T) -> bool {
+        let Some(root) = tree.root_mut() else { return false; };
+        let mut new_tree = root.detach_left();
+        if let Some(mut new_root) = new_tree.root_mut() {
+            let rotating_subtree = new_root.detach_right();
+            root.replace_left(rotating_subtree);
+            std::mem::swap(root, &mut new_root);
+            root.replace_right(new_tree);
+            true
+        } else {
+            // Left subtree is a leaf.
+            false
+        }
+    }
+
+    /// Rotates the right edge, making the right child the new root.
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
+    fn rotate_right(tree: &mut T) -> bool {
+        let Some(root) = tree.root_mut() else { return false; };
+        let mut new_tree = root.detach_right();
+        if let Some(mut new_root) = new_tree.root_mut() {
+            let rotating_subtree = new_root.detach_left();
+            root.replace_right(rotating_subtree);
+            std::mem::swap(root, &mut new_root);
+            root.replace_left(new_tree);
+            true
+        } else {
+            // Right subtree is a leaf.
+            false
+        }
+    }
+
+    fn rotate_edge(tree: &mut T, side: Side) -> bool {
+        match side {
+            Side::Left => Self::rotate_left(tree),
+            Side::Right => Self::rotate_right(tree),
+        }
+    }
+    
+    fn set_root_color(tree: &mut T, color: Color) {
+        if let Some(root) = tree.root_mut() {
+            root.color = color;
+        }
+    }
+}
+
 /// Insertions.
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
     T: BinaryTree<Node = Self>,
 {
-    fn rotate_left_insertion(&mut self) -> bool {
-        if !<Self as BinaryTreeNodeMut>::rotate_left(self) { return false; }
-        self.color = Color::Black;
-        self.right_subtree_mut().root_mut().unwrap().color = Color::Red; // Can unwrap safely: left subtree exists since the rotation was successful.
-        true
+    fn rotate_left_insertion(tree: &mut T) -> bool {
+        if Self::rotate_left(tree) {
+            Self::set_root_color(tree, Color::Black);
+            Self::set_root_color(tree.root_mut().unwrap().right_subtree_mut(), Color::Red); // Can unwrap safely: right subtree exists since the rotation was successful.
+            true
+        } else { false }
     }
 
-    fn rotate_right_insertion(&mut self) -> bool {
-        if !<Self as BinaryTreeNodeMut>::rotate_right(self) { return false; }
-        self.color = Color::Black;
-        self.left_subtree_mut().root_mut().unwrap().color = Color::Red; // Can unwrap safely: left subtree exists since the rotation was successful.
-        true
+    fn rotate_right_insertion(tree: &mut T) -> bool {
+        if Self::rotate_right(tree) {
+            Self::set_root_color(tree, Color::Black);
+            Self::set_root_color(tree.root_mut().unwrap().left_subtree_mut(), Color::Red); // Can unwrap safely: right subtree exists since the rotation was successful.
+            true
+        } else { false }
     }
 
     /// Swaps the colors of self and its children if both children (exist and) are red.
-    fn color_swap(&mut self) {
-        let (left, right) = self.subtrees_mut();
+    fn color_swap(tree: &mut T) {
+        let Some(root) = tree.root_mut() else { return; };
+        let (left, right) = root.subtrees_mut();
         if let Some(left) = left.root_mut() && let Some(right) = right.root_mut()
             && left.color == Color::Red && right.color == Color::Red
         {
             left.color = Color::Black;
             right.color = Color::Black;
-            self.color = Color::Red;
+            root.color = Color::Red;
         }
     }
 
-    fn fix_local_violation(&mut self, side1: Side, side2: Side) -> bool {
-        if let Some(child) = self.subtree(side1).root() && let Some(grandchild) = child.subtree(side2).root()
+    fn fix_local_violation(tree: &mut T, side1: Side, side2: Side) -> bool {
+        let Some(root) = tree.root_mut() else { return false; };
+        if let Some(child) = root.subtree(side1).root() && let Some(grandchild) = child.subtree(side2).root()
             && child.color == Color::Red && grandchild.color == Color::Red
         {
             match (side1, side2) {
-                (Side::Left, Side::Left) => self.rotate_left_insertion(),
-                (Side::Right, Side::Right) => self.rotate_right_insertion(),
+                (Side::Left, Side::Left) => Self::rotate_left_insertion(tree),
+                (Side::Right, Side::Right) => Self::rotate_right_insertion(tree),
                 (Side::Left, Side::Right) => {
                     // Perform a double left rotation.
-                    let Some(left) = self.left_subtree_mut().root_mut() else { return false; };
-                    if !left.rotate_right_insertion() { return false; }
-                    self.rotate_left_insertion();
-                    true
+                    if Self::rotate_right_insertion(root.left_subtree_mut()) {
+                        Self::rotate_left_insertion(tree);
+                        true
+                    } else { false }
                 },
                 (Side::Right, Side::Left) => {
-                    // Perform a double right rotation.
-                    let Some(right) = self.right_subtree_mut().root_mut() else { return false; };
-                    if !right.rotate_left_insertion() { return false; }
-                    self.rotate_right_insertion();
-                    true
+                    // Perform a double left rotation.
+                    if Self::rotate_left_insertion(root.right_subtree_mut()) {
+                        Self::rotate_right_insertion(tree);
+                        true
+                    } else { false }
                 },
             }
         } else { false }
@@ -220,61 +278,69 @@ where
     /// If the key was not present in the tree yet, None is returned.
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+    pub fn insert(tree: &mut T, key: K, value: V) -> Option<V> {
         // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
         // To not need multiple mutable references into self, keep track of only the grandparent, together with the sides to take to get to parent and current.
         // We first handle the cases where there is no parent or no current, i.e., the path to the leaf where we put value is too short.
         
-        let mut side1 = match K::cmp(&key, &self.key) {
-            Ordering::Less => Side::Left,
-            Ordering::Greater => Side::Right,
-            Ordering::Equal => return Some(std::mem::replace(&mut self.value, value)),
+        let mut side1 = if let Some(root) = tree.root_mut() {
+            match K::cmp(&key, &root.key) {
+                Ordering::Less => Side::Left,
+                Ordering::Greater => Side::Right,
+                Ordering::Equal => return Some(std::mem::replace(&mut root.value, value)),
+            }
+        } else {
+            // Tree is empty.
+            *tree = T::new_node(Self::new(key, value, Color::Black));
+            return None;
         };
 
         // Check for a color swap at every node we come accross.
-        self.color_swap();
+        Self::color_swap(tree);
 
         // Walk down the tree, updating the tree as we go.
-        let mut current = &mut *self;
+        let mut current = &mut *tree;
         loop {
-            let Some(child) = current.subtree_mut(side1).root_mut() else {
-                // Child tree is empty.
-                current.attach_subtree(side1, <<RedBlackNode<K, V, T> as BinaryTreeNode>::Tree>::new_node(Self::new(key, value, Color::Red)));
-                break;
-            };
-            child.color_swap();
-
-            let side2 = match K::cmp(&key, &child.key) {
-                Ordering::Less => Side::Left,
-                Ordering::Greater => Side::Right,
-                Ordering::Equal => return Some(std::mem::replace(&mut child.value, value)),
-            };
-
-            let Some(grandchild) = child.subtree_mut(side2).root_mut() else {
-                // Grandchild tree is empty.
-                child.attach_subtree(side2, <<RedBlackNode<K, V, T> as BinaryTreeNode>::Tree>::new_node(Self::new(key, value, Color::Red)));
-                current.fix_local_violation(side1, side2);
-                break;
-            };
-            grandchild.color_swap();
-
-            if current.fix_local_violation(side1, side2) {
-                // Need to do comparison again, since tree structure has been changed.
-                // In particular, grandparent has been changed, and side1 and side2 might have been changed with it.
-                side1 = match K::cmp(&key, &current.key) {
+            let child_tree = current.root_mut().unwrap().subtree_mut(side1); // Can unwrap safely, we ensure that current is not a leaf.
+            Self::color_swap(child_tree);
+            
+            let side2 = if let Some(child) = child_tree.root_mut() {
+                match K::cmp(&key, &child.key) {
                     Ordering::Less => Side::Left,
                     Ordering::Greater => Side::Right,
-                    Ordering::Equal => return Some(std::mem::replace(&mut current.value, value)),
+                    Ordering::Equal => return Some(std::mem::replace(&mut child.value, value)),
+                }
+            } else {
+                // Child tree is empty.
+                *child_tree = T::new_node(Self::new(key, value, Color::Red));
+                break;
+            };
+
+            let grandchild_tree = child_tree.root_mut().unwrap().subtree_mut(side2); // Can unwrap safely, we ensure that child is not a leaf.
+            if grandchild_tree.is_leaf() {
+                *grandchild_tree = T::new_node(Self::new(key, value, Color::Red));
+                Self::fix_local_violation(current, side1, side2);
+                break;
+            }
+            Self::color_swap(grandchild_tree);
+
+            if Self::fix_local_violation(current, side1, side2) {
+                // Need to do comparison again, since tree structure has been changed.
+                // In particular, grandparent has been changed, and side1 and side2 might have been changed with it.
+                side1 = match K::cmp(&key, &current.root().unwrap().key) {
+                    Ordering::Less => Side::Left,
+                    Ordering::Greater => Side::Right,
+                    Ordering::Equal => return Some(std::mem::replace(&mut current.root_mut().unwrap().value, value)),
                 };
             } else { 
                 // Structure of the tree is unchanged, can safely continue the search in a subtree of grandparent.
-                current = current.subtree_mut(side1).root_mut().unwrap();
+                current = current.root_mut().unwrap().subtree_mut(side1);
                 side1 = side2;
             }
         }
 
         // Maintain the invariant that the root is black.
-        self.color = Color::Black;
+        Self::set_root_color(tree, Color::Black);
         None
     }
 }
@@ -300,12 +366,6 @@ where
         }
     }
 
-    fn set_root_color(tree: &mut T, color: Color) {
-        if let Some(root) = tree.root_mut() {
-            root.color = color;
-        }
-    }
-
     fn color_flip(tree: &mut T) {
         let Some(root) = tree.root_mut() else { return; };
         root.color = root.color.opposite();
@@ -321,9 +381,9 @@ where
     fn rotate_edge_deletion(tree: &mut T, side: Side) -> bool {
         let Some(root) = tree.root_mut() else { return false; };
         let col_root = root.color;
-        if <Self as BinaryTreeNodeMut>::rotate_edge(root, side) {
-            root.color = col_root;
-            Self::set_root_color(root.subtree_mut(side.opposite()), Color::Red);
+        if Self::rotate_edge(tree, side) {
+            Self::set_root_color(tree, col_root);
+            Self::set_root_color(tree.root_mut().unwrap().subtree_mut(side.opposite()), Color::Red);
             true
         } else { false }
     }

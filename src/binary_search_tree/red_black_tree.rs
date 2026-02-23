@@ -147,8 +147,8 @@ where
     K: Ord,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if let Some(root) = &mut self.0 {
-            root.insert(key, value)
+        if self.0.is_some() {
+            RedBlackNode::insert(self, key, value)
         } else {
             self.0.replace(RedBlackNode::new(key, value, Color::Black));
             None

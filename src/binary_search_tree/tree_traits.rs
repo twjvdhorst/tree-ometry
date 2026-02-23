@@ -1,5 +1,3 @@
-use std::{borrow::Borrow, cmp::Ordering};
-
 use super::Side;
 
 pub trait BinaryTree {
