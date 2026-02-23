@@ -1,14 +1,15 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_search_tree::{
-    tree_traits::{
-        BinaryTree,
-        BinaryTreeMut,
-    },
     tree_iterators::{
         traversal_stack::TraversalStack,
         traversal_stack_mut::TraversalStackMut,
     },
+    tree_traits::{
+        BinaryTree,
+        BinaryTreeNode,
+        BinaryTreeNodeMut,
+    }
 };
 
 macro_rules! impl_preorder_next {
@@ -43,7 +44,7 @@ where
 
 impl<'tree, T, F> PreorderIter<'tree, T, F> 
 where 
-    T: BinaryTree + 'tree,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
     F: Fn(&T) -> bool,
 {
     pub fn new(tree: &'tree T, subtree_filter: F) -> Self {
@@ -56,7 +57,7 @@ where
 
 impl<'tree, T, F> Iterator for PreorderIter<'tree, T, F>
 where 
-    T: BinaryTree,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
     F: Fn(&T) -> bool,
 {
     type Item = &'tree T::Node;
@@ -68,7 +69,7 @@ where
 
 pub(crate) struct PreorderIterMut<'tree, T, F>
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree,
     F: Fn(&T) -> bool,
 {
     stack: TraversalStackMut<'tree, T>,
@@ -77,7 +78,7 @@ where
 
 impl<'tree, T, F> PreorderIterMut<'tree, T, F>
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
 {
     pub(crate) fn new(tree: &'tree mut T, subtree_filter: F) -> Self {
@@ -91,7 +92,7 @@ where
 #[gat]
 impl<'tree, T, F> LendingIterator for PreorderIterMut<'tree, T, F>
 where 
-    T: BinaryTreeMut,
+    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
 {
     type Item<'next>
@@ -116,10 +117,7 @@ mod tests {
     use crate::binary_search_tree::{
         Side,
         red_black_tree::RedBlackTree,
-        tree_traits::{
-            BinarySearchTree,
-            BinaryTree,
-        },
+        tree_traits::BinaryTree,
     };
 
     fn path_to_key<K, V>(mut tree: &RedBlackTree<K, V>, key: &K) -> Vec<Side>
@@ -128,15 +126,15 @@ mod tests {
     {
         let mut path = Vec::new();
         loop {
-            let Some(root_key) = tree.key() else { break; };
+            let Some(root_key) = tree.root().map(|root| root.key()) else { break; };
             match K::cmp(&key, root_key) {
                 Ordering::Less => {
                     path.push(Side::Left);
-                    tree = tree.left_subtree().unwrap()
+                    tree = tree.root().unwrap().left_subtree()
                 },
                 Ordering::Greater => {
                     path.push(Side::Right);
-                    tree = tree.right_subtree().unwrap()
+                    tree = tree.root().unwrap().right_subtree()
                 },
                 Ordering::Equal => break,
             }

@@ -1,4 +1,7 @@
-use std::{borrow::Borrow, cmp::Ordering};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering
+};
 use std::fmt;
 
 use crate::binary_search_tree::tree_traits::{

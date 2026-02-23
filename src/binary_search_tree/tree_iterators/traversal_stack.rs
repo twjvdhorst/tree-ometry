@@ -1,4 +1,4 @@
-use crate::binary_search_tree::tree_traits::BinaryTree;
+use crate::binary_search_tree::tree_traits::{BinaryTree, BinaryTreeNode};
 
 struct TreeState<T> {
     tree: T,
@@ -27,7 +27,7 @@ where
 
 impl<'tree, T> TraversalStack<'tree, T>
 where 
-    T: BinaryTree,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
 {
     pub(super) fn new(tree: &'tree T) -> Self {
         Self {
@@ -82,7 +82,9 @@ where
         let mut is_expanded = false;
         if let Some(state) = self.stack.last_mut() {
             state.is_left_expanded = true;
-            if let Some(left) = state.tree.left_subtree() && !left.is_leaf() {
+            if let Some(left) = state.tree.root().map(|root| root.left_subtree()) 
+                && !left.is_leaf()
+            {
                 self.stack.push(TreeState::new(left));
                 is_expanded = true;
             }
@@ -96,7 +98,9 @@ where
         let mut is_expanded = false;
         if let Some(state) = self.stack.last_mut() {
             state.is_right_expanded = true;
-            if let Some(right) = state.tree.right_subtree() && !right.is_leaf() {
+            if let Some(right) = state.tree.root().map(|root| root.right_subtree())
+                && !right.is_leaf()
+            {
                 self.stack.push(TreeState::new(right));
                 is_expanded = true;
             }
@@ -111,30 +115,16 @@ where
         if let Some(state) = self.stack.last_mut() {
             state.is_left_expanded = true;
             state.is_right_expanded = true;
-            match (state.tree.left_subtree(), state.tree.right_subtree()) {
-                (Some(left), Some(right)) => {
-                    if !right.is_leaf() {
-                        self.stack.push(TreeState::new(right));
-                        is_expanded = true;
-                    }
-                    if !left.is_leaf() {
-                        self.stack.push(TreeState::new(left));
-                        is_expanded = true;
-                    }
-                },
-                (Some(left), _) => {
-                    if !left.is_leaf() {
-                        self.stack.push(TreeState::new(left));
-                        is_expanded = true;
-                    }
-                },
-                (_, Some(right)) => {
-                    if !right.is_leaf() {
-                        self.stack.push(TreeState::new(right));
-                        is_expanded = true;
-                    }
-                },
-                _ => (),
+            let Some((left, right)) = state.tree
+                .root()
+                .map(|root| root.subtrees()) else { return false; };
+            if !right.is_leaf() {
+                self.stack.push(TreeState::new(right));
+                is_expanded = true;
+            }
+            if !left.is_leaf() {
+                self.stack.push(TreeState::new(left));
+                is_expanded = true;
             }
         }
         is_expanded

@@ -1,18 +1,16 @@
-use std::{borrow::Borrow, cmp::Ordering};
+use std::borrow::Borrow;
 use std::fmt;
 use paste::paste;
 
 use crate::binary_search_tree::red_black_node::{Color, RedBlackNode};
-/*use crate::binary_search_tree::tree_iterators::{
+use crate::binary_search_tree::tree_iterators::{
     inorder::{InorderIter, InorderIterMut},
     postorder::{PostorderIter, PostorderIterMut},
     preorder::{PreorderIter, PreorderIterMut},
-};*/
+};
 use crate::binary_search_tree::tree_traits::{
     BinaryTree, BinaryTreeNode
 };
-
-use super::Side;
 
 pub struct RedBlackTree<K, V>(Option<RedBlackNode<K, V, Self>>);
 
@@ -49,7 +47,7 @@ where
         tree
     }
 }
-/*
+
 macro_rules! make_iter {
     ($vis: vis, $iter_name: ident, $iter_type: ident) => {
         paste!{
@@ -75,7 +73,6 @@ impl<K, V> RedBlackTree<K, V> {
     make_iter!(pub, postorder_iter, PostorderIter);
     make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
-*/
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
     type Node = RedBlackNode<K, V, Self>;
