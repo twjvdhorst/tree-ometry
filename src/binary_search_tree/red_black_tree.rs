@@ -76,43 +76,6 @@ impl<K, V> RedBlackTree<K, V> {
     make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 */
-/*
-impl<K, V> RedBlackTree<K, V> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    fn into_root(self) -> Option<RedBlackNode<K, V>> {
-        if let Self::Internal(node) = self {
-            Some(node)
-        } else { None }
-    }
-
-    fn data_mut(&mut self) -> Option<(&mut K, &mut V)> {
-        self.root_mut().map(|root| (&mut root.key, &mut root.value))
-    }
-
-    fn into_data(self) -> Option<(K, V)> {
-        self.into_root().map(|root| (root.key, root.value))
-    }
-
-    fn replace_value(&mut self, new_value: V) -> Option<V> {
-        if let Some(root) = self.root_mut() {
-            Some(std::mem::replace(&mut root.value, new_value))
-        } else { None }
-    }
-
-    fn get_color(&self) -> Option<Color> {
-        self.root().map(|root| root.color)
-    }
-
-    fn set_color(&mut self, new_color: Color) {
-        if let Some(root) = self.root_mut() {
-            root.color = new_color;
-        }
-    }
-}
-*/
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
     type Node = RedBlackNode<K, V, Self>;

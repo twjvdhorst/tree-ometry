@@ -1,9 +1,10 @@
 use std::{borrow::Borrow, cmp::Ordering};
 use std::fmt;
-use paste::paste;
 
 use crate::binary_search_tree::tree_traits::{
-    BinaryTree, BinaryTreeNode, BinaryTreeNodeMut
+    BinaryTree,
+    BinaryTreeNode,
+    BinaryTreeNodeMut,
 };
 
 use super::Side;
@@ -79,7 +80,7 @@ impl<K, V, T> RedBlackNode<K, V, T> {
         &self.value
     }
 
-    pub(crate) fn value_mut(&mut self) -> &mut V {
+    pub fn value_mut(&mut self) -> &mut V {
         &mut self.value
     }
 
@@ -100,7 +101,10 @@ impl<K, V, T> RedBlackNode<K, V, T> {
     }
 }
 
-impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T> {
+impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T>
+where 
+    T: BinaryTree<Node = Self>,
+{
     type Tree = T;
 
     fn left_subtree(&self) -> &Self::Tree {

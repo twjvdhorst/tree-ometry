@@ -1,7 +1,7 @@
 use super::Side;
 
 pub trait BinaryTree {
-    type Node;
+    type Node: BinaryTreeNode;
 
     fn new_leaf() -> Self;
     fn new_node(node: Self::Node) -> Self;
@@ -14,7 +14,7 @@ pub trait BinaryTree {
 }
 
 pub trait BinaryTreeNode {
-    type Tree;
+    type Tree: BinaryTree;
 
     fn left_subtree(&self) -> &Self::Tree;
     fn right_subtree(&self) -> &Self::Tree;
@@ -29,10 +29,7 @@ pub trait BinaryTreeNode {
     }
 }
 
-pub(crate) trait BinaryTreeNodeMut: BinaryTreeNode + Sized
-where 
-    Self::Tree: BinaryTree<Node = Self>,
-{
+pub(crate) trait BinaryTreeNodeMut: BinaryTreeNode {
     fn left_subtree_mut(&mut self) -> &mut Self::Tree;
     fn right_subtree_mut(&mut self) -> &mut Self::Tree;
     fn subtree_mut(&mut self, side: Side) -> &mut Self::Tree {
@@ -70,45 +67,6 @@ where
         match side {
             Side::Left => self.replace_left(tree),
             Side::Right => self.replace_right(tree),
-        }
-    }
-
-    /// Rotates the left edge, making the left child the new root.
-    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_left(&mut self) -> bool {
-        let mut new_tree = self.detach_left();
-        if let Some(mut new_root) = new_tree.root_mut() {
-            let rotating_subtree = new_root.detach_right();
-            self.replace_left(rotating_subtree);
-            std::mem::swap(self, &mut new_root);
-            self.replace_right(new_tree);
-            true
-        } else {
-            // Left subtree is a leaf.
-            false
-        }
-    }
-
-    /// Rotates the right edge, making the right child the new root.
-    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_right(&mut self) -> bool {
-        let mut new_tree = self.detach_right();
-        if let Some(mut new_root) = new_tree.root_mut() {
-            let rotating_subtree = new_root.detach_left();
-            self.replace_right(rotating_subtree);
-            std::mem::swap(self, &mut new_root);
-            self.replace_left(new_tree);
-            true
-        } else {
-            // Right subtree is a leaf.
-            false
-        }
-    }
-
-    fn rotate_edge(&mut self, side: Side) -> bool {
-        match side {
-            Side::Left => self.rotate_left(),
-            Side::Right => self.rotate_right(),
         }
     }
 }
