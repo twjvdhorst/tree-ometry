@@ -5,58 +5,70 @@ use super::Side;
 pub trait BinaryTree {
     type Node;
 
+    fn new_leaf() -> Self;
+    fn new_node(node: Self::Node) -> Self;
     fn is_leaf(&self) -> bool;
     fn root(&self) -> Option<&Self::Node>;
+}
 
-    fn left_subtree(&self) -> Option<&Self>;
-    fn right_subtree(&self) -> Option<&Self>;
-    fn subtree(&self, side: Side) -> Option<&Self> {
+pub trait BinaryTreeNode {
+    type Tree;
+
+    fn left_subtree(&self) -> &Self::Tree;
+    fn right_subtree(&self) -> &Self::Tree;
+    fn subtree(&self, side: Side) -> &Self::Tree {
         match side {
             Side::Left => self.left_subtree(),
             Side::Right => self.right_subtree(),
         }
     }
-    fn subtrees(&self) -> Option<(&Self, &Self)> {
-        Option::zip(self.left_subtree(), self.right_subtree())
+    fn subtrees(&self) -> (&Self::Tree, &Self::Tree) {
+        (self.left_subtree(), self.right_subtree())
     }
 }
 
 pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
     fn root_mut(&mut self) -> Option<&mut Self::Node>;
+}
 
-    fn left_subtree_mut(&mut self) -> Option<&mut Self>;
-    fn right_subtree_mut(&mut self) -> Option<&mut Self>;
-    fn subtree_mut(&mut self, side: Side) -> Option<&mut Self> {
+pub(crate) trait BinaryTreeNodeMut: BinaryTreeNode + Sized
+where 
+    Self::Tree: BinaryTreeMut<Node = Self>,
+{
+    fn left_subtree_mut(&mut self) -> &mut Self::Tree;
+    fn right_subtree_mut(&mut self) -> &mut Self::Tree;
+    fn subtree_mut(&mut self, side: Side) -> &mut Self::Tree {
         match side {
             Side::Left => self.left_subtree_mut(),
             Side::Right => self.right_subtree_mut(),
         }
     }
+    fn subtrees_mut(&mut self) -> (&mut Self::Tree, &mut Self::Tree);
 
-    fn attach_left(&mut self, tree: impl Into<Self>) -> bool;
-    fn attach_right(&mut self, tree: impl Into<Self>) -> bool;
-    fn attach_subtree(&mut self, side: Side, tree: impl Into<Self>) -> bool {
+    fn attach_left(&mut self, tree: Self::Tree) -> bool;
+    fn attach_right(&mut self, tree: Self::Tree) -> bool;
+    fn attach_subtree(&mut self, side: Side, tree: Self::Tree) -> bool {
         match side {
             Side::Left => self.attach_left(tree),
             Side::Right => self.attach_right(tree),
         }
     }
 
-    fn detach_left(&mut self) -> Option<Self>;
-    fn detach_right(&mut self) -> Option<Self>;
-    fn detach_subtree(&mut self, side: Side) -> Option<Self> {
+    fn detach_left(&mut self) -> Self::Tree;
+    fn detach_right(&mut self) -> Self::Tree;
+    fn detach_subtree(&mut self, side: Side) -> Self::Tree {
         match side {
             Side::Left => self.detach_left(),
             Side::Right => self.detach_right(),
         }
     }
-    fn detach_both(&mut self) -> Option<(Self, Self)> {
-        Option::zip(self.detach_left(), self.detach_right())
+    fn detach_both(&mut self) -> (Self::Tree, Self::Tree) {
+        (self.detach_left(), self.detach_right())
     }
 
-    fn replace_left(&mut self, tree: impl Into<Self>) -> Option<Self>;
-    fn replace_right(&mut self, tree: impl Into<Self>) -> Option<Self>;
-    fn replace_subtree(&mut self, side: Side, tree: impl Into<Self>) -> Option<Self> {
+    fn replace_left(&mut self, tree: Self::Tree) -> Self::Tree;
+    fn replace_right(&mut self, tree: Self::Tree) -> Self::Tree;
+    fn replace_subtree(&mut self, side: Side, tree: Self::Tree) -> Self::Tree {
         match side {
             Side::Left => self.replace_left(tree),
             Side::Right => self.replace_right(tree),
@@ -66,10 +78,11 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
     /// Rotates the left edge, making the left child the new root.
     /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
     fn rotate_left(&mut self) -> bool {
-        let Some(mut new_tree) = self.detach_left() else { return false; };
-        if let Some(rotating_subtree) = new_tree.detach_right() {
+        let mut new_tree = self.detach_left();
+        if let Some(mut new_root) = new_tree.root_mut() {
+            let rotating_subtree = new_root.detach_right();
             self.replace_left(rotating_subtree);
-            std::mem::swap(self, &mut new_tree);
+            std::mem::swap(self, &mut new_root);
             self.replace_right(new_tree);
             true
         } else {
@@ -81,10 +94,11 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
     /// Rotates the right edge, making the right child the new root.
     /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
     fn rotate_right(&mut self) -> bool {
-        let Some(mut new_tree) = self.detach_right() else { return false; };
-        if let Some(rotating_subtree) = new_tree.detach_left() {
+        let mut new_tree = self.detach_right();
+        if let Some(mut new_root) = new_tree.root_mut() {
+            let rotating_subtree = new_root.detach_left();
             self.replace_right(rotating_subtree);
-            std::mem::swap(self, &mut new_tree);
+            std::mem::swap(self, &mut new_root);
             self.replace_left(new_tree);
             true
         } else {
@@ -101,22 +115,26 @@ pub(crate) trait BinaryTreeMut: BinaryTree + Sized {
     }
 }
 
-pub trait BinarySearchTree: BinaryTree {
+pub trait BinarySearchTreeNode: BinaryTreeNode
+where 
+    Self::Tree: BinaryTree<Node = Self>,
+{
     type Key: Ord;
     type Value;
 
     #[inline]
-    fn key(&self) -> Option<&Self::Key> {
-        self.data().map(|(k, _)| k)
+    fn key(&self) -> &Self::Key {
+        self.data().0
     }
     
     #[inline]
-    fn value(&self) -> Option<&Self::Value> {
-        self.data().map(|(_, v)| v)
+    fn value(&self) -> &Self::Value {
+        self.data().1
     }
 
-    fn data(&self) -> Option<(&Self::Key, &Self::Value)>;
+    fn data(&self) -> (&Self::Key, &Self::Value);
 
+    /*
     fn predecessor<Q>(&self, key: &Q) -> Option<&Self::Key>
     where
         Self::Key: Borrow<Q>,
@@ -124,13 +142,18 @@ pub trait BinarySearchTree: BinaryTree {
     {
         let mut current = self;
         let mut pred_key = None;
-        while let Some(curr_key) = current.key() {
+        loop {
+            let curr_key = current.key();
             match Q::cmp(key, curr_key.borrow()) {
                 Ordering::Equal => return Some(curr_key),
-                Ordering::Less => current = current.left_subtree()?,
+                Ordering::Less => {
+                    let Some(left) = current.left_subtree().root() else { break; };
+                    current = left;
+                },
                 Ordering::Greater => {
                     pred_key = Some(curr_key);
-                    current = current.right_subtree()?;
+                    let Some(right) = current.right_subtree().root() else { break; };
+                    current = right;
                 },
             }
         }
@@ -143,35 +166,36 @@ pub trait BinarySearchTree: BinaryTree {
         Q: Ord + ?Sized,
     {
         let mut current = self;
-        let mut pred_key = None;
-        while let Some(curr_key) = current.key() {
+        let mut succ_key = None;
+        loop {
+            let curr_key = current.key();
             match Q::cmp(key, curr_key.borrow()) {
                 Ordering::Equal => return Some(curr_key),
                 Ordering::Less => {
-                    pred_key = Some(curr_key);
-                    current = current.left_subtree()?;
+                    succ_key = Some(curr_key);
+                    let Some(left) = current.left_subtree().root() else { break; };
+                    current = left;
                 },
-                Ordering::Greater =>  current = current.right_subtree()?,
+                Ordering::Greater => {
+                    let Some(right) = current.right_subtree().root() else { break; };
+                    current = right;
+                },
             }
         }
-        pred_key
+        succ_key
     }
 
-    fn min(&self) -> Option<&Self::Key> {
+    fn min(&self) -> &Self::Key {
         let mut current = self;
-        while let Some(child) = current.left_subtree()
-            && !child.is_leaf()
-        {
+        while let Some(child) = current.left_subtree().root() {
             current = child;
         }
         current.key()
     }
 
-    fn max(&self) -> Option<&Self::Key> {
+    fn max(&self) -> &Self::Key {
         let mut current = self;
-        while let Some(child) = current.right_subtree()
-            && !child.is_leaf()
-        {
+        while let Some(child) = current.right_subtree().root() {
             current = child;
         }
         current.key()
@@ -203,8 +227,9 @@ pub trait BinarySearchTree: BinaryTree {
         let root_key = self.key()?;
         match Q::cmp(key, root_key.borrow()) {
             Ordering::Equal => self.data(),
-            Ordering::Greater => self.right_subtree()?.get_key_value(key),
-            Ordering::Less => self.left_subtree()?.get_key_value(key),
+            Ordering::Greater => self.right_subtree().root()?.get_key_value(key),
+            Ordering::Less => self.left_subtree().root()?.get_key_value(key),
         }
     }
+    */
 }
