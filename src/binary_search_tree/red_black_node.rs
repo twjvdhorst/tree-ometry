@@ -351,18 +351,19 @@ where
         None
     }
 }
-/*
+
 /// Deletions.
-impl<K, V> RedBlackTree<K, V>
+impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
+    T: BinaryTree<Node = Self>,
 {
     fn left_color(&self) -> Option<Color> {
-        self.left_subtree()?.get_color()
+        Some(self.left_subtree().root()?.color)
     }
 
     fn right_color(&self) -> Option<Color> {
-        self.right_subtree()?.get_color()
+        Some(self.right_subtree().root()?.color)
     }
 
     fn subtree_color(&self, side: Side) -> Option<Color> {
@@ -372,81 +373,65 @@ where
         }
     }
 
-    fn flip_root_color(&mut self) {
-        if let Some(root_color) = self.get_color() {
-            self.set_color(root_color.opposite());
-        }
-    }
-
     fn color_flip(&mut self) {
-        self.flip_root_color();
-        if let Some(root) = self.root_mut() {
-            root.left.flip_root_color();
-            root.right.flip_root_color();
+        self.color = self.color.opposite();
+        let (left, right) = self.subtrees_mut();
+        if let Some(left) = left.root_mut() {
+            left.color = left.color.opposite();
+        }
+        if let Some(right) = right.root_mut() {
+            right.color = right.color.opposite();
         }
     }
 
     fn rotate_edge_deletion(&mut self, side: Side) -> bool {
-        let Some(col_root) = self.get_color() else { return false; };
-        if <Self as BinaryTreeMut>::rotate_edge(self, side) {
-            self.set_color(col_root);
-            self.subtree_mut(side.opposite()).unwrap().set_color(Color::Red);
+        let col_root = self.color;
+        if <Self as BinaryTreeNodeMut>::rotate_edge(self, side) {
+            self.color = col_root;
+            self.subtree_mut(side.opposite()).root_mut().unwrap().color = Color::Red;
             true
         } else { false }
     }
 
-    fn swap_root_with_predecessor(&mut self) {
-        let Some(mut left) = self.detach_left() else { return; };
+    fn swap_with_predecessor(&mut self) {
+        let mut left_tree = self.detach_left();
 
-        let mut current = &mut left;
-        while let Some(child) = current.right_subtree()
-            && !child.is_leaf()
-        {
-            current = current.right_subtree_mut().unwrap();
+        let Some(mut current) = left_tree.root_mut() else { return; };
+        while !current.right_subtree().is_leaf() {
+            current = current.right_subtree_mut().root_mut().unwrap();
         }
 
-        let (key, value) = self.data_mut().unwrap();
-        let (pred_key, pred_value) = current.data_mut().unwrap();
-        std::mem::swap(key, pred_key);
-        std::mem::swap(value, pred_value);
-        self.attach_left(left);
+        std::mem::swap(&mut self.key, &mut current.key);
+        std::mem::swap(&mut self.value, &mut current.value);
+        self.attach_left(left_tree);
     }
 
     /// Helper function for removing roots with at most one subtree attached.
     /// Returns None if the root has both subtrees attached.
     /// Colors the new root black.
-    fn remove_root_single_child(&mut self) -> Option<(K, V)> {
-        let Some(root) = self.root_mut() else { return None; };
+    fn remove_root_single_child(tree: &mut T) -> Option<(K, V)> {
+        let Some(root) = tree.root_mut() else { return None; };
         if root.left.is_leaf() {
-            let mut right = self.detach_right().unwrap();
-            right.set_color(Color::Black);
-            let old = std::mem::replace(self, right);
-            old.into_data()
+            let mut right_tree = root.detach_right();
+            if let Some(right) = right_tree.root_mut() {
+                right.color = Color::Black;
+            }
+            let old = std::mem::replace(tree, right_tree);
+            old.into_root().map(|root| (root.key, root.value))
         } else if root.right.is_leaf() {
-            let mut left = self.detach_left().unwrap();
-            left.set_color(Color::Black);
-            let old = std::mem::replace(self, left);
-            old.into_data()
+            let mut left_tree = root.detach_left();
+            left_tree.root_mut().unwrap().color = Color::Black; // Can unwrap safely; the left tree is not a leaf.
+            let old = std::mem::replace(tree, left_tree);
+            old.into_root().map(|root| (root.key, root.value))
         } else {
             None
         }
     }
 
     /// Removes the node with the given key from the tree.
-    /// Returns the associated value.
-    /// Time complexity: O(log n).
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.remove_entry(key).map(|(_, v)| v)
-    }
-
-    /// Removes the node with the given key from the tree.
     /// Returns the key and associated value.
     /// Time complexity: O(log n).
-    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    pub fn remove_entry<Q>(tree: &mut T, key: &Q) -> Option<(K, V)>
     where 
         K: Borrow<Q>,
         Q: Ord + ?Sized,
@@ -456,17 +441,19 @@ where
         // We have to wait with swapping until we move out of the to-be-deleted node, since after the swap, its subtree is invalid.
         // By advancing down one level, the subtree becomes valid again.
 
-        let mut current = &mut *self;
-        while let Some(node) = current.root() {
-            let (side, found) = match Q::cmp(key, node.key.borrow()) {
+        let mut current = &mut *tree;
+        while let Some(curr_root) = current.root() {
+            let (side, found) = match Q::cmp(key, curr_root.key.borrow()) {
                 Ordering::Less => (Side::Left, false),
                 Ordering::Greater => (Side::Right, false),
                 Ordering::Equal => {
                     // If the node has at most one subtree, we can easily remove it.
                     // The remove_root_single_child function handles the no-child case as well, as by this point,
                     // the tree has been restructured sufficiently to be valid after deleting the node.
-                    if let Some(data) = current.remove_root_single_child() {
-                        self.set_color(Color::Black);
+                    if let Some(data) = Self::remove_root_single_child(current) {
+                        if let Some(root) = tree.root_mut() {
+                            root.color = Color::Black;
+                        }
                         return Some(data);
                     } else {
                         (Side::Left, true)
@@ -475,59 +462,71 @@ where
             };
 
             // First phase.
-            if current.subtree_color(side) == Some(Color::Red) {
+            if current.root().and_then(|root| root.subtree_color(side)) == Some(Color::Red) {
                 // We advance without changing the location of the to-be-deleted current node.
                 // The subtree we advance to contains the predecessor of current, and not current itself.
                 // Thus, swapping current with its predecessor keeps the subtree valid.
+                let curr_root = current.root_mut().unwrap();
                 if found {
-                    current.swap_root_with_predecessor();
+                    curr_root.swap_with_predecessor();
                 }
 
-                current = current.subtree_mut(side)?;
+                current = curr_root.subtree_mut(side);
                 continue;
             }
 
             // Second phase.
-            if current.subtree_color(side.opposite()) == Some(Color::Red) {
+            if current.root().and_then(|root| root.subtree_color(side.opposite())) == Some(Color::Red) {
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate_edge_deletion(side.opposite());
-                current = current.subtree_mut(side)?;
+                let curr_root = current.root_mut().unwrap();
+                curr_root.rotate_edge_deletion(side.opposite());
+                current = curr_root.subtree_mut(side);
             }
 
             // Third phase.
-            let child = current.subtree_mut(side)?;
-            if child.left_color() == Some(Color::Red) || child.right_color() == Some(Color::Red)
+            if let Some(child) = current.root().and_then(|root| root.subtree(side).root())
+                && (child.left_color() == Some(Color::Red) || child.right_color() == Some(Color::Red))
             {
                 // We advance without changing the location of the to-be-deleted current node.
                 // The subtree we advance to contains the predecessor of current, and not current itself.
                 // Thus, swapping current with its predecessor keeps the subtree valid.
+                let curr_root = current.root_mut().unwrap();
                 if found {
-                    current.swap_root_with_predecessor();
+                    curr_root.swap_with_predecessor();
                 }
 
-                current = current.subtree_mut(side)?;
+                current = curr_root.subtree_mut(side);
                 continue;
             }
 
-            current.color_flip();
-            let sibling_child = current.subtree_mut(side.opposite())?;
-            if sibling_child.left_color() == Some(Color::Red) || sibling_child.right_color() == Some(Color::Red) {
+            if !current.is_leaf() {
+                let curr_root = current.root_mut().unwrap();
+                curr_root.color_flip();
+            }
+
+            if let Some(sibling_child) = current.root().and_then(|root| root.subtree(side.opposite()).root())
+                && (sibling_child.left_color() == Some(Color::Red) || sibling_child.right_color() == Some(Color::Red))
+            {
                 if sibling_child.subtree_color(side.opposite()) != Some(Color::Red) {
+                    let sibling_child = current.root_mut().unwrap().subtree_mut(side.opposite()).root_mut().unwrap();
                     sibling_child.rotate_edge_deletion(side);
                 }
 
                 // Current stays in the same node, since the rotation is of the opposite edge.
-                current.rotate_edge_deletion(side.opposite());
-                current.color_flip();
-                current = current.subtree_mut(side)?;
+                let curr_root = current.root_mut().unwrap();
+                curr_root.rotate_edge_deletion(side.opposite());
+                curr_root.color_flip();
+                current = curr_root.subtree_mut(side);
             }
         }
 
-        self.set_color(Color::Black);
+        if let Some(root) = tree.root_mut() {
+            root.color = Color::Black;
+        }
         None
     }
 }
-*/
+
 /*
 impl<K, V> fmt::Debug for RedBlackTree<K, V>
 where 
@@ -715,7 +714,7 @@ mod tests {
             }
         }
     }
-/*
+
     #[test]
     fn test_deletion() {
         // Test deleting values in random order.
@@ -736,5 +735,5 @@ mod tests {
                 assert_valid_tree(&tree);
             }
         }
-    }*/
+    }
 }

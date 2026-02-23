@@ -12,6 +12,7 @@ pub trait BinaryTree {
 
     fn root(&self) -> Option<&Self::Node>;
     fn root_mut(&mut self) -> Option<&mut Self::Node>;
+    fn into_root(self) -> Option<Self::Node>;
 }
 
 pub trait BinaryTreeNode {

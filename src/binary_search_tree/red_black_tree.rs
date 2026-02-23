@@ -28,7 +28,6 @@ impl<K, V> RedBlackTree<K, V> {
     }
 }
 
-/*
 impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
 where 
     K: Ord,
@@ -50,7 +49,7 @@ where
         tree
     }
 }
-
+/*
 macro_rules! make_iter {
     ($vis: vis, $iter_name: ident, $iter_type: ident) => {
         paste!{
@@ -137,6 +136,10 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
     fn root_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.as_mut()
     }
+
+    fn into_root(self) -> Option<Self::Node> {
+        self.0
+    }
 }
 
 impl<K, V> RedBlackTree<K, V>
@@ -150,6 +153,22 @@ where
             self.0.replace(RedBlackNode::new(key, value, Color::Black));
             None
         }
+    }
+
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.remove_entry(key).map(|(_, v)| v)
+    }
+
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        RedBlackNode::remove_entry(self, key)
     }
 }
 
