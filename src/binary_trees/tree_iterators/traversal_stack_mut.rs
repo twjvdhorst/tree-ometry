@@ -1,4 +1,4 @@
-use crate::binary_search_tree::{Side, tree_traits::{BinaryTree, BinaryTreeNodeMut}};
+use crate::binary_trees::{Side, binary_tree_traits::{BinaryTree, BinaryTreeNodeMut}};
 
 enum Tree<'tree, T> {
     MutRef(&'tree mut T),
@@ -86,27 +86,26 @@ where
             .unwrap_or(true)
     }
 
-    pub(super) fn report(&'_ mut self) -> Option<&'_ mut T::Node> {
+    pub(super) fn report(&'_ mut self) -> Option<&'_ mut T> {
         let state = self.stack.last_mut()?;
         if !state.is_reported {
             state.is_reported = true;
-            state.tree_mut().root_mut()
+            Some(state.tree_mut())
         } else {
             None
         }
     }
 
-    pub(super) fn pop(&'_ mut self) -> Option<&'_ mut T::Node> {
+    pub(super) fn pop(&'_ mut self) -> Option<&'_ mut T> {
         let state = self.stack.pop()?;
         match state.tree {
-            Tree::MutRef(subtree) => subtree.root_mut(), // Subtree is still attached to parent (or is root), no need to reattach
+            Tree::MutRef(subtree) => Some(subtree), // Subtree is still attached to parent (or is root), no need to reattach
             Tree::Detached(subtree, parent_idx, side_of_parent) => { // Subtree is detached from parent. Reattach before reporting
                 let parent = self.stack.get_mut(parent_idx)?
                     .tree_mut()
                     .root_mut()?;
                 parent.attach_subtree(side_of_parent, subtree);
-                parent.subtree_mut(side_of_parent)
-                    .root_mut()
+                Some(parent.subtree_mut(side_of_parent))
             },
         }
     }

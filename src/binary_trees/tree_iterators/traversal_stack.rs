@@ -1,4 +1,4 @@
-use crate::binary_search_tree::tree_traits::{BinaryTree, BinaryTreeNode};
+use crate::binary_trees::binary_tree_traits::{BinaryTree, BinaryTreeNode};
 
 struct TreeState<T> {
     tree: T,
@@ -62,18 +62,18 @@ where
             .unwrap_or(true)
     }
 
-    pub(super) fn report(&mut self) -> Option<&'tree T::Node> {
+    pub(super) fn report(&mut self) -> Option<&'tree T> {
         let state = self.stack.last_mut()?;
         if !state.is_reported {
             state.is_reported = true;
-            state.tree.root()
+            Some(state.tree)
         } else {
             None
         }
     }
 
-    pub(super) fn pop(&mut self) -> Option<&'tree T::Node> {
-        self.stack.pop()?.tree.root()
+    pub(super) fn pop(&mut self) -> Option<&'tree T> {
+        Some(self.stack.pop()?.tree)
     }
     
     pub(super) fn expand_left(&mut self) -> bool {

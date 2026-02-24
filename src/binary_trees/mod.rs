@@ -1,7 +1,7 @@
-pub mod red_black_node;
-pub mod red_black_tree;
 pub mod tree_iterators;
-pub mod tree_traits;
+pub mod red_black_trees;
+
+pub mod binary_tree_traits;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {

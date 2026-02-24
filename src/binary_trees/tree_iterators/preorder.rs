@@ -1,18 +1,18 @@
 use lending_iterator::prelude::*;
 
-use crate::binary_search_tree::{
+use crate::binary_trees::{
     tree_iterators::{
         traversal_stack::TraversalStack,
         traversal_stack_mut::TraversalStackMut,
     },
-    tree_traits::{
+    binary_tree_traits::{
         BinaryTree,
         BinaryTreeNode,
         BinaryTreeNodeMut,
-    },
+    }
 };
 
-macro_rules! impl_inorder_next {
+macro_rules! impl_preorder_next {
     ($self: ident) => {{
         while let Some(tree) = $self.stack.last_tree() {
             if !($self.subtree_filter)(tree) {
@@ -20,35 +20,29 @@ macro_rules! impl_inorder_next {
                 continue;
             }
 
-            if $self.stack.expand_left() {
-                continue;
-            }
-            
-            // Left subtree has previously been expanded and reported.
             if !$self.stack.is_reported() {
                 return $self.stack.report();
-            } else if $self.stack.expand_right() {
-                continue;
-            } else {
-                // Tree and right subtree have previously been reported.
+            }
+
+            if !$self.stack.expand_both() {
+                // Last tree on the stack is either a leaf or an already expanded tree.
                 $self.stack.pop();
-                continue;
             }
         }
         None
     }}
 }
 
-pub struct InorderIter<'tree, T, F>
+pub struct PreorderIter<'tree, T, F>
 where 
-    T: BinaryTree,
+    T: BinaryTree + 'tree,
     F: Fn(&T) -> bool,
 {
     stack: TraversalStack<'tree, T>,
     subtree_filter: F,
 }
 
-impl<'tree, T, F> InorderIter<'tree, T, F> 
+impl<'tree, T, F> PreorderIter<'tree, T, F> 
 where 
     T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
     F: Fn(&T) -> bool,
@@ -61,19 +55,19 @@ where
     }
 }
 
-impl<'tree, T, F> Iterator for InorderIter<'tree, T, F>
+impl<'tree, T, F> Iterator for PreorderIter<'tree, T, F>
 where 
     T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
     F: Fn(&T) -> bool,
 {
-    type Item = &'tree T::Node;
+    type Item = &'tree T;
     
     fn next(&mut self) -> Option<Self::Item> {
-        impl_inorder_next!(self)
+        impl_preorder_next!(self)
     }
 }
 
-pub(crate) struct InorderIterMut<'tree, T, F>
+pub(crate) struct PreorderIterMut<'tree, T, F>
 where 
     T: BinaryTree,
     F: Fn(&T) -> bool,
@@ -82,7 +76,7 @@ where
     subtree_filter: F,
 }
 
-impl<'tree, T, F> InorderIterMut<'tree, T, F>
+impl<'tree, T, F> PreorderIterMut<'tree, T, F>
 where 
     T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
@@ -96,7 +90,7 @@ where
 }
 
 #[gat]
-impl<'tree, T, F> LendingIterator for InorderIterMut<'tree, T, F>
+impl<'tree, T, F> LendingIterator for PreorderIterMut<'tree, T, F>
 where 
     T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
@@ -104,10 +98,10 @@ where
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut T::Node;
+        = &'next mut T;
 
-    fn next(self: &'_ mut InorderIterMut<'tree, T, F>) -> Option<&'_ mut T::Node> {
-        impl_inorder_next!(self)
+    fn next(self: &'_ mut PreorderIterMut<'tree, T, F>) -> Option<&'_ mut T> {
+        impl_preorder_next!(self)
     }
 }
 
@@ -120,10 +114,10 @@ mod tests {
     use rand::seq::SliceRandom;
 
     use super::*;
-    use crate::binary_search_tree::{
+    use crate::binary_trees::{
         Side,
-        red_black_tree::RedBlackTree,
-        tree_traits::BinaryTree,
+        red_black_trees::red_black_tree::RedBlackTree,
+        binary_tree_traits::BinaryTree,
     };
 
     fn path_to_key<K, V>(mut tree: &RedBlackTree<K, V>, key: &K) -> Vec<Side>
@@ -152,9 +146,9 @@ mod tests {
     where 
         K: Ord + Clone,
     {
-            let mut iter = InorderIter::new(tree, |_| true);
+            let mut iter = PreorderIter::new(tree, |_| true);
             let mut sequence = Vec::new();
-            while let Some(node) = iter.next() {
+            while let Some(node) = iter.next().and_then(|tree| tree.root()) {
                 sequence.push(node.key().clone());
             }
             sequence
@@ -164,17 +158,17 @@ mod tests {
     where 
         K: Ord + Clone,
     {
-            let mut iter = InorderIterMut::new(tree, |_| true);
+            let mut iter = PreorderIterMut::new(tree, |_| true);
             let mut sequence = Vec::new();
-            while let Some(node) = iter.next() {
+            while let Some(node) = iter.next().and_then(|tree| tree.root()) {
                 sequence.push(node.key().clone());
             }
             sequence
     }
 
     #[test]
-    fn test_inorder_walk() {
-        // Test the inorder iterator for random trees.
+    fn test_preorder_walk() {
+        // Test the preorder iterator for random trees.
         let mut rng = rand::rng();
         for _ in 0..50 {
             let mut tree = RedBlackTree::new();
@@ -192,7 +186,7 @@ mod tests {
                 assert!(k1 == k2);
             }
             
-            // Verify that the sequence is inorder.
+            // Verify that the sequence is preorder.
             let paths = get_sequence(&tree).iter()
                 .map(|key| path_to_key(&tree, key))
                 .collect::<Vec<_>>();
@@ -205,8 +199,9 @@ mod tests {
 
                 assert!(
                     match (path1.get(first_divergence_idx), path2.get(first_divergence_idx)) {
-                        (Some(side), _) => *side == Side::Left,
-                        (None, Some(side)) => *side == Side::Right,
+                        (Some(side), Some(_)) => *side == Side::Left,
+                        (Some(_), None) => false,
+                        (None, Some(_)) => true,
                         (None, None) => true,
                     }
                 )

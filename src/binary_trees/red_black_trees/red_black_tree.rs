@@ -2,13 +2,13 @@ use std::borrow::Borrow;
 use std::fmt;
 use paste::paste;
 
-use crate::binary_search_tree::red_black_node::{Color, RedBlackNode};
-use crate::binary_search_tree::tree_iterators::{
+use crate::binary_trees::red_black_trees::red_black_node::{Color, RedBlackNode};
+use crate::binary_trees::tree_iterators::{
     inorder::{InorderIter, InorderIterMut},
     postorder::{PostorderIter, PostorderIterMut},
     preorder::{PreorderIter, PreorderIterMut},
 };
-use crate::binary_search_tree::tree_traits::{
+use crate::binary_trees::binary_tree_traits::{
     BinaryTree, BinaryTreeNode
 };
 
@@ -107,12 +107,7 @@ where
     K: Ord,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.0.is_some() {
-            RedBlackNode::insert(self, key, value)
-        } else {
-            self.0.replace(RedBlackNode::new(key, value, Color::Black));
-            None
-        }
+        RedBlackNode::insert(self, key, value)
     }
 
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>

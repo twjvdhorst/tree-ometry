@@ -4,13 +4,14 @@ use std::{
 };
 use std::fmt;
 
-use crate::binary_search_tree::tree_traits::{
-    BinaryTree,
-    BinaryTreeNode,
-    BinaryTreeNodeMut,
+use crate::binary_trees::{
+    Side,
+    binary_tree_traits::{
+        BinaryTree,
+        BinaryTreeNode,
+        BinaryTreeNodeMut,
+    },
 };
-
-use super::Side;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Color {
@@ -63,7 +64,7 @@ impl<K, V, T> RedBlackNode<K, V, T>
 where 
     T: BinaryTree,
 {
-    pub fn new(key: K, value: V, color: Color) -> Self {
+    fn new_with_color(key: K, value: V, color: Color) -> Self {
         Self {
             key,
             value,
@@ -106,7 +107,7 @@ impl<K, V, T> RedBlackNode<K, V, T> {
 
 impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T>
 where 
-    T: BinaryTree<Node = Self>,
+    T: BinaryTree,
 {
     type Tree = T;
 
@@ -121,7 +122,7 @@ where
 
 impl<K, V, T> BinaryTreeNodeMut for RedBlackNode<K, V, T>
 where 
-    T: BinaryTree<Node = Self>,
+    T: BinaryTree,
 {
     fn left_subtree_mut(&mut self) -> &mut Self::Tree {
         self.left.as_mut()
@@ -298,7 +299,7 @@ where
             }
         } else {
             // Tree is empty.
-            *tree = T::new_node(Self::new(key, value, Color::Black));
+            *tree = T::new_node(Self::new_with_color(key, value, Color::Black));
             return None;
         };
 
@@ -319,13 +320,13 @@ where
                 }
             } else {
                 // Child tree is empty.
-                *child_tree = T::new_node(Self::new(key, value, Color::Red));
+                *child_tree = T::new_node(Self::new_with_color(key, value, Color::Red));
                 break;
             };
 
             let grandchild_tree = child_tree.root_mut().unwrap().subtree_mut(side2); // Can unwrap safely, we ensure that child is not a leaf.
             if grandchild_tree.is_leaf() {
-                *grandchild_tree = T::new_node(Self::new(key, value, Color::Red));
+                *grandchild_tree = T::new_node(Self::new_with_color(key, value, Color::Red));
                 Self::fix_local_violation(current, side1, side2);
                 break;
             }
@@ -625,7 +626,7 @@ mod tests {
     use std::collections::HashMap;
     use rand::prelude::*;
 
-    use crate::binary_search_tree::red_black_tree::RedBlackTree;
+    use crate::binary_trees::red_black_trees::red_black_tree::RedBlackTree;
 
     use super::*;
 
