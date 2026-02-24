@@ -1,9 +1,9 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, fmt};
 
 use lending_iterator::LendingIterator;
 use paste::paste;
 
-use crate::binary_trees::{binary_tree_traits::{BinaryTree, BinaryTreeNode}, red_black_trees::{red_black_node::RedBlackNode, semigroup::Semigroup}, tree_iterators::{inorder::{InorderIter, InorderIterMut}, postorder::{PostorderIter, PostorderIterMut}, preorder::{PreorderIter, PreorderIterMut}}};
+use crate::binary_trees::{binary_tree_traits::{BinaryTree, BinaryTreeNode}, red_black_trees::{red_black_node::RedBlackNode, tree_semigroup::TreeSemigroup}, tree_iterators::{inorder::{InorderIter, InorderIterMut}, postorder::{PostorderIter, PostorderIterMut}, preorder::{PreorderIter, PreorderIterMut}}};
 
 pub struct SemigroupRbNode<K, V, S, T> {
     node: RedBlackNode<K, V, T>,
@@ -15,7 +15,7 @@ pub struct SemigroupRbTree<K, V, S>(Option<SemigroupRbNode<K, V, S, Self>>);
 
 impl<K, V, S> Default for SemigroupRbTree<K, V, S>
 where 
-    S: Default,
+    S: TreeSemigroup,
 {
     fn default() -> Self {
         Self::new_leaf()
@@ -24,7 +24,7 @@ where
 
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where 
-    S: Default,
+    S: TreeSemigroup,
 {
     pub fn new() -> Self {
         Self::new_leaf()
@@ -43,7 +43,7 @@ where
 
 impl<K, V, S> BinaryTree for SemigroupRbTree<K, V, S>
 where 
-    S: Default,
+    S: TreeSemigroup,
 {
     type Node = RedBlackNode<K, V, Self>;
 
@@ -54,7 +54,7 @@ where
     fn new_node(node: Self::Node) -> Self {
         Self(Some(SemigroupRbNode {
             node, 
-            semigroup_value: S::default(), 
+            semigroup_value: S::op(&S::leaf_val(), &S::leaf_val()), 
             accessed_mut: false
         }))
     }
@@ -81,7 +81,7 @@ where
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where
     K: Ord,
-    S: Default + Semigroup,
+    S: TreeSemigroup,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let result = RedBlackNode::insert(self, key, value);
@@ -118,10 +118,10 @@ where
             let Some(root) = tree.root() else { continue; };
             let (left, right) = root.subtrees();
             let new_semigroup_value = match (left.get_semigroup_value(), right.get_semigroup_value()) {
-                (Some(x), Some(y)) => Semigroup::op(x, y),
-                (Some(x), None) => Semigroup::op(x, &S::default()),
-                (None, Some(y)) => Semigroup::op(&S::default(), y),
-                (None, None) => S::default(),
+                (Some(x), Some(y)) => S::op(x, y),
+                (Some(x), None) => S::op(x, &S::leaf_val()),
+                (None, Some(y)) => S::op(&S::leaf_val(), y),
+                (None, None) => S::op(&S::leaf_val(), &S::leaf_val()),
             };
             tree.set_semigroup_value(new_semigroup_value);
         }
@@ -131,7 +131,7 @@ where
 impl<K, V, S> Extend<(K, V)> for SemigroupRbTree<K, V, S>
 where 
     K: Ord,
-    S: Default + Semigroup,
+    S: TreeSemigroup,
 {
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
         for (key, value) in iter {
@@ -143,7 +143,7 @@ where
 impl<K, V, S> FromIterator<(K, V)> for SemigroupRbTree<K, V, S>
 where 
     K: Ord,
-    S: Default + Semigroup,
+    S: TreeSemigroup,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut tree = Self::default();
@@ -171,7 +171,7 @@ macro_rules! make_iter {
 
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where
-    S: Default,
+    S: TreeSemigroup,
 {
     make_iter!(pub, inorder_iter, InorderIter);
     make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
@@ -179,4 +179,103 @@ where
     make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
     make_iter!(pub, postorder_iter, PostorderIter);
     make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
+}
+
+impl<K, V, S> fmt::Debug for SemigroupRbTree<K, V, S>
+where 
+    K: fmt::Debug,
+    V: fmt::Debug,
+    S: fmt::Debug + TreeSemigroup,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<K, V, S>(tree: &SemigroupRbTree<K, V, S>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            K: fmt::Debug,
+            V: fmt::Debug,
+            S: fmt::Debug + TreeSemigroup,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(root) = tree.root() {
+                write!(f, "({root:?}, {:?})\n", tree.get_semigroup_value().unwrap())?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
+                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+        
+        write!(f, "\n")?;
+        recursive_fmt(self, f, "", false)
+    }
+}
+    
+impl<K, V, S> fmt::Display for SemigroupRbTree<K, V, S>
+where 
+    K: fmt::Display,
+    V: fmt::Display,
+    S: fmt::Display + TreeSemigroup,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<K, V, S>(tree: &SemigroupRbTree<K, V, S>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            K: fmt::Display,
+            V: fmt::Display,
+            S: fmt::Display + TreeSemigroup,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(root) = tree.root() {
+                write!(f, "({root}, {})\n", tree.get_semigroup_value().unwrap())?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
+                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+        
+        write!(f, "\n")?;
+        recursive_fmt(self, f, "", false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binary_trees::red_black_trees::tree_semigroup::TreeSemigroup;
+
+    struct Height(usize);
+    impl TreeSemigroup for Height {
+        fn leaf_val() -> Self {
+            Height(0)
+        }
+
+        fn op(base: &Self, other: &Self) -> Self {
+            Self(usize::max(base.0, other.0) + 1)
+        }
+    }
+    impl fmt::Display for Height {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    #[test]
+    fn test_semigroup_tree() {
+        let tree = (1..=30).map(|i| (i, i % 10))
+            .collect::<SemigroupRbTree<_, _, Height>>();
+        println!("{tree}");
+    }
 }

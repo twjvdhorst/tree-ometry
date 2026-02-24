@@ -1,4 +1,5 @@
-pub trait Semigroup {
+pub trait TreeSemigroup {
+    fn leaf_val() -> Self;
     fn op(base: &Self, other: &Self) -> Self;
     
     fn semigroup(&self, other: &Self) -> Self
