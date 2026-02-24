@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use paste::paste;
 
-use crate::binary_trees::red_black_trees::red_black_node::{Color, RedBlackNode};
+use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
 use crate::binary_trees::tree_iterators::{
     inorder::{InorderIter, InorderIterMut},
     postorder::{PostorderIter, PostorderIterMut},
@@ -24,54 +24,6 @@ impl<K, V> RedBlackTree<K, V> {
     pub fn new() -> Self {
         Self::new_leaf()
     }
-}
-
-impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
-where 
-    K: Ord,
-{
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        for (key, value) in iter {
-            self.insert(key, value);
-        }
-    }
-}
-
-impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
-where 
-    K: Ord,
-{
-    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        let mut tree = Self::default();
-        tree.extend(iter);
-        tree
-    }
-}
-
-macro_rules! make_iter {
-    ($vis: vis, $iter_name: ident, $iter_type: ident) => {
-        paste!{
-            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> bool> {
-                self.[<$iter_name _filtered>](|_| true)
-            }
-
-            $vis fn [<$iter_name _filtered>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
-            where
-                F: Fn(&Self) -> bool,
-            {
-                $iter_type::new(self, f)
-            }
-        }
-    };
-}
-
-impl<K, V> RedBlackTree<K, V> {
-    make_iter!(pub, inorder_iter, InorderIter);
-    make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
-    make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
-    make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
@@ -125,6 +77,54 @@ where
     {
         RedBlackNode::remove_entry(self, key)
     }
+}
+
+impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
+where 
+    K: Ord,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for (key, value) in iter {
+            self.insert(key, value);
+        }
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
+where 
+    K: Ord,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut tree = Self::default();
+        tree.extend(iter);
+        tree
+    }
+}
+
+macro_rules! make_iter {
+    ($vis: vis, $iter_name: ident, $iter_type: ident) => {
+        paste!{
+            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> bool> {
+                self.[<$iter_name _filtered>](|_| true)
+            }
+
+            $vis fn [<$iter_name _filtered>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
+            where
+                F: Fn(&Self) -> bool,
+            {
+                $iter_type::new(self, f)
+            }
+        }
+    };
+}
+
+impl<K, V> RedBlackTree<K, V> {
+    make_iter!(pub, inorder_iter, InorderIter);
+    make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
+    make_iter!(pub, preorder_iter, PreorderIter);
+    make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
+    make_iter!(pub, postorder_iter, PostorderIter);
+    make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> fmt::Debug for RedBlackTree<K, V>
