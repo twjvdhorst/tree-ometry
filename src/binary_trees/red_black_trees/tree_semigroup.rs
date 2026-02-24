@@ -1,11 +1,4 @@
-pub trait TreeSemigroup {
+pub trait TreeSemigroup<K, V> {
     fn leaf_val() -> Self;
-    fn op(base: &Self, other: &Self) -> Self;
-    
-    fn semigroup(&self, other: &Self) -> Self
-    where 
-        Self: Sized,
-    {
-        Self::op(self, other)
-    }
+    fn op(key: &K, value: &V, left: &Self, right: &Self) -> Self;
 }
