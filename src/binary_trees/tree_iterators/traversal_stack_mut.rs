@@ -48,9 +48,18 @@ impl<'tree, T> TreeState<'tree, T> {
 
 pub(super) struct TraversalStackMut<'tree, T>
 where 
-    T: BinaryTree,
+    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
 {
     stack: Vec<TreeState<'tree, T>>,
+}
+
+impl<'tree, T> Drop for TraversalStackMut<'tree, T>
+where 
+    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
+{
+        fn drop(&mut self) {
+            while self.pop().is_some() {}
+        }
 }
 
 impl<'tree, T> TraversalStackMut<'tree, T>

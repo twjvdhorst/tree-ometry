@@ -75,7 +75,7 @@ where
 
 pub(crate) struct InorderIterMut<'tree, T, F>
 where 
-    T: BinaryTree,
+    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
 {
     stack: TraversalStackMut<'tree, T>,
