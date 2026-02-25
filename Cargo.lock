@@ -198,16 +198,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusty-trees"
-version = "0.1.0"
-dependencies = [
- "lending-iterator",
- "paste",
- "rand",
- "thiserror",
-]
-
-[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -247,6 +237,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
+]
+
+[[package]]
+name = "tree-ometry"
+version = "0.1.0"
+dependencies = [
+ "lending-iterator",
+ "paste",
+ "rand",
+ "thiserror",
 ]
 
 [[package]]
