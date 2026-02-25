@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::fmt;
 use paste::paste;
 
+use crate::binary_trees::binary_search_tree_traits::BinarySearchTree;
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
 use crate::binary_trees::tree_iterators::{
     inorder::{InorderIter, InorderIterMut},
@@ -101,30 +102,14 @@ where
     }
 }
 
-macro_rules! make_iter {
-    ($vis: vis, $iter_name: ident, $iter_type: ident) => {
-        paste!{
-            $vis fn $iter_name(&mut self) -> $iter_type<'_, Self, impl Fn(&Self) -> bool> {
-                self.[<$iter_name _filtered>](|_| true)
-            }
-
-            $vis fn [<$iter_name _filtered>]<F>(&'_ mut self, f: F) -> $iter_type<'_, Self, F>
-            where
-                F: Fn(&Self) -> bool,
-            {
-                $iter_type::new(self, f)
-            }
-        }
-    };
-}
-
+use super::tree_macros::{make_iter, make_iter_mut};
 impl<K, V> RedBlackTree<K, V> {
     make_iter!(pub, inorder_iter, InorderIter);
-    make_iter!(pub, inorder_iter_mut, InorderIterMut);
+    make_iter_mut!(pub, inorder_iter_mut, InorderIterMut);
     make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter!(pub, preorder_iter_mut, PreorderIterMut);
+    make_iter_mut!(pub, preorder_iter_mut, PreorderIterMut);
     make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter!(pub, postorder_iter_mut, PostorderIterMut);
+    make_iter_mut!(pub, postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> fmt::Debug for RedBlackTree<K, V>

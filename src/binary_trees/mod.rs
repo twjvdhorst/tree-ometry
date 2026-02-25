@@ -2,6 +2,7 @@ pub mod tree_iterators;
 pub mod red_black_trees;
 
 pub mod binary_tree_traits;
+pub mod binary_search_tree_traits;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {

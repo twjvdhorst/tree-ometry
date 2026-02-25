@@ -3,13 +3,20 @@ use std::{
     cmp::Ordering
 };
 use std::fmt;
+use paste::paste;
 
+use crate::binary_trees::binary_search_tree_traits::BinarySearchTreeNode;
 use crate::binary_trees::{
     Side,
     binary_tree_traits::{
         BinaryTree,
         BinaryTreeNode,
         sealed::BinaryTreeNodeMut,
+    },
+    tree_iterators::{
+        inorder::{InorderIter, InorderIterMut},
+        preorder::{PreorderIter, PreorderIterMut},
+        postorder::{PostorderIter, PostorderIterMut},
     },
 };
 
@@ -164,6 +171,23 @@ where
     
     fn replace_right(&mut self, tree: Self::Tree) -> Self::Tree {
         std::mem::replace(&mut self.right, tree)
+    }
+}
+
+impl<K, V, T> BinarySearchTreeNode for RedBlackNode<K, V, T>
+where
+    K: Ord,
+    T: BinaryTree,
+{
+    type Key = K;
+    type Value = V;
+
+    fn key(&self) -> &Self::Key {
+        &self.key
+    }
+    
+    fn value(&self) -> &Self::Value {
+        &self.value
     }
 }
 
@@ -513,110 +537,6 @@ where
 
         Self::set_root_color(tree, Color::Black);
         None
-    }
-}
-
-// Queries.
-impl<K, V, T> RedBlackNode<K, V, T>
-where
-    K: Ord,
-    T: BinaryTree<Node = Self>,
-{
-    pub fn predecessor<Q>(&self, key: &Q) -> Option<&K>
-    where
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        let mut current = self;
-        let mut pred_key = None;
-        loop {
-            match Q::cmp(key, current.key.borrow()) {
-                Ordering::Equal => return Some(&current.key),
-                Ordering::Less => {
-                    let Some(left) = current.left_subtree().root() else { break; };
-                    current = left;
-                },
-                Ordering::Greater => {
-                    pred_key = Some(&current.key);
-                    let Some(right) = current.right_subtree().root() else { break; };
-                    current = right;
-                },
-            }
-        }
-        pred_key
-    }
-
-    pub fn successor<Q>(&self, key: &Q) -> Option<&K>
-    where
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        let mut current = self;
-        let mut succ_key = None;
-        loop {
-            match Q::cmp(key, current.key.borrow()) {
-                Ordering::Equal => return Some(&current.key),
-                Ordering::Less => {
-                    succ_key = Some(&current.key);
-                    let Some(left) = current.left_subtree().root() else { break; };
-                    current = left;
-                },
-                Ordering::Greater => {
-                    let Some(right) = current.right_subtree().root() else { break; };
-                    current = right;
-                },
-            }
-        }
-        succ_key
-    }
-
-    pub fn min(&self) -> &K {
-        let mut current = self;
-        while let Some(child) = current.left_subtree().root() {
-            current = child;
-        }
-        current.key()
-    }
-
-    pub fn max(&self) -> &K {
-        let mut current = self;
-        while let Some(child) = current.right_subtree().root() {
-            current = child;
-        }
-        current.key()
-    }
-
-    #[inline]
-    pub fn contains_key<Q>(&self, key: &Q) -> bool
-    where
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.get(key).is_some()
-    }
-
-    #[inline]
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
-    where
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.get_key_value(key).map(|(_, v)| v)
-    }
-
-    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
-    where
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        let mut current = self;
-        loop {
-            match Q::cmp(key, current.key.borrow()) {
-                Ordering::Equal => return Some(current.data()),
-                Ordering::Less => current = current.left_subtree().root()?,
-                Ordering::Greater => current = current.right_subtree().root()?,
-            }
-        }
     }
 }
 
