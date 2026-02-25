@@ -1,4 +1,10 @@
-use crate::binary_trees::{Side, binary_tree_traits::{BinaryTree, BinaryTreeNodeMut}};
+use crate::binary_trees::{
+    Side, 
+    binary_tree_traits::{
+        BinaryTree, 
+        sealed::BinaryTreeNodeMut
+    }
+};
 
 enum Tree<'tree, T> {
     MutRef(&'tree mut T),

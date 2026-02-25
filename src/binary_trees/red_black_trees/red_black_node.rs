@@ -9,7 +9,7 @@ use crate::binary_trees::{
     binary_tree_traits::{
         BinaryTree,
         BinaryTreeNode,
-        BinaryTreeNodeMut,
+        sealed::BinaryTreeNodeMut,
     },
 };
 
