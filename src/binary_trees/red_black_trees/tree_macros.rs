@@ -1,5 +1,3 @@
-use paste::paste;
-
 /// Iterators.
 macro_rules! make_iter {
     ($vis: vis, $iter_name: ident, $iter_type: ident) => {

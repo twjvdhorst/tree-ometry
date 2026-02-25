@@ -3,7 +3,19 @@ use std::{borrow::Borrow, fmt};
 use lending_iterator::LendingIterator;
 use paste::paste;
 
-use crate::binary_trees::{binary_tree_traits::{BinaryTree, BinaryTreeNode}, red_black_trees::{red_black_node::RedBlackNode, tree_semigroup::TreeSemigroup}, tree_iterators::{inorder::{InorderIter, InorderIterMut}, postorder::{PostorderIter, PostorderIterMut}, preorder::{PreorderIter, PreorderIterMut}}};
+use crate::binary_trees::{
+    red_black_trees::{
+        red_black_node::RedBlackNode, 
+        tree_semigroup::TreeSemigroup
+    }, traits::{
+        BinaryTree, 
+        BinaryTreeNode, Dynamic
+    }, tree_iterators::{
+        inorder::{InorderIter, InorderIterMut}, 
+        postorder::{PostorderIter, PostorderIterMut}, 
+        preorder::{PreorderIter, PreorderIterMut}
+    }
+};
 
 pub struct SemigroupRbNode<K, V, S, T> {
     node: RedBlackNode<K, V, T>,
@@ -97,17 +109,9 @@ where
     S: TreeSemigroup<K, V>,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        let result = RedBlackNode::insert(self, key, value);
+        let result = <Self as Dynamic>::insert(self, key, value);
         self.update_semigroup_values();
         result
-    }
-
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.remove_entry(key).map(|(_, v)| v)
     }
 
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
@@ -115,7 +119,7 @@ where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        let result = RedBlackNode::remove_entry(self, key);
+        let result = <Self as Dynamic>::remove_entry(self, key);
         self.update_semigroup_values();
         result
     }

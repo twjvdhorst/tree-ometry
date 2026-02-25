@@ -3,20 +3,15 @@ use std::{
     cmp::Ordering
 };
 use std::fmt;
-use paste::paste;
 
-use crate::binary_trees::binary_search_tree_traits::BinarySearchTreeNode;
+use crate::binary_trees::traits::Dynamic;
 use crate::binary_trees::{
     Side,
-    binary_tree_traits::{
+    traits::{
         BinaryTree,
         BinaryTreeNode,
         sealed::BinaryTreeNodeMut,
-    },
-    tree_iterators::{
-        inorder::{InorderIter, InorderIterMut},
-        preorder::{PreorderIter, PreorderIterMut},
-        postorder::{PostorderIter, PostorderIterMut},
+        BinarySearchTreeNode,
     },
 };
 
@@ -537,6 +532,27 @@ where
 
         Self::set_root_color(tree, Color::Black);
         None
+    }
+}
+
+impl<K, V, T> Dynamic for T
+where 
+    K: Ord,
+    T: BinaryTree<Node = RedBlackNode<K, V, T>>,
+{
+    type Key = K;
+    type Value = V;
+
+    fn insert(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
+        RedBlackNode::insert(self, key, value)
+    }
+
+    fn remove_entry<Q>(&mut self, key: &Q) -> Option<(Self::Key, Self::Value)>
+    where 
+        Self::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        RedBlackNode::remove_entry(self, key)   
     }
 }
 

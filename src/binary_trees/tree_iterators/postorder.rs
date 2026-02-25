@@ -5,7 +5,7 @@ use crate::binary_trees::{
         traversal_stack::TraversalStack,
         traversal_stack_mut::TraversalStackMut,
     },
-    binary_tree_traits::{
+    traits::{
         BinaryTree,
         BinaryTreeNode,
         sealed::BinaryTreeNodeMut,
@@ -112,7 +112,7 @@ mod tests {
     use crate::binary_trees::{
         Side,
         red_black_trees::red_black_tree::RedBlackTree,
-        binary_tree_traits::BinaryTree,
+        traits::{BinaryTree, Dynamic},
     };
 
     fn path_to_key<K, V>(mut tree: &RedBlackTree<K, V>, key: &K) -> Vec<Side>

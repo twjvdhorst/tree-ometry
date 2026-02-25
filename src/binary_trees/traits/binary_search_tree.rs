@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, cmp::Ordering};
 
-use crate::binary_trees::binary_tree_traits::{BinaryTree, BinaryTreeNode};
+use crate::binary_trees::traits::{BinaryTree, BinaryTreeNode};
 
 pub trait BinarySearchTreeNode: BinaryTreeNode {
     type Key: Ord;

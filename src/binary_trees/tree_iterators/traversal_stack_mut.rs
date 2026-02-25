@@ -1,6 +1,6 @@
 use crate::binary_trees::{
     Side, 
-    binary_tree_traits::{
+    traits::{
         BinaryTree, 
         sealed::BinaryTreeNodeMut
     }

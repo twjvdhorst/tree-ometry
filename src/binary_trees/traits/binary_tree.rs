@@ -1,4 +1,4 @@
-use super::Side;
+use crate::binary_trees::Side;
 
 pub trait BinaryTree {
     type Node: BinaryTreeNode;

@@ -1,4 +1,4 @@
-use crate::binary_trees::binary_tree_traits::{BinaryTree, BinaryTreeNode};
+use crate::binary_trees::traits::{BinaryTree, BinaryTreeNode};
 
 struct TreeState<T> {
     tree: T,

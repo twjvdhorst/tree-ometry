@@ -1,16 +1,15 @@
-use std::borrow::Borrow;
 use std::fmt;
 use paste::paste;
 
-use crate::binary_trees::binary_search_tree_traits::BinarySearchTree;
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
 use crate::binary_trees::tree_iterators::{
     inorder::{InorderIter, InorderIterMut},
     postorder::{PostorderIter, PostorderIterMut},
     preorder::{PreorderIter, PreorderIterMut},
 };
-use crate::binary_trees::binary_tree_traits::{
-    BinaryTree, BinaryTreeNode
+use crate::binary_trees::traits::{
+    BinaryTree, 
+    BinaryTreeNode, Dynamic,
 };
 
 pub struct RedBlackTree<K, V>(Option<RedBlackNode<K, V, Self>>);
@@ -52,31 +51,6 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
 
     fn into_root(self) -> Option<Self::Node> {
         self.0
-    }
-}
-
-impl<K, V> RedBlackTree<K, V>
-where
-    K: Ord,
-{
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        RedBlackNode::insert(self, key, value)
-    }
-
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.remove_entry(key).map(|(_, v)| v)
-    }
-
-    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        RedBlackNode::remove_entry(self, key)
     }
 }
 
