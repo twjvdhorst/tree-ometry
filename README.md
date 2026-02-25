@@ -1,2 +1,2 @@
-# rusty-trees
-Various tree structures based on dynamic binary search trees, written in Rust.
+# tree-ometry
+Various geometric tree structures, such as dynamic binary search trees, written in Rust.
