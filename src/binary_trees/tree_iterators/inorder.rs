@@ -8,7 +8,7 @@ use crate::binary_trees::{
     binary_tree_traits::{
         BinaryTree,
         BinaryTreeNode,
-        sealed::BinaryTreeNodeMut,
+        BinaryTreeNodeMut,
     },
 };
 
@@ -73,7 +73,7 @@ where
     }
 }
 
-pub struct InorderIterMut<'tree, T, F>
+pub(crate) struct InorderIterMut<'tree, T, F>
 where 
     T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
@@ -87,7 +87,7 @@ where
     T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
     F: Fn(&T) -> bool,
 {
-    pub fn new(tree: &'tree mut T, subtree_filter: F) -> Self {
+    pub(crate) fn new(tree: &'tree mut T, subtree_filter: F) -> Self {
         Self {
             stack: TraversalStackMut::new(tree),
             subtree_filter,

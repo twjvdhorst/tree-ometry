@@ -2,7 +2,7 @@ use crate::binary_trees::{
     Side, 
     binary_tree_traits::{
         BinaryTree, 
-        sealed::BinaryTreeNodeMut
+        BinaryTreeNodeMut
     }
 };
 
@@ -59,13 +59,14 @@ where
     stack: Vec<TreeState<'tree, T>>,
 }
 
+/// Custom Drop implementation that rebuilds the tree by popping the stack.
 impl<'tree, T> Drop for TraversalStackMut<'tree, T>
 where 
     T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
 {
-        fn drop(&mut self) {
-            while self.pop().is_some() {}
-        }
+    fn drop(&mut self) {
+        while self.pop().is_some() {}
+    }
 }
 
 impl<'tree, T> TraversalStackMut<'tree, T>

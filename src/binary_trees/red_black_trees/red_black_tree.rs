@@ -120,11 +120,11 @@ macro_rules! make_iter {
 
 impl<K, V> RedBlackTree<K, V> {
     make_iter!(pub, inorder_iter, InorderIter);
-    make_iter!(pub, inorder_iter_mut, InorderIterMut);
+    make_iter!(pub(crate), inorder_iter_mut, InorderIterMut);
     make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter!(pub, preorder_iter_mut, PreorderIterMut);
+    make_iter!(pub(crate), preorder_iter_mut, PreorderIterMut);
     make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter!(pub, postorder_iter_mut, PostorderIterMut);
+    make_iter!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> fmt::Debug for RedBlackTree<K, V>
