@@ -176,11 +176,11 @@ where
     S: TreeSemigroup<K, V>,
 {
     make_iter!(pub, inorder_iter, InorderIter);
-    make_iter_mut!(pub, inorder_iter_mut, InorderIterMut);
+    make_iter_mut!(pub(crate), inorder_iter_mut, InorderIterMut);
     make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter_mut!(pub, preorder_iter_mut, PreorderIterMut);
+    make_iter_mut!(pub(crate), preorder_iter_mut, PreorderIterMut);
     make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter_mut!(pub, postorder_iter_mut, PostorderIterMut);
+    make_iter_mut!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V, S> fmt::Debug for SemigroupRbTree<K, V, S>

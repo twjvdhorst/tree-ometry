@@ -10,7 +10,7 @@ use crate::binary_trees::{
     traits::{
         BinaryTree,
         BinaryTreeNode,
-        sealed::BinaryTreeNodeMut,
+        BinaryTreeNodeMut,
         BinarySearchTreeNode,
     },
 };
