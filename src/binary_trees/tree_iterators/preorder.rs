@@ -35,7 +35,7 @@ macro_rules! impl_preorder_next {
 
 pub struct PreorderIter<'tree, T, F>
 where 
-    T: BinaryTree + 'tree,
+    T: BinaryTree + ?Sized,
     F: Fn(&T) -> bool,
 {
     stack: TraversalStack<'tree, T>,
@@ -44,7 +44,7 @@ where
 
 impl<'tree, T, F> PreorderIter<'tree, T, F> 
 where 
-    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>> + ?Sized,
     F: Fn(&T) -> bool,
 {
     pub fn new(tree: &'tree T, subtree_filter: F) -> Self {
@@ -57,7 +57,7 @@ where
 
 impl<'tree, T, F> Iterator for PreorderIter<'tree, T, F>
 where 
-    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>> + ?Sized,
     F: Fn(&T) -> bool,
 {
     type Item = &'tree T;
@@ -100,7 +100,7 @@ where
         Self: 'next,
         = &'next mut T;
 
-    fn next(self: &'_ mut PreorderIterMut<'tree, T, F>) -> Option<&'_ mut T> {
+    fn next(self: &mut PreorderIterMut<'tree, T, F>) -> Option<&mut T> {
         impl_preorder_next!(self)
     }
 }

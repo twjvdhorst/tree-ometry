@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, fmt};
 
 use lending_iterator::LendingIterator;
-use paste::paste;
 
 use crate::binary_trees::{
     red_black_trees::{
@@ -9,12 +8,10 @@ use crate::binary_trees::{
         tree_semigroup::TreeSemigroup
     }, traits::{
         BinaryTree, 
-        BinaryTreeNode, Dynamic
-    }, tree_iterators::{
-        inorder::{InorderIter, InorderIterMut}, 
-        postorder::{PostorderIter, PostorderIterMut}, 
-        preorder::{PreorderIter, PreorderIterMut}
-    }
+        BinaryTreeNode, 
+        Dynamic,
+        iterable_postorder::IterablePostorderMut,
+    },
 };
 
 pub struct SemigroupRbNode<K, V, S, T> {
@@ -128,7 +125,7 @@ where
     /// Considers only tree nodes that have been accessed mutably,
     /// as others have their subtree, and thus semigroup value, intact.
     fn update_semigroup_values(&mut self) {
-        let mut changed_trees_iter = self.postorder_iter_mut_filtered(|tree|
+        let mut changed_trees_iter = self.postorder_iter_filtered_mut(|tree|
             tree.0.as_ref().map(|root| root.accessed_mut) == Some(true)
         );
         while let Some(tree) = changed_trees_iter.next() {
@@ -168,19 +165,6 @@ where
         tree.extend(iter);
         tree
     }
-}
-
-use super::tree_macros::{make_iter, make_iter_mut};
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where
-    S: TreeSemigroup<K, V>,
-{
-    make_iter!(pub, inorder_iter, InorderIter);
-    make_iter_mut!(pub(crate), inorder_iter_mut, InorderIterMut);
-    make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter_mut!(pub(crate), preorder_iter_mut, PreorderIterMut);
-    make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter_mut!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V, S> fmt::Debug for SemigroupRbTree<K, V, S>

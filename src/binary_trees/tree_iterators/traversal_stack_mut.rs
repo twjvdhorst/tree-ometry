@@ -102,7 +102,7 @@ where
             .unwrap_or(true)
     }
 
-    pub(super) fn report(&'_ mut self) -> Option<&'_ mut T> {
+    pub(super) fn report(&mut self) -> Option<&mut T> {
         let state = self.stack.last_mut()?;
         if !state.is_reported {
             state.is_reported = true;
@@ -112,7 +112,7 @@ where
         }
     }
 
-    pub(super) fn pop(&'_ mut self) -> Option<&'_ mut T> {
+    pub(super) fn pop(&mut self) -> Option<&mut T> {
         let state = self.stack.pop()?;
         match state.tree {
             Tree::MutRef(subtree) => Some(subtree), // Subtree is still attached to parent (or is root), no need to reattach

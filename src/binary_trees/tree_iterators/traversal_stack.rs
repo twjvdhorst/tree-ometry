@@ -20,14 +20,14 @@ impl<T> TreeState<T> {
 
 pub(super) struct TraversalStack<'tree, T>
 where 
-    T: BinaryTree,
+    T: BinaryTree + ?Sized,
 {
     stack: Vec<TreeState<&'tree T>>,
 }
 
 impl<'tree, T> TraversalStack<'tree, T>
 where 
-    T: BinaryTree<Node: BinaryTreeNode<Tree = T>>,
+    T: BinaryTree<Node: BinaryTreeNode<Tree = T>> + ?Sized,
 {
     pub(super) fn new(tree: &'tree T) -> Self {
         Self {

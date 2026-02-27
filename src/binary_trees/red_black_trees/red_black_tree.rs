@@ -1,12 +1,6 @@
 use std::fmt;
-use paste::paste;
 
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
-use crate::binary_trees::tree_iterators::{
-    inorder::{InorderIter, InorderIterMut},
-    postorder::{PostorderIter, PostorderIterMut},
-    preorder::{PreorderIter, PreorderIterMut},
-};
 use crate::binary_trees::traits::{
     BinaryTree, 
     BinaryTreeNode, Dynamic,
@@ -74,16 +68,6 @@ where
         tree.extend(iter);
         tree
     }
-}
-
-use super::tree_macros::{make_iter, make_iter_mut};
-impl<K, V> RedBlackTree<K, V> {
-    make_iter!(pub, inorder_iter, InorderIter);
-    make_iter_mut!(pub(crate), inorder_iter_mut, InorderIterMut);
-    make_iter!(pub, preorder_iter, PreorderIter);
-    make_iter_mut!(pub(crate), preorder_iter_mut, PreorderIterMut);
-    make_iter!(pub, postorder_iter, PostorderIter);
-    make_iter_mut!(pub(crate), postorder_iter_mut, PostorderIterMut);
 }
 
 impl<K, V> fmt::Debug for RedBlackTree<K, V>
