@@ -246,18 +246,10 @@ where
     K: Ord,
     T: BinaryTree<Node = Self>,
 {
-    fn rotate_left_insertion(tree: &mut T) -> bool {
-        if Self::rotate_left(tree) {
+    fn rotate_edge_insertion(tree: &mut T, side: Side) -> bool {
+        if Self::rotate_edge(tree, side) {
             Self::set_root_color(tree, Color::Black);
-            Self::set_root_color(tree.root_mut().unwrap().right_subtree_mut(), Color::Red); // Can unwrap safely: right subtree exists since the rotation was successful.
-            true
-        } else { false }
-    }
-
-    fn rotate_right_insertion(tree: &mut T) -> bool {
-        if Self::rotate_right(tree) {
-            Self::set_root_color(tree, Color::Black);
-            Self::set_root_color(tree.root_mut().unwrap().left_subtree_mut(), Color::Red); // Can unwrap safely: right subtree exists since the rotation was successful.
+            Self::set_root_color(tree.root_mut().unwrap().subtree_mut(side.opposite()), Color::Red); // Can unwrap safely: subtree exists since the rotation was successful.
             true
         } else { false }
     }
@@ -280,23 +272,13 @@ where
         if let Some(child) = root.subtree(side1).root() && let Some(grandchild) = child.subtree(side2).root()
             && child.color == Color::Red && grandchild.color == Color::Red
         {
-            match (side1, side2) {
-                (Side::Left, Side::Left) => Self::rotate_left_insertion(tree),
-                (Side::Right, Side::Right) => Self::rotate_right_insertion(tree),
-                (Side::Left, Side::Right) => {
-                    // Perform a double left rotation.
-                    if Self::rotate_right_insertion(root.left_subtree_mut()) {
-                        Self::rotate_left_insertion(tree);
-                        true
-                    } else { false }
-                },
-                (Side::Right, Side::Left) => {
-                    // Perform a double left rotation.
-                    if Self::rotate_left_insertion(root.right_subtree_mut()) {
-                        Self::rotate_right_insertion(tree);
-                        true
-                    } else { false }
-                },
+            if side1 == side2 {
+                Self::rotate_edge_insertion(tree, side1)
+            } else {
+                if Self::rotate_edge_insertion(root.subtree_mut(side1), side2) {
+                    Self::rotate_edge_insertion(tree, side1);
+                    true
+                } else { false }
             }
         } else { false }
     }
