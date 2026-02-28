@@ -9,6 +9,8 @@ pub trait TreeSemigroup<K> {
 }
 
 #[derive(Clone, Copy, Debug, Display, From, PartialEq, Eq, PartialOrd, Ord)]
+#[debug("{_0:?}")]
+#[display("{_0}")]
 pub struct Height(usize);
 impl<K> TreeSemigroup<K> for Height {
     fn op(_key: &K, left: Option<&Self>, right: Option<&Self>) -> Self {

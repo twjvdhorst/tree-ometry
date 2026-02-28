@@ -4,7 +4,6 @@ use std::{
 };
 use std::fmt;
 
-use crate::binary_trees::traits::Dynamic;
 use crate::binary_trees::{
     Side,
     traits::{
@@ -284,7 +283,7 @@ where
     /// If the key was not present in the tree yet, None is returned.
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
-    fn insert(tree: &mut T, key: K, value: V) -> Option<V> {
+    pub fn insert(tree: &mut T, key: K, value: V) -> Option<V> {
         // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
         // To not need multiple mutable references into self, keep track of only the grandparent, together with the sides to take to get to parent and current.
         // We first handle the cases where there is no parent or no current, i.e., the path to the leaf where we put value is too short.
@@ -433,7 +432,7 @@ where
     /// Removes the node with the given key from the tree.
     /// Returns the key and associated value.
     /// Time complexity: O(log n).
-    fn remove_entry<Q>(tree: &mut T, key: &Q) -> Option<(K, V)>
+    pub fn remove_entry<Q>(tree: &mut T, key: &Q) -> Option<(K, V)>
     where 
         K: Borrow<Q>,
         Q: Ord + ?Sized,
@@ -518,36 +517,15 @@ where
     }
 }
 
-impl<K, V, T> Dynamic for T
-where 
-    K: Ord,
-    T: BinaryTree<Node = RedBlackNode<K, V, T>>,
-{
-    type Key = K;
-    type Value = V;
-
-    fn insert(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        RedBlackNode::insert(self, key, value)
-    }
-
-    fn remove_entry<Q>(&mut self, key: &Q) -> Option<(Self::Key, Self::Value)>
-    where 
-        Self::Key: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        RedBlackNode::remove_entry(self, key)   
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::cmp::Ordering;
     use std::collections::HashMap;
     use rand::prelude::*;
 
-    use crate::binary_trees::red_black_trees::red_black_tree::RedBlackTree;
-
     use super::*;
+    use crate::binary_trees::red_black_trees::red_black_tree::RedBlackTree;
+    use crate::binary_trees::traits::Dynamic;
 
     fn assert_binary_search_tree<K, V>(tree: &RedBlackTree<K, V>)
     where 

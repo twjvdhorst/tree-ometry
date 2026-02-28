@@ -99,27 +99,36 @@ where
     }
 }
 
-impl<K, V, S> SemigroupRbTree<K, V, S>
+impl<K, V, S> Dynamic for SemigroupRbTree<K, V, S>
 where
     K: Ord,
     S: TreeSemigroup<K>,
 {
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        let result = <Self as Dynamic>::insert(self, key, value);
+    type Key = K;
+    type Value = V;
+
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let result = RedBlackNode::insert(self, key, value);
         self.update_semigroup_values();
         result
     }
 
-    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where 
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        let result = <Self as Dynamic>::remove_entry(self, key);
+        let result = RedBlackNode::remove_entry(self, key);
         self.update_semigroup_values();
         result
     }
+}
 
+impl<K, V, S> SemigroupRbTree<K, V, S>
+where 
+    K: Ord,
+    S: TreeSemigroup<K>,
+{
     /// Updates semigroup values in a bottom-up fashion.
     /// Considers only tree nodes that have been accessed mutably,
     /// as others have their subtree, and thus semigroup value, intact.
@@ -236,13 +245,40 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
     use super::*;
-    use crate::binary_trees::red_black_trees::semigroup::{CanonInterval, CanonSubset};
+    use crate::binary_trees::red_black_trees::semigroup::{CanonInterval, Height, TreeSemigroup};
+
+    fn assert_semigroup<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
+    where 
+        S: TreeSemigroup<K> + Debug + PartialEq,
+    {
+        let Some(root) = tree.root() else { return; };
+        let (left, right) = root.subtrees();
+        assert_semigroup(left);
+        assert_semigroup(right);
+        assert_eq!(
+            *tree.semigroup_value().unwrap(),
+            S::op(root.key(), left.semigroup_value(), right.semigroup_value())
+        );
+    }
 
     #[test]
     fn test_semigroup_tree() {
-        let tree = (1..=30).map(|i| (i, i % 10))
+        let mut tree = ('a'..='z').map(|c| (c, ()))
+            .collect::<SemigroupRbTree<_, _, Height>>();
+        assert_semigroup(&tree);
+        tree.remove(&'k');
+        tree.remove(&'l');
+        tree.remove(&'m');
+        assert_semigroup(&tree);
+
+        let mut tree = (1..=30).map(|i| (i, ()))
             .collect::<SemigroupRbTree<_, _, CanonInterval<i32>>>();
-        println!("{tree}");
+        assert_semigroup(&tree);
+        assert_eq!(tree.semigroup_value(), Some(&(1, 30).into()));
+        tree.remove(&5);
+        tree.remove(&24);
+        assert_semigroup(&tree);
     }
 }

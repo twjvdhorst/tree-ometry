@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fmt;
 
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
@@ -45,6 +46,26 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
 
     fn into_root(self) -> Option<Self::Node> {
         self.0
+    }
+}
+
+impl<K, V> Dynamic for RedBlackTree<K, V>
+where
+    K: Ord,
+{
+    type Key = K;
+    type Value = V;
+
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
+        RedBlackNode::insert(self, key, value)
+    }
+
+    fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        RedBlackNode::remove_entry(self, key)
     }
 }
 
