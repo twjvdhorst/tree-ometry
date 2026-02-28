@@ -2,11 +2,10 @@ use std::{borrow::Borrow, fmt};
 
 use lending_iterator::LendingIterator;
 
+use super::tree_semigroup::TreeSemigroup;
 use crate::binary_trees::{
-    red_black_trees::{
-        red_black_node::RedBlackNode, 
-        tree_semigroup::TreeSemigroup
-    }, traits::{
+    red_black_trees::red_black_node::RedBlackNode, 
+    traits::{
         BinaryTree, 
         BinaryTreeNode, 
         Dynamic,
@@ -24,7 +23,7 @@ pub struct SemigroupRbTree<K, V, S>(Option<SemigroupRbNode<K, V, S, Self>>);
 
 impl<K, V, S> Default for SemigroupRbTree<K, V, S>
 where 
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     fn default() -> Self {
         Self::new_leaf()
@@ -33,13 +32,13 @@ where
 
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where 
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     pub fn new() -> Self {
         Self::new_leaf()
     }
 
-    fn get_semigroup_value(&self) -> Option<&S> {
+    fn semigroup_value(&self) -> Option<&S> {
         Some(&self.0.as_ref()?.semigroup_value)
     }
 
@@ -64,7 +63,7 @@ where
 
 impl<K, V, S> BinaryTree for SemigroupRbTree<K, V, S>
 where 
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     type Node = RedBlackNode<K, V, Self>;
 
@@ -73,7 +72,7 @@ where
     }
 
     fn new_node(node: Self::Node) -> Self {
-        let semigroup_value = S::op(node.key(), node.value(), &S::leaf_val(), &S::leaf_val());
+        let semigroup_value = S::op(node.key(), None, None);
         Self(Some(SemigroupRbNode {
             node, 
             semigroup_value,
@@ -103,7 +102,7 @@ where
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where
     K: Ord,
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let result = <Self as Dynamic>::insert(self, key, value);
@@ -131,13 +130,9 @@ where
         while let Some(tree) = changed_trees_iter.next() {
             let Some(root) = tree.root() else { continue; };
             let (left, right) = root.subtrees();
-            let new_semigroup_value = match (left.get_semigroup_value(), right.get_semigroup_value()) {
-                (Some(x), Some(y)) => S::op(root.key(), root.value(), x, y),
-                (Some(x), None) => S::op(root.key(), root.value(), x, &S::leaf_val()),
-                (None, Some(y)) => S::op(root.key(), root.value(), &S::leaf_val(), y),
-                (None, None) => S::op(root.key(), root.value(), &S::leaf_val(), &S::leaf_val()),
-            };
-            tree.set_semigroup_value(new_semigroup_value);
+            tree.set_semigroup_value(
+                S::op(root.key(), left.semigroup_value(), right.semigroup_value())
+            );
             tree.mark_unaccessed();
         }
     }
@@ -146,19 +141,21 @@ where
 impl<K, V, S> Extend<(K, V)> for SemigroupRbTree<K, V, S>
 where 
     K: Ord,
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        // To save on semigroup calculations, first perform the insertions without updating semigroup values, then do single update pass.
         for (key, value) in iter {
-            self.insert(key, value);
+            <Self as Dynamic>::insert(self, key, value);
         }
+        self.update_semigroup_values();
     }
 }
 
 impl<K, V, S> FromIterator<(K, V)> for SemigroupRbTree<K, V, S>
 where 
     K: Ord,
-    S: TreeSemigroup<K, V>,
+    S: TreeSemigroup<K>,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut tree = Self::default();
@@ -171,14 +168,14 @@ impl<K, V, S> fmt::Debug for SemigroupRbTree<K, V, S>
 where 
     K: fmt::Debug,
     V: fmt::Debug,
-    S: fmt::Debug + TreeSemigroup<K, V>,
+    S: fmt::Debug + TreeSemigroup<K>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn recursive_fmt<K, V, S>(tree: &SemigroupRbTree<K, V, S>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
             K: fmt::Debug,
             V: fmt::Debug,
-            S: fmt::Debug + TreeSemigroup<K, V>,
+            S: fmt::Debug + TreeSemigroup<K>,
         {
             write!(f, "{prefix}")?;
             if is_left {
@@ -187,7 +184,7 @@ where
                 write!(f, "└──")?;
             };
             if let Some(root) = tree.root() {
-                write!(f, "({root:?}, {:?})\n", tree.get_semigroup_value().unwrap())?;
+                write!(f, "({root:?}, {:?})\n", tree.semigroup_value().unwrap())?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
                 recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
@@ -206,14 +203,14 @@ impl<K, V, S> fmt::Display for SemigroupRbTree<K, V, S>
 where 
     K: fmt::Display,
     V: fmt::Display,
-    S: fmt::Display + TreeSemigroup<K, V>,
+    S: fmt::Display + TreeSemigroup<K>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn recursive_fmt<K, V, S>(tree: &SemigroupRbTree<K, V, S>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
         where
             K: fmt::Display,
             V: fmt::Display,
-            S: fmt::Display + TreeSemigroup<K, V>,
+            S: fmt::Display + TreeSemigroup<K>,
         {
             write!(f, "{prefix}")?;
             if is_left {
@@ -222,7 +219,7 @@ where
                 write!(f, "└──")?;
             };
             if let Some(root) = tree.root() {
-                write!(f, "({root}, {})\n", tree.get_semigroup_value().unwrap())?;
+                write!(f, "({root}, {})\n", tree.semigroup_value().unwrap())?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
                 recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
@@ -240,28 +237,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::red_black_trees::tree_semigroup::TreeSemigroup;
-    
-    struct Max(i32);
-    impl<V> TreeSemigroup<i32, V> for Max {
-        fn leaf_val() -> Self {
-            Self(0)
-        }
-
-        fn op(key: &i32, _value: &V, left: &Self, right: &Self) -> Self {
-            Self(i32::max(*key, i32::max(left.0, right.0)))
-        }
-    }
-    impl fmt::Display for Max {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
+    use crate::binary_trees::red_black_trees::semigroup::{CanonInterval, CanonSubset};
 
     #[test]
     fn test_semigroup_tree() {
         let tree = (1..=30).map(|i| (i, i % 10))
-            .collect::<SemigroupRbTree<_, _, Max>>();
+            .collect::<SemigroupRbTree<_, _, CanonInterval<i32>>>();
         println!("{tree}");
     }
 }
