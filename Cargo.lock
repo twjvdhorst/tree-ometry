@@ -292,6 +292,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "lending-iterator",
+ "paste",
  "rand",
  "thiserror",
 ]
