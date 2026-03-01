@@ -59,6 +59,23 @@ where
             root.accessed_mut = true;
         }
     }
+
+    /// Updates semigroup values in a bottom-up fashion.
+    /// Considers only tree nodes that have been accessed mutably,
+    /// as others have their subtree, and thus semigroup value, intact.
+    fn update_semigroup_values(&mut self) {
+        let mut changed_trees_iter = self.postorder_iter_filtered_mut(|tree|
+            tree.0.as_ref().map(|root| root.accessed_mut) == Some(true)
+        );
+        while let Some(tree) = changed_trees_iter.next() {
+            let Some(root) = tree.root() else { continue; };
+            let (left, right) = root.subtrees();
+            tree.set_semigroup_value(
+                S::op(root.key(), left.semigroup_value(), right.semigroup_value())
+            );
+            tree.mark_unaccessed();
+        }
+    }
 }
 
 impl<K, V, S> BinaryTree for SemigroupRbTree<K, V, S>
@@ -121,29 +138,6 @@ where
         let result = RedBlackNode::remove_entry(self, key);
         self.update_semigroup_values();
         result
-    }
-}
-
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where 
-    K: Ord,
-    S: TreeSemigroup<K>,
-{
-    /// Updates semigroup values in a bottom-up fashion.
-    /// Considers only tree nodes that have been accessed mutably,
-    /// as others have their subtree, and thus semigroup value, intact.
-    fn update_semigroup_values(&mut self) {
-        let mut changed_trees_iter = self.postorder_iter_filtered_mut(|tree|
-            tree.0.as_ref().map(|root| root.accessed_mut) == Some(true)
-        );
-        while let Some(tree) = changed_trees_iter.next() {
-            let Some(root) = tree.root() else { continue; };
-            let (left, right) = root.subtrees();
-            tree.set_semigroup_value(
-                S::op(root.key(), left.semigroup_value(), right.semigroup_value())
-            );
-            tree.mark_unaccessed();
-        }
     }
 }
 
@@ -247,7 +241,7 @@ where
 mod tests {
     use std::fmt::Debug;
     use super::*;
-    use crate::binary_trees::red_black_trees::semigroup::{CanonInterval, Height, TreeSemigroup};
+    use crate::binary_trees::red_black_trees::semigroup::*;
 
     fn assert_semigroup<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 

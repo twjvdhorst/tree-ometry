@@ -284,9 +284,10 @@ where
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
     pub fn insert(tree: &mut T, key: K, value: V) -> Option<V> {
-        // Traverse the tree, keeping track of three nodes: the current node, its parent, and its grandparent.
+        // Eternally Confuzzled's insertion algorithm.
+        // Inserting the key-value pair as a red leaf is easiest. Traverse the tree and push a red node down, maintaining Red-Black Tree properties.
+        // We keep track of three nodes: the current node, its parent, and its grandparent.
         // To not need multiple mutable references into self, keep track of only the grandparent, together with the sides to take to get to parent and current.
-        // We first handle the cases where there is no parent or no current, i.e., the path to the leaf where we put value is too short.
         
         let Some(root) = tree.root_mut() else {
             // Tree is empty.
@@ -437,10 +438,9 @@ where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        // Top-down deletion algorithm is for deleting nodes without subtrees.
-        // To handle deleting any node, we can swap the to-be-deleted node with its predecessor.
-        // We have to wait with swapping until we move out of the to-be-deleted node, since after the swap, its subtree is invalid.
-        // By advancing down one level, the subtree becomes valid again.
+        // Algovision's top-down deletion algorithm. This algorithm is specified for deleting nodes without subtrees.
+        // To handle deleting any node, we can swap the to-be-deleted node with its predecessor, to make it a leaf.
+        // We have to wait with swapping until we move out of the to-be-deleted node, as otherwise swapping makes its subtree invalid.
 
         let mut current = &mut *tree;
         while let Some(root) = current.root() {

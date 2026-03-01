@@ -8,6 +8,20 @@ pub trait TreeSemigroup<K> {
     fn op(key: &K, left: Option<&Self>, right: Option<&Self>) -> Self;
 }
 
+/// Semigroup encoding the size (number of nodes) of a subtree.
+#[derive(Clone, Copy, Debug, Display, From, PartialEq, Eq, PartialOrd, Ord)]
+#[debug("{_0:?}")]
+#[display("{_0}")]
+pub struct Size(usize);
+impl<K> TreeSemigroup<K> for Size {
+    fn op(_key: &K, left: Option<&Self>, right: Option<&Self>) -> Self {
+        let size_left = left.unwrap_or(&Self(0));
+        let size_right = right.unwrap_or(&Self(0));
+        Self(1 + size_left.0 + size_right.0)
+    }
+}
+
+/// Semigroup encoding the height of a subtree.
 #[derive(Clone, Copy, Debug, Display, From, PartialEq, Eq, PartialOrd, Ord)]
 #[debug("{_0:?}")]
 #[display("{_0}")]
@@ -16,10 +30,11 @@ impl<K> TreeSemigroup<K> for Height {
     fn op(_key: &K, left: Option<&Self>, right: Option<&Self>) -> Self {
         let height_left = left.unwrap_or(&Self(0));
         let height_right = right.unwrap_or(&Self(0));
-        Self(1 + height_left.0 + height_right.0)
+        Self(1 + usize::max(height_left.0, height_right.0))
     }
 }
 
+/// Semigroup encoding the canonical interval (min and max key) of a subtree.
 #[derive(Clone, Debug, Display, From, PartialEq, Eq, PartialOrd, Ord)]
 #[debug("[{_0:?}, {_1:?}]")]
 #[display("[{_0}, {_1}]")]
@@ -38,6 +53,7 @@ where
     }
 }
 
+/// Semigroup encoding the canonical subset (all keys) of a subtree.
 #[derive(Clone, From)]
 pub struct CanonSubset<K>(HashSet<K>);
 impl<K> TreeSemigroup<K> for CanonSubset<K>
