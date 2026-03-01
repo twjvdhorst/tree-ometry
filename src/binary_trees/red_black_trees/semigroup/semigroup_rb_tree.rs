@@ -273,6 +273,15 @@ mod tests {
         assert_eq!(tree.semigroup_value(), Some(&(1, 30).into()));
         tree.remove(&5);
         tree.remove(&24);
+        tree.remove(&12);
+        assert_semigroup(&tree);
+        
+        let mut tree = (1..=30).map(|i| (i, ()))
+            .collect::<SemigroupRbTree<_, _, (Height, CanonSubset<i32>)>>();
+        assert_semigroup(&tree);
+        tree.remove(&5);
+        tree.remove(&24);
+        tree.remove(&12);
         assert_semigroup(&tree);
     }
 }
