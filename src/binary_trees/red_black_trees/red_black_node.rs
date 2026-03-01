@@ -260,6 +260,8 @@ where
         }
     }
 
+    /// Fixes a red-red edge violation in the child and grandchild of the given node.
+    /// Returns whether the tree's structure has changed.
     fn fix_local_violation(&mut self, side1: Side, side2: Side) -> bool {
         if let Some(child) = self.subtree(side1).root() && let Some(grandchild) = child.subtree(side2).root()
             && child.color == Color::Red && grandchild.color == Color::Red
@@ -398,16 +400,34 @@ where
 
     fn swap_root_with_predecessor(tree: &mut T) {
         let Some(root) = tree.root_mut() else { return; };
-        let mut left_tree = root.detach_left();
+        if root.left_subtree().is_leaf() { return; };
+        let (mut left_tree, right_tree) = root.detach_both();
+        
+        let pred = {
+            let mut current = &mut left_tree;
+            while let Some(root) = current.root()
+                && !root.right_subtree().is_leaf()
+            {
+                current = current.root_mut().unwrap().right_subtree_mut();
+            }
+            current
+        };
 
-        let Some(mut current) = left_tree.root_mut() else { return; };
-        while !current.right_subtree().is_leaf() {
-            current = current.right_subtree_mut().root_mut().unwrap();
-        }
+        // Don't need the right subtree of pred, as it is a leaf.
+        let pred_left = pred.root_mut().unwrap().detach_left();
 
-        std::mem::swap(&mut root.key, &mut current.key);
-        std::mem::swap(&mut root.value, &mut current.value);
-        root.attach_left(left_tree);
+        std::mem::swap(tree, pred);
+
+        // Swap the colors, so they are as they were originally.
+        let root_tree = tree.root_mut().unwrap();
+        let root_pred = pred.root_mut().unwrap();
+        std::mem::swap(&mut root_tree.color, &mut root_pred.color);
+
+        // Reconstruct the tree.
+        root_pred.attach_left(pred_left);
+        root_tree.attach_left(left_tree);
+        root_tree.attach_right(right_tree);
+
     }
 
     /// Helper function for removing roots with at most one subtree attached.
