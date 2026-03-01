@@ -7,3 +7,6 @@ The goal is asymptotically optimal implementations using no interior mutability 
 - Dynamic semigroup Red-Black trees.
 These additionally store a value in each node that is calculated by some semigroup computation based on the keys in its subtree.
 Semigroup values are updated whenever the tree is updated.
+
+### Additional operations:
+- Inorder, preorder, and postorder iterators over binary trees.
