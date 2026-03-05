@@ -3,8 +3,7 @@ use std::fmt;
 
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
 use crate::binary_trees::traits::{
-    BinaryTree, 
-    BinaryTreeNode, Dynamic,
+    BinaryTree, BinaryTreeMut, BinaryTreeNode, Dynamic
 };
 
 pub struct RedBlackTree<K, V>(Option<RedBlackNode<K, V, Self>>);
@@ -21,15 +20,17 @@ impl<K, V> RedBlackTree<K, V> {
     }
 }
 
+impl<K, V> From<RedBlackNode<K, V, Self>> for RedBlackTree<K, V> {
+    fn from(value: RedBlackNode<K, V, Self>) -> Self {
+        Self(Some(value))
+    }
+}
+
 impl<K, V> BinaryTree for RedBlackTree<K, V> {
     type Node = RedBlackNode<K, V, Self>;
 
     fn new_leaf() -> Self {
         Self(None)
-    }
-
-    fn new_node(node: Self::Node) -> Self {
-        Self(Some(node))
     }
 
     fn is_leaf(&self) -> bool {
@@ -39,7 +40,9 @@ impl<K, V> BinaryTree for RedBlackTree<K, V> {
     fn root(&self) -> Option<&Self::Node> {
         self.0.as_ref()
     }
+}
 
+impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
     fn root_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.as_mut()
     }

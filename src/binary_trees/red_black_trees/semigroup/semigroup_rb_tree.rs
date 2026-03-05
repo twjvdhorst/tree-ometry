@@ -6,10 +6,7 @@ use super::tree_semigroup::TreeSemigroup;
 use crate::binary_trees::{
     red_black_trees::red_black_node::RedBlackNode, 
     traits::{
-        BinaryTree, 
-        BinaryTreeNode, 
-        Dynamic,
-        iterable_postorder::IterablePostorderMut,
+        BinaryTree, BinaryTreeMut, BinaryTreeNode, Dynamic, iterable_postorder::IterablePostorderMut
     },
 };
 
@@ -78,23 +75,25 @@ where
     }
 }
 
-impl<K, V, S> BinaryTree for SemigroupRbTree<K, V, S>
+impl<K, V, S> From<RedBlackNode<K, V, Self>> for SemigroupRbTree<K, V, S>
 where 
     S: TreeSemigroup<K>,
 {
+    fn from(value: RedBlackNode<K, V, Self>) -> Self {
+        let semigroup_value = S::op(value.key(), None, None);
+        Self(Some(SemigroupRbNode {
+            node: value,
+            semigroup_value,
+            accessed_mut: false
+        }))
+    }
+}
+
+impl<K, V, S> BinaryTree for SemigroupRbTree<K, V, S> {
     type Node = RedBlackNode<K, V, Self>;
 
     fn new_leaf() -> Self {
         Self(None)
-    }
-
-    fn new_node(node: Self::Node) -> Self {
-        let semigroup_value = S::op(node.key(), None, None);
-        Self(Some(SemigroupRbNode {
-            node, 
-            semigroup_value,
-            accessed_mut: false
-        }))
     }
 
     fn is_leaf(&self) -> bool {
@@ -104,7 +103,9 @@ where
     fn root(&self) -> Option<&Self::Node> {
         self.0.as_ref().map(|root| &root.node)
     }
+}
 
+impl<K, V, S> BinaryTreeMut for SemigroupRbTree<K, V, S> {
     fn root_mut(&mut self) -> Option<&mut Self::Node> {
         let root = self.0.as_mut()?;
         root.accessed_mut = true;
@@ -112,7 +113,7 @@ where
     }
 
     fn into_root(self) -> Option<Self::Node> {
-        self.0.map(|root| root.node)
+        self.0.map(|root| root.node as Self::Node)
     }
 }
 

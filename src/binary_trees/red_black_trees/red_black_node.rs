@@ -8,6 +8,7 @@ use crate::binary_trees::{
     Side,
     traits::{
         BinaryTree,
+        BinaryTreeMut,
         BinaryTreeNode,
         BinaryTreeNodeMut,
         BinarySearchTreeNode,
@@ -189,7 +190,7 @@ where
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
-    T: BinaryTree<Node = Self>,
+    T: BinaryTreeMut<Node = Self>,
 {
     fn rotate_left(&mut self) -> bool {
         let mut new_tree = self.detach_left();
@@ -239,7 +240,7 @@ where
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
-    T: BinaryTree<Node = Self>,
+    T: BinaryTreeMut<Node = Self> + From<Self>,
 {
     fn rotate_edge_insertion(&mut self, side: Side) -> bool {
         if self.rotate_edge(side) {
@@ -293,7 +294,7 @@ where
         
         let Some(root) = tree.root_mut() else {
             // Tree is empty.
-            *tree = T::new_node(Self::new_with_color(key, value, Color::Black));
+            *tree = T::from(Self::new_with_color(key, value, Color::Black));
             return None;
         };
         let mut side1 = match K::cmp(&key, &root.key) {
@@ -309,7 +310,7 @@ where
             let child = {
                 let child_tree = root.subtree_mut(side1);
                 let Some(child) = child_tree.root_mut() else {
-                    *child_tree = T::new_node(Self::new_with_color(key, value, Color::Red));
+                    *child_tree = T::from(Self::new_with_color(key, value, Color::Red));
                     break;
                 };
                 child
@@ -325,7 +326,7 @@ where
             let grandchild = {
                 let grandchild_tree = child.subtree_mut(side2);
                 let Some(grandchild) = grandchild_tree.root_mut() else {
-                    *grandchild_tree = T::new_node(Self::new_with_color(key, value, Color::Red));
+                    *grandchild_tree = T::from(Self::new_with_color(key, value, Color::Red));
                     root.fix_local_violation(side1, side2);
                     break;
                 };
@@ -358,7 +359,7 @@ where
 impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
-    T: BinaryTree<Node = Self>,
+    T: BinaryTreeMut<Node = Self>,
 {
     fn left_color(&self) -> Option<Color> {
         Some(self.left_subtree().root()?.color)

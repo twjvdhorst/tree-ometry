@@ -4,11 +4,11 @@ pub trait BinaryTree {
     type Node: BinaryTreeNode;
 
     fn new_leaf() -> Self;
-    fn new_node(node: Self::Node) -> Self;
-
     fn is_leaf(&self) -> bool;
-
     fn root(&self) -> Option<&Self::Node>;
+}
+
+pub trait BinaryTreeMut: BinaryTree {
     fn root_mut(&mut self) -> Option<&mut Self::Node>;
     fn into_root(self) -> Option<Self::Node>;
 }

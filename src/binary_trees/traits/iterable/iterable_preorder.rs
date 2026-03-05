@@ -1,6 +1,7 @@
 use crate::binary_trees::{
     traits::{
         BinaryTree,
+        BinaryTreeMut,
         BinaryTreeNode,
         BinaryTreeNodeMut,
     },
@@ -29,7 +30,7 @@ where
     }
 }
 
-pub(crate) trait IterablePreorderMut: IterablePreorder + Sized
+pub(crate) trait IterablePreorderMut: IterablePreorder + BinaryTreeMut + Sized
 where
     Self::Node: BinaryTreeNodeMut<Tree = Self>,
 {
@@ -56,5 +57,5 @@ where
 
 impl<T> IterablePreorderMut for T
 where 
-    T: BinaryTree<Node: BinaryTreeNodeMut<Tree = T>>,
+    T: BinaryTreeMut<Node: BinaryTreeNodeMut<Tree = T>>,
 {}
