@@ -5,11 +5,20 @@ The goal is asymptotically optimal implementations using no interior mutability 
 ### Currently implemented trees:
 - Dynamic Red-Black trees.
 These store key-value pairs in a balanced binary search tree.
-Red-Black trees support O(log n) insertions and deletions, using O(n) space.
+Red-Black trees support insertions and deletions.<br>
+Insertion time: O(log n).<br>
+Deletion time: O(log n).<br>
+Space used: O(n).
 - Dynamic semigroup Red-Black trees.
 These additionally store a value in each node that is calculated by some semigroup computation based on the keys in its subtree.
-Semigroup values are updated whenever the tree is updated.
-Semigroup Red-Black trees support O(log n) insertions and deletions (assuming O(1) semigroup operations), and use O(n) space.
+Semigroup values are updated whenever the tree is updated.<br>
+Insertion time: O(T(n) log n), where T(n) is time taken by a semigroup operation.<br>
+Deletion time: O(T(n) log n), where T(n) is time taken by a semigroup operation.<br>
+Space used: O(S(n log n) * n), where S(n) is the space used by a semigroup value computed from n elements.
+- Static (max)-Cartesian trees.
+These store a sequence in a max-heap, such that the sequence is preserved by the inorder ordering of the nodes in the tree.<br>
+Construction time: O(n).<br>
+Space used: O(n).
 
 ### Additional operations:
 - Inorder, preorder, and postorder iterators over binary trees.
