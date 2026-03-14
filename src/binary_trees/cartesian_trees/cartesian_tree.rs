@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::binary_trees::traits::{BinaryTree, BinaryTreeNode};
+use crate::binary_trees::traits::{BinaryTree, BinaryTreeNode, binary_tree};
 
 pub struct CartesianTree<K, V>(Option<CartesianTreeNode<K, V>>);
 
@@ -107,30 +107,7 @@ where
     V: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &CartesianTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Debug,
-            V: fmt::Debug,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(root) = tree.root() {
-                write!(f, "{root:?}\n")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
-                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self, f, "", false)
+        binary_tree::debug_binary_tree(self, f)
     }
 }
     
@@ -140,30 +117,7 @@ where
     V: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &CartesianTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Display,
-            V: fmt::Display,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(root) = tree.root() {
-                write!(f, "{root}\n")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
-                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self, f, "", false)
+        binary_tree::display_binary_tree(self, f)
     }
 }
 
@@ -200,6 +154,7 @@ mod tests {
             .into_iter()
             .collect::<CartesianTree<_, _>>();
         assert_max_heap(&tree);
+        dbg!(&tree);
 
         // Assert the sequence is preserved.
         let tree_sequence = tree.inorder_iter()

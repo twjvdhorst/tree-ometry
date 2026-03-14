@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::binary_trees::red_black_trees::red_black_node::RedBlackNode;
 use crate::binary_trees::traits::{
-    BinaryTree, BinaryTreeMut, BinaryTreeNode, Dynamic
+    BinaryTree, BinaryTreeMut, Dynamic, binary_tree
 };
 
 pub struct RedBlackTree<K, V>(Option<RedBlackNode<K, V, Self>>);
@@ -100,30 +100,7 @@ where
     V: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Debug,
-            V: fmt::Debug,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(root) = tree.root() {
-                write!(f, "{root:?}\n")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
-                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self, f, "", false)
+        binary_tree::debug_binary_tree(self, f)
     }
 }
     
@@ -133,29 +110,6 @@ where
     V: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn recursive_fmt<K, V>(tree: &RedBlackTree<K, V>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
-        where
-            K: fmt::Display,
-            V: fmt::Display,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(root) = tree.root() {
-                write!(f, "{root}\n")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                recursive_fmt(root.left_subtree(), f, &new_prefix, true)?;
-                recursive_fmt(root.right_subtree(), f, &new_prefix, false)?;
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self, f, "", false)
+        binary_tree::display_binary_tree(self, f)
     }
 }

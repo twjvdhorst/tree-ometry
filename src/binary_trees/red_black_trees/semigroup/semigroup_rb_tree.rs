@@ -45,6 +45,10 @@ where
         }
     }
 
+    fn was_accessed(&self) -> bool {
+        self.0.as_ref().map(|root| root.accessed_mut) == Some(true)
+    }
+
     fn mark_unaccessed(&mut self) {
         if let Some(root) = self.0.as_mut() {
             root.accessed_mut = false;
@@ -61,9 +65,7 @@ where
     /// Considers only tree nodes that have been accessed mutably,
     /// as others have their subtree, and thus semigroup value, intact.
     fn update_semigroup_values(&mut self) {
-        let mut changed_trees_iter = self.postorder_iter_filtered_mut(|tree|
-            tree.0.as_ref().map(|root| root.accessed_mut) == Some(true)
-        );
+        let mut changed_trees_iter = self.postorder_iter_filtered_mut(Self::was_accessed);
         while let Some(tree) = changed_trees_iter.next() {
             let Some(root) = tree.root() else { continue; };
             let (left, right) = root.subtrees();

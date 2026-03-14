@@ -192,6 +192,8 @@ where
     K: Ord,
     T: BinaryTreeMut<Node = Self>,
 {
+    /// Rotates the left edge, making the left child the new root.
+    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
     fn rotate_left(&mut self) -> bool {
         let mut new_tree = self.detach_left();
         if let Some(mut new_root) = new_tree.root_mut() {
