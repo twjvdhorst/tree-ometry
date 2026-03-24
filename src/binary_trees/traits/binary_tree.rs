@@ -27,7 +27,7 @@ pub trait BinaryTree {
 }
 
 pub trait BinaryTreeNode {
-    type Tree: BinaryTree;
+    type Tree: BinaryTree<Node = Self>;
 
     fn left_subtree(&self) -> &Self::Tree;
     fn right_subtree(&self) -> &Self::Tree;

@@ -109,7 +109,7 @@ impl<K, V, T> RedBlackNode<K, V, T> {
 
 impl<K, V, T> BinaryTreeNode for RedBlackNode<K, V, T>
 where 
-    T: BinaryTree,
+    T: BinaryTree<Node = Self>,
 {
     type Tree = T;
 
@@ -124,7 +124,7 @@ where
 
 impl<K, V, T> BinaryTreeNodeMut for RedBlackNode<K, V, T>
 where 
-    T: BinaryTree,
+    T: BinaryTreeMut<Node = Self>,
 {
     fn left_subtree_mut(&mut self) -> &mut Self::Tree {
         self.left.as_mut()
@@ -151,14 +151,6 @@ where
             true
         } else { false }
     }
-
-    fn detach_left(&mut self) -> Self::Tree {
-        std::mem::replace(&mut self.left, T::new_leaf())
-    }
-
-    fn detach_right(&mut self) -> Self::Tree {
-        std::mem::replace(&mut self.right, T::new_leaf())
-    }
     
     fn replace_left(&mut self, tree: Self::Tree) -> Self::Tree {
         std::mem::replace(&mut self.left, tree)
@@ -172,7 +164,7 @@ where
 impl<K, V, T> BinarySearchTreeNode for RedBlackNode<K, V, T>
 where
     K: Ord,
-    T: BinaryTree,
+    T: BinaryTree<Node = Self>,
 {
     type Key = K;
     type Value = V;
@@ -192,45 +184,6 @@ where
     K: Ord,
     T: BinaryTreeMut<Node = Self>,
 {
-    /// Rotates the left edge, making the left child the new root.
-    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_left(&mut self) -> bool {
-        let mut new_tree = self.detach_left();
-        if let Some(mut new_root) = new_tree.root_mut() {
-            let rotating_subtree = new_root.detach_right();
-            self.replace_left(rotating_subtree);
-            std::mem::swap(self, &mut new_root);
-            self.replace_right(new_tree);
-            true
-        } else {
-            // Left subtree is a leaf.
-            false
-        }
-    }
-
-    /// Rotates the right edge, making the right child the new root.
-    /// Returns a true if the tree was changed (a rotation happened), and false otherwise.
-    fn rotate_right(&mut self) -> bool {
-        let mut new_tree = self.detach_right();
-        if let Some(mut new_root) = new_tree.root_mut() {
-            let rotating_subtree = new_root.detach_left();
-            self.replace_right(rotating_subtree);
-            std::mem::swap(self, &mut new_root);
-            self.replace_left(new_tree);
-            true
-        } else {
-            // Right subtree is a leaf.
-            false
-        }
-    }
-
-    fn rotate_edge(&mut self, side: Side) -> bool {
-        match side {
-            Side::Left => self.rotate_left(),
-            Side::Right => self.rotate_right(),
-        }
-    }
-    
     fn set_root_color(tree: &mut T, color: Color) {
         if let Some(root) = tree.root_mut() {
             root.color = color;
@@ -243,6 +196,7 @@ impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
     T: BinaryTreeMut<Node = Self> + From<Self>,
+    Self: BinaryTreeNodeMut<Tree = T>,
 {
     fn rotate_edge_insertion(&mut self, side: Side) -> bool {
         if self.rotate_edge(side) {
@@ -362,6 +316,7 @@ impl<K, V, T> RedBlackNode<K, V, T>
 where 
     K: Ord,
     T: BinaryTreeMut<Node = Self>,
+    Self: BinaryTreeNodeMut<Tree = T>,
 {
     fn left_color(&self) -> Option<Color> {
         Some(self.left_subtree().root()?.color)
