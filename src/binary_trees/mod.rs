@@ -1,5 +1,6 @@
 pub mod cartesian_trees;
 pub mod red_black_trees;
+pub mod red_black_trees_old;
 
 pub mod traits;
 pub mod tree_iterators;

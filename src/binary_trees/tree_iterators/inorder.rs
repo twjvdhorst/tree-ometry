@@ -123,7 +123,7 @@ mod tests {
     use super::*;
     use crate::binary_trees::{
         Side,
-        red_black_trees::red_black_tree::RedBlackTree,
+        red_black_trees_old::old_red_black_tree::RedBlackTree,
         traits::{BinaryTree, Dynamic},
     };
 

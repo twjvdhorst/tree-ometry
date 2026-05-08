@@ -4,7 +4,7 @@ use lending_iterator::LendingIterator;
 
 use super::tree_semigroup::TreeSemigroup;
 use crate::binary_trees::{
-    red_black_trees::red_black_node::RedBlackNode, 
+    red_black_trees_old::red_black_node::RedBlackNode, 
     traits::{
         BinaryTree, BinaryTreeMut, BinaryTreeNode, Dynamic, iterable_postorder::IterablePostorderMut
     },
@@ -244,7 +244,7 @@ where
 mod tests {
     use std::fmt::Debug;
     use super::*;
-    use crate::binary_trees::red_black_trees::semigroup::*;
+    use crate::binary_trees::red_black_trees_old::semigroup::*;
 
     fn assert_semigroup<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 

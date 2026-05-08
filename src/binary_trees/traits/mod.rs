@@ -1,3 +1,4 @@
+pub mod binary_tree_cursor;
 pub mod binary_tree;
 pub(crate) mod binary_tree_mut;
 pub mod binary_search_tree;

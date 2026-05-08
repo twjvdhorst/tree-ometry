@@ -502,7 +502,7 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::red_black_trees::red_black_tree::RedBlackTree;
+    use crate::binary_trees::red_black_trees_old::old_red_black_tree::RedBlackTree;
     use crate::binary_trees::traits::Dynamic;
 
     fn assert_binary_search_tree<K, V>(tree: &RedBlackTree<K, V>)
