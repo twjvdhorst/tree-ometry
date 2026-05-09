@@ -1,3 +1,8 @@
+use std::fmt::Display;
+
+pub mod binary_tree;
+pub mod cursor_errors;
+
 pub mod cartesian_trees;
 pub mod red_black_trees;
 pub mod red_black_trees_old;
@@ -16,6 +21,15 @@ impl Side {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
+        }
+    }
+}
+
+impl Display for Side {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Side::Left => write!(f, "Left"),
+            Side::Right => write!(f, "Right"),
         }
     }
 }
