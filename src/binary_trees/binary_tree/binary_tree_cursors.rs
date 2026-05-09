@@ -39,17 +39,17 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
     }
 
     fn move_up(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
+        self.node_id = self.node()?.parent_id();
         self.node()
     }
     
     fn move_left(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.left_id()?;
+        self.node_id = self.node()?.left_id();
         self.node()
     }
     
     fn move_right(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.right_id()?;
+        self.node_id = self.node()?.right_id();
         self.node()
     }
 }
@@ -86,8 +86,8 @@ impl<'tree, T> CursorMut<'tree, T> {
     /// Returns the detached node, or None if the child node is not a leaf.
     pub fn detach_child(&mut self, side: Side) -> Option<BinaryTreeNode<T>> {
         let node_id = self.node_id;
-        let child_id = self.node()?.child_id(side)?;
-        let child_node = self.peek_side_mut(side)?;
+        let child_id = self.node()?.child_id(side);
+        let child_node = self.peek_side(side)?;
         if !child_node.has_left() && !child_node.has_right() {
             self.tree.remove_edge(node_id, child_id);
             self.tree.remove_node(child_id)
@@ -102,9 +102,7 @@ impl<'tree, T> CursorMut<'tree, T> {
         let node_id = self.node_id;
         let node = self.node()?;
         if !node.has_left() && !node.has_right() {
-            if let Some(parent_id) = node.parent_id() {
-                self.tree.remove_edge(parent_id, node_id);
-            }
+            self.tree.remove_edge(node.parent_id(), node_id);
             self.tree.remove_node(node_id)
         } else {
             None
@@ -118,7 +116,7 @@ impl<'tree, T> CursorMut<'tree, T> {
         let node_id = self.node_id;
         let node = self.node().ok_or(CursorError::InvalidCursor)?;
 
-        let right_id = node.right_id().ok_or(CursorError::RotateRightError)?;
+        let right_id = node.right_id();
         let right_node = self.tree.node(right_id).ok_or(CursorError::RotateRightError)?;
 
         let parent_id = node.parent_id();
@@ -127,13 +125,10 @@ impl<'tree, T> CursorMut<'tree, T> {
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, right_id);
 
-        if let Some(rotating_id) = rotating_id {
-            self.tree.remove_edge(right_id, rotating_id);
-            self.tree.add_edge(node_id, rotating_id, Side::Right);
-        }
+        self.tree.remove_edge(right_id, rotating_id);
+        self.tree.add_edge(node_id, rotating_id, Side::Right);
 
-        if let Some(parent_id) = parent_id {
-            let parent = self.tree.node(parent_id).unwrap();
+        if let Some(parent) = self.tree.node(parent_id) {
             let side = parent.side_of(node_id).unwrap();
             self.tree.remove_edge(parent_id, node_id);
             self.tree.add_edge(parent_id, right_id, side);
@@ -151,7 +146,7 @@ impl<'tree, T> CursorMut<'tree, T> {
         let node_id = self.node_id;
         let node = self.node().ok_or(CursorError::InvalidCursor)?;
 
-        let left_id = node.left_id().ok_or(CursorError::RotateRightError)?;
+        let left_id = node.left_id();
         let left_node = self.tree.node(left_id).ok_or(CursorError::RotateRightError)?;
 
         let parent_id = node.parent_id();
@@ -160,13 +155,10 @@ impl<'tree, T> CursorMut<'tree, T> {
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, left_id);
 
-        if let Some(rotating_id) = rotating_id {
-            self.tree.remove_edge(left_id, rotating_id);
-            self.tree.add_edge(node_id, rotating_id, Side::Left);
-        }
+        self.tree.remove_edge(left_id, rotating_id);
+        self.tree.add_edge(node_id, rotating_id, Side::Left);
 
-        if let Some(parent_id) = parent_id {
-            let parent = self.tree.node(parent_id).unwrap();
+        if let Some(parent) = self.tree.node(parent_id) {
             let side = parent.side_of(node_id).unwrap();
             self.tree.remove_edge(parent_id, node_id);
             self.tree.add_edge(parent_id, left_id, side);
@@ -198,17 +190,17 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
     }
 
     fn move_up(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
+        self.node_id = self.node()?.parent_id();
         self.node()
     }
     
     fn move_left(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.left_id()?;
+        self.node_id = self.node()?.left_id();
         self.node()
     }
     
     fn move_right(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.right_id()?;
+        self.node_id = self.node()?.right_id();
         self.node()
     }
 }
@@ -219,29 +211,29 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.parent_id()?)
+        self.tree.node_mut(self.node()?.parent_id())
     }
 
     fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.left_id()?)
+        self.tree.node_mut(self.node()?.left_id())
     }
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.right_id()?)
+        self.tree.node_mut(self.node()?.right_id())
     }
 
     fn move_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
+        self.node_id = self.node()?.parent_id();
         self.node_mut()
     }
     
     fn move_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.left_id()?;
+        self.node_id = self.node()?.left_id();
         self.node_mut()
     }
     
     fn move_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.right_id()?;
+        self.node_id = self.node()?.right_id();
         self.node_mut()
     }
 }
