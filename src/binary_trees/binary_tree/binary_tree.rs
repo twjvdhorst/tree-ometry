@@ -13,19 +13,10 @@ pub struct BinaryTreeNode<T> {
 }
 
 impl<T> BinaryTreeNode<T> {
-    pub fn new(data: T) -> Self {
+    fn new(data: T) -> Self {
         Self {
             data,
             parent_id: None,
-            left_id: None,
-            right_id: None,
-        }
-    }
-
-    pub(super) fn new_with_parent(data: T, parent_id: NodeId) -> Self {
-        Self {
-            data,
-            parent_id: Some(parent_id),
             left_id: None,
             right_id: None,
         }
@@ -88,15 +79,15 @@ impl<T> BinaryTreeNode<T> {
     }
 
     pub(super) fn set_parent_id(&mut self, new_id: NodeId) {
-        self.parent_id.insert(new_id);
+        self.parent_id = Some(new_id);
     }
 
     pub(super) fn set_left_id(&mut self, new_id: NodeId) {
-        self.left_id.insert(new_id);
+        self.left_id = Some(new_id);
     }
 
     pub(super) fn set_right_id(&mut self, new_id: NodeId) {
-        self.right_id.insert(new_id);
+        self.right_id = Some(new_id);
     }
 
     pub(super) fn set_child_id(&mut self, new_id: NodeId, side: Side) {
@@ -123,6 +114,10 @@ impl<T> BinaryTreeNode<T> {
             Side::Left => self.take_left_id(),
             Side::Right => self.take_right_id(),
         }
+    }
+
+    pub(super) fn detach_parent(&mut self) {
+        self.parent_id = None;
     }
 
     pub(super) fn detach_child(&mut self, child_id: NodeId) {
@@ -153,12 +148,22 @@ impl<T> BinaryTree<T> {
         Self::default()
     }
 
+    pub(super) fn new_node(&mut self, data: T) -> NodeId {
+        self.nodes.insert(BinaryTreeNode::new(data))
+    }
+
     pub(super) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(node_id)
     }
 
     pub(super) fn node_mut(&mut self, node_id: NodeId) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(node_id)
+    }
+
+    /// Returns mutable references to the nodes with the given ids.
+    /// All ids must be valid and disjoint, otherwise None is returned.
+    pub(super) fn disjoint_nodes_mut<const N: usize>(&mut self, node_ids: [NodeId; N]) -> Option<[&mut BinaryTreeNode<T>; N]> {
+        self.nodes.get_disjoint_mut(node_ids)
     }
 
     pub fn parent(&self, node: &BinaryTreeNode<T>) -> Option<&BinaryTreeNode<T>> {
@@ -184,34 +189,33 @@ impl<T> BinaryTree<T> {
     pub fn right_child_mut(&mut self, node: &BinaryTreeNode<T>) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(node.right_id?)
     }
-
-    pub(super) fn add_node(&mut self, node: BinaryTreeNode<T>) -> NodeId {
-        self.nodes.insert(node)
-    }
     
     pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<BinaryTreeNode<T>> {
         self.nodes.remove(node_id)
     }
 
-    pub(super) fn add_edge(&mut self, parent_id: NodeId, child_id: NodeId, side_of_parent: Side) -> bool {
-        if let Some(parent) = self.node(parent_id) && !parent.has_child(side_of_parent)
-            && let Some(child) = self.node(child_id) && !child.has_parent()
-        {
-            self.node_mut(parent_id).unwrap().set_child_id(child_id, side_of_parent);
-            self.node_mut(child_id).unwrap().set_parent_id(parent_id);
+    pub(super) fn add_edge(&mut self, parent_id: NodeId, child_id: NodeId, side: Side) -> bool {
+        let Some([parent, child]) = self.disjoint_nodes_mut([parent_id, child_id]) else { return false; };
+        if !parent.has_child(side) && !child.has_parent() {
+            parent.set_child_id(child_id, side);
+            child.set_parent_id(parent_id);
+            true
+        } else { false }
+    }
+
+    pub(super) fn remove_edge(&mut self, parent_id: NodeId, child_id: NodeId) -> bool {
+        let Some([parent, child]) = self.disjoint_nodes_mut([parent_id, child_id]) else { return false; };
+        if child.parent_id != Some(parent_id) { return false; }
+        if parent.left_id == Some(child_id) {
+            parent.left_id = None;
+            child.parent_id = None;
+            true
+        } else if parent.right_id == Some(child_id) {
+            parent.right_id = None;
+            child.parent_id = None;
             true
         } else {
             false
-        }
-    }
-
-    pub(super) fn remove_edge(&mut self, parent_id: NodeId, child_id: NodeId) {
-        if let Some(parent) = self.node_mut(parent_id) && let Some(side) = parent.side_of(child_id) {
-            parent.take_child_id(side);
-        }
-
-        if let Some(child) = self.node_mut(child_id) && child.parent_id == Some(parent_id) {
-            child.take_parent_id();
         }
     }
 

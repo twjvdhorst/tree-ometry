@@ -68,34 +68,47 @@ impl<'tree, T> CursorMut<'tree, T> {
     }
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
-    pub fn attach_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
-        let current_node = self.node().ok_or(CursorError::InvalidCursor)?;
-        if current_node.has_child(side) {
-            return Err(CursorError::AttachError(side));
+    /// Returns a mutable reference to the new node.
+    pub fn attach_child(&mut self, data: T, side: Side) -> Result<&mut BinaryTreeNode<T>, CursorError> {
+        let curr_id = self.node_id;
+        let new_id = self.tree.new_node(data);
+        if !self.tree.add_edge(curr_id, new_id, side) {
+            // Remove the newly added node, as we don't want disconnected singleton nodes taking up space.
+            self.tree.remove_node(new_id);
+            Err(CursorError::AttachError(side))
+        } else {
+            Ok(self.tree.node_mut(new_id).unwrap())
         }
-
-        let new_node = BinaryTreeNode::new_with_parent(data, self.node_id);
-        let new_id = self.tree.add_node(new_node);
-        self.node_mut().unwrap().set_child_id(new_id, side); // Can unwrap safely; the cursor is still valid.
-        Ok(())
     }
 
-    /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
-    /// Returns an error if the node pointed at is not a leaf.
-    pub fn detach_node(&mut self) -> Result<BinaryTreeNode<T>, CursorError> {
+    /// Detaches the child of the node pointed at by the cursor from the tree.
+    /// The cursor remains valid.
+    /// Returns the detached node, or None if the child node is not a leaf.
+    pub fn detach_child(&mut self, side: Side) -> Option<BinaryTreeNode<T>> {
         let node_id = self.node_id;
-        let current_node = self.node_mut().ok_or(CursorError::InvalidCursor)?;
-        if current_node.has_left() || current_node.has_right() {
-            return Err(CursorError::DetachError);
+        let child_id = self.node()?.child_id(side)?;
+        let child_node = self.peek_side_mut(side)?;
+        if !child_node.has_left() && !child_node.has_right() {
+            self.tree.remove_edge(node_id, child_id);
+            self.tree.remove_node(child_id)
+        } else {
+            None
         }
+    }
 
-        current_node.take_parent_id();
-
-        if let Some(parent) = self.move_up_mut() {
-            parent.detach_child(node_id);
+    /// Detaches the node pointed at by the cursor from the tree, and consumes the cursor.
+    /// Returns the detached node, or None if the node is not a leaf.
+    pub fn detach_node(self) -> Option<BinaryTreeNode<T>> {
+        let node_id = self.node_id;
+        let node = self.node()?;
+        if !node.has_left() && !node.has_right() {
+            if let Some(parent_id) = node.parent_id() {
+                self.tree.remove_edge(parent_id, node_id);
+            }
+            self.tree.remove_node(node_id)
+        } else {
+            None
         }
-
-        Ok(self.tree.remove_node(node_id).unwrap())
     }
     
     /// Performs a left rotation around the node pointed at by the cursor.
