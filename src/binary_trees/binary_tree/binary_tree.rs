@@ -77,6 +77,16 @@ impl<T> BinaryTreeNode<T> {
         }
     }
 
+    pub(super) fn side_of(&self, child_id: NodeId) -> Option<Side> {
+        if self.left_id == Some(child_id) {
+            Some(Side::Left)
+        } else if self.right_id == Some(child_id) {
+            Some(Side::Right)
+        } else {
+            None
+        }
+    }
+
     pub(super) fn set_parent_id(&mut self, new_id: NodeId) {
         self.parent_id.insert(new_id);
     }
@@ -143,14 +153,6 @@ impl<T> BinaryTree<T> {
         Self::default()
     }
 
-    pub(super) fn add_node(&mut self, node: BinaryTreeNode<T>) -> NodeId {
-        self.nodes.insert(node)
-    }
-    
-    pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<BinaryTreeNode<T>> {
-        self.nodes.remove(node_id)
-    }
-
     pub(super) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(node_id)
     }
@@ -181,6 +183,36 @@ impl<T> BinaryTree<T> {
 
     pub fn right_child_mut(&mut self, node: &BinaryTreeNode<T>) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(node.right_id?)
+    }
+
+    pub(super) fn add_node(&mut self, node: BinaryTreeNode<T>) -> NodeId {
+        self.nodes.insert(node)
+    }
+    
+    pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<BinaryTreeNode<T>> {
+        self.nodes.remove(node_id)
+    }
+
+    pub(super) fn add_edge(&mut self, parent_id: NodeId, child_id: NodeId, side_of_parent: Side) -> bool {
+        if let Some(parent) = self.node(parent_id) && !parent.has_child(side_of_parent)
+            && let Some(child) = self.node(child_id) && !child.has_parent()
+        {
+            self.node_mut(parent_id).unwrap().set_child_id(child_id, side_of_parent);
+            self.node_mut(child_id).unwrap().set_parent_id(parent_id);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub(super) fn remove_edge(&mut self, parent_id: NodeId, child_id: NodeId) {
+        if let Some(parent) = self.node_mut(parent_id) && let Some(side) = parent.side_of(child_id) {
+            parent.take_child_id(side);
+        }
+
+        if let Some(child) = self.node_mut(child_id) && child.parent_id == Some(parent_id) {
+            child.take_parent_id();
+        }
     }
 
     pub fn cursor(&self) -> Option<Cursor<'_, T>> {
