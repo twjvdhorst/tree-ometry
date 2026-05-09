@@ -167,6 +167,18 @@ impl<T> BinaryTree<T> {
         self.nodes.get_mut(node_id)
     }
 
+    /// Returns a reference to the node corresponding to the id without version or bounds checking.
+    /// Safety: This should only be used if there is a node with the given id. Otherwise it is potentially unsafe
+    pub(super) unsafe fn node_unchecked(&self, node_id: NodeId) -> &BinaryTreeNode<T> {
+        unsafe { self.nodes.get_unchecked(node_id) }
+    }
+
+    /// Returns a mutable reference to the node corresponding to the id without version or bounds checking.
+    /// Safety: This should only be used if there is a node with the given id. Otherwise it is potentially unsafe
+    pub(super) unsafe fn node_unchecked_mut(&mut self, node_id: NodeId) -> &mut BinaryTreeNode<T> {
+        unsafe { self.nodes.get_unchecked_mut(node_id) }
+    }
+
     /// Returns mutable references to the nodes with the given ids.
     /// All ids must be valid and disjoint, otherwise None is returned.
     pub(super) fn disjoint_nodes_mut<const N: usize>(&mut self, node_ids: [NodeId; N]) -> Option<[&mut BinaryTreeNode<T>; N]> {
