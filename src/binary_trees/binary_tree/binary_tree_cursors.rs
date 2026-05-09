@@ -44,6 +44,8 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
         self.tree.right_child(self.node())
     }
 
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up(&mut self) -> Option<&Self::Node> {
         let parent_id = self.node().parent_id();
         if !parent_id.is_null() {
@@ -54,6 +56,8 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left(&mut self) -> Option<&Self::Node> {
         let left_id = self.node().left_id();
         if !left_id.is_null() {
@@ -64,6 +68,8 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right(&mut self) -> Option<&Self::Node> {
         let right_id = self.node().right_id();
         if !right_id.is_null() {
@@ -214,6 +220,8 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
         self.tree.right_child(self.node())
     }
 
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up(&mut self) -> Option<&Self::Node> {
         let parent_id = self.node().parent_id();
         if !parent_id.is_null() {
@@ -224,6 +232,8 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left(&mut self) -> Option<&Self::Node> {
         let left_id = self.node().left_id();
         if !left_id.is_null() {
@@ -234,6 +244,8 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right(&mut self) -> Option<&Self::Node> {
         let right_id = self.node().right_id();
         if !right_id.is_null() {
@@ -263,6 +275,8 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
         self.tree.node_mut(self.node().right_id())
     }
     
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up_mut(&mut self) -> Option<&mut Self::Node> {
         let parent_id = self.node().parent_id();
         if !parent_id.is_null() {
@@ -273,6 +287,8 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left_mut(&mut self) -> Option<&mut Self::Node> {
         let left_id = self.node().left_id();
         if !left_id.is_null() {
@@ -283,6 +299,8 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
         }
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right_mut(&mut self) -> Option<&mut Self::Node> {
         let right_id = self.node().right_id();
         if !right_id.is_null() {

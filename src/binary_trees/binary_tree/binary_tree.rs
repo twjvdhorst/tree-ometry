@@ -138,14 +138,14 @@ impl<T> BinaryTreeNode<T> {
 
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
-    root_id: Option<NodeId>,
+    root_id: NodeId,
 }
 
 impl<T> Default for BinaryTree<T> {
     fn default() -> Self {
         Self {
             nodes: SlotMap::with_key(),
-            root_id: Option::None,
+            root_id: NodeId::null(),
         }
     }
 }
@@ -157,6 +157,14 @@ impl<T> BinaryTree<T> {
 
     pub(super) fn new_node(&mut self, data: T) -> NodeId {
         self.nodes.insert(BinaryTreeNode::new(data))
+    }
+
+    pub fn root(&self) -> Option<&BinaryTreeNode<T>> {
+        self.nodes.get(self.root_id)
+    }
+
+    pub fn root_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
+        self.nodes.get_mut(self.root_id)
     }
 
     pub(super) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
@@ -210,6 +218,9 @@ impl<T> BinaryTree<T> {
     }
     
     pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<BinaryTreeNode<T>> {
+        if self.root_id == node_id {
+            self.root_id = NodeId::null();
+        }
         self.nodes.remove(node_id)
     }
 
@@ -239,10 +250,14 @@ impl<T> BinaryTree<T> {
     }
 
     pub fn cursor(&self) -> Option<Cursor<'_, T>> {
-        Some(Cursor::new(self, self.root_id?))
+        if !self.root_id.is_null() {
+            Some(Cursor::new(self, self.root_id))
+        } else { None }
     }
 
     pub fn cursor_mut(&mut self) -> Option<CursorMut<'_, T>> {
-        Some(CursorMut::new(self, self.root_id?))
+        if !self.root_id.is_null() {
+            Some(CursorMut::new(self, self.root_id))
+        } else { None }
     }
 }
