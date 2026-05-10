@@ -3,7 +3,7 @@ use crate::binary_trees::Side;
 pub trait BinaryTreeCursor: Sized {
     type Node;
 
-    fn node(&self) -> &Self::Node;
+    fn node(&self) -> Option<&Self::Node>;
 
     fn peek_up(&self) -> Option<&Self::Node>;
     fn peek_left(&self) -> Option<&Self::Node>;
@@ -26,8 +26,8 @@ pub trait BinaryTreeCursor: Sized {
     }
 }
 
-pub(crate) trait BinaryTreeCursorMut: BinaryTreeCursor {
-    fn node_mut(&mut self) -> &mut Self::Node;
+pub trait BinaryTreeCursorMut: BinaryTreeCursor {
+    fn node_mut(&mut self) -> Option<&mut Self::Node>;
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node>;
     fn peek_left_mut(&mut self) -> Option<&mut Self::Node>;

@@ -1,10 +1,13 @@
+use std::fmt::{Debug, Display};
+
 use slotmap::{Key, SlotMap, new_key_type};
 
-use crate::binary_trees::Side;
-use super::binary_tree_cursors::{Cursor, CursorMut};
+use crate::binary_trees::{Side, traits::binary_tree_cursor::BinaryTreeCursor};
+use super::cursors::{Cursor, CursorMut};
 
 new_key_type! { pub(super) struct NodeId; }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BinaryTreeNode<T> {
     data: T,
     parent_id: NodeId,
@@ -97,45 +100,9 @@ impl<T> BinaryTreeNode<T> {
             Side::Right => self.set_right_id(new_id),
         }
     }
-
-    pub(super) fn nullify_parent_id(&mut self) -> NodeId {
-        let old_parent_id = self.parent_id;
-        self.parent_id = NodeId::null();
-        old_parent_id
-    }
-
-    pub(super) fn nullify_left_id(&mut self) -> NodeId {
-        let old_left_id = self.left_id;
-        self.left_id = NodeId::null();
-        old_left_id
-    }
-
-    pub(super) fn nullify_right_id(&mut self) -> NodeId {
-        let old_right_id = self.right_id;
-        self.right_id = NodeId::null();
-        old_right_id
-    }
-
-    pub(super) fn nullify_child_id(&mut self, side: Side) -> NodeId {
-        match side {
-            Side::Left => self.nullify_left_id(),
-            Side::Right => self.nullify_right_id(),
-        }
-    }
-
-    pub(super) fn detach_parent(&mut self) {
-        self.parent_id = NodeId::null();
-    }
-
-    pub(super) fn detach_child(&mut self, child_id: NodeId) {
-        if self.left_id == child_id {
-            self.left_id = NodeId::null();
-        } else if self.right_id == child_id {
-            self.right_id = NodeId::null();
-        }
-    }
 }
 
+#[derive(Clone, Debug)]
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
     root_id: NodeId,
@@ -155,8 +122,19 @@ impl<T> BinaryTree<T> {
         Self::default()
     }
 
+    pub fn new_singleton(data: T) -> Self {
+        let mut tree = Self::default();
+        let root_id = tree.new_node(data);
+        tree.root_id = root_id;
+        tree
+    }
+
     pub(super) fn new_node(&mut self, data: T) -> NodeId {
-        self.nodes.insert(BinaryTreeNode::new(data))
+        let node_id = self.nodes.insert(BinaryTreeNode::new(data));
+        if self.root_id.is_null() {
+            self.root_id = node_id;
+        }
+        node_id
     }
 
     pub fn root(&self) -> Option<&BinaryTreeNode<T>> {
@@ -167,24 +145,16 @@ impl<T> BinaryTree<T> {
         self.nodes.get_mut(self.root_id)
     }
 
+    pub(super) fn set_root_id(&mut self, root_id: NodeId) {
+        self.root_id = root_id;
+    }
+
     pub(super) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(node_id)
     }
 
     pub(super) fn node_mut(&mut self, node_id: NodeId) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(node_id)
-    }
-
-    /// Returns a reference to the node corresponding to the id without version or bounds checking.
-    /// Safety: This should only be used if there is a node with the given id. Otherwise it is potentially unsafe
-    pub(super) unsafe fn node_unchecked(&self, node_id: NodeId) -> &BinaryTreeNode<T> {
-        unsafe { self.nodes.get_unchecked(node_id) }
-    }
-
-    /// Returns a mutable reference to the node corresponding to the id without version or bounds checking.
-    /// Safety: This should only be used if there is a node with the given id. Otherwise it is potentially unsafe
-    pub(super) unsafe fn node_unchecked_mut(&mut self, node_id: NodeId) -> &mut BinaryTreeNode<T> {
-        unsafe { self.nodes.get_unchecked_mut(node_id) }
     }
 
     /// Returns mutable references to the nodes with the given ids.
@@ -237,27 +207,115 @@ impl<T> BinaryTree<T> {
         let Some([parent, child]) = self.disjoint_nodes_mut([parent_id, child_id]) else { return false; };
         if child.parent_id != parent_id { return false; }
         if parent.left_id == child_id {
-            parent.nullify_left_id();
-            child.nullify_parent_id();
+            parent.left_id = NodeId::null();
+            child.parent_id = NodeId::null();
             true
         } else if parent.right_id == child_id {
-            parent.nullify_right_id();
-            child.nullify_parent_id();
+            parent.right_id = NodeId::null();
+            child.parent_id = NodeId::null();
             true
         } else {
             false
         }
     }
 
-    pub fn cursor(&self) -> Option<Cursor<'_, T>> {
-        if !self.root_id.is_null() {
-            Some(Cursor::new(self, self.root_id))
-        } else { None }
+    pub fn cursor(&self) -> Cursor<'_, T> {
+        Cursor::new(self, self.root_id)
     }
 
-    pub fn cursor_mut(&mut self) -> Option<CursorMut<'_, T>> {
-        if !self.root_id.is_null() {
-            Some(CursorMut::new(self, self.root_id))
-        } else { None }
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, T> {
+        CursorMut::new(self, self.root_id)
     }
 }
+
+impl<T> Display for BinaryTreeNode<T>
+where 
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+impl<T> Display for BinaryTree<T>
+where 
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn recursive_fmt<T>(cursor: Cursor<'_, T>, f: &mut std::fmt::Formatter, prefix: &str, is_left: bool) -> std::fmt::Result
+        where
+            T: Display,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(node) = cursor.node() {
+                node.fmt(f)?;
+                writeln!(f, "")?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                let mut left_cursor = cursor;
+                let mut right_cursor = cursor.clone();
+                if left_cursor.move_left().is_some() {
+                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
+                }
+                if right_cursor.move_right().is_some() {
+                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+        
+        write!(f, "\n")?;
+        recursive_fmt(self.cursor(), f, "", false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::binary_trees::traits::binary_tree_cursor::BinaryTreeCursor;
+
+use super::*;
+    
+    #[test]
+    fn test_cursors() {
+        let mut tree = BinaryTree::new();
+        let mut cursor = tree.cursor_mut();
+        
+        // Create the tree.
+        cursor.create_root(1).unwrap();
+        cursor.attach_child(2, Side::Left).unwrap();
+        cursor.attach_child(5, Side::Right).unwrap();
+        cursor.move_left();
+        cursor.attach_child(3, Side::Left).unwrap();
+        cursor.attach_child(4, Side::Right).unwrap();
+
+        // Check creation of tree went correctly.
+        let mut cursor = tree.cursor();
+        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&1));
+        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&2));
+        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
+        cursor.move_left();
+        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
+        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&4));
+        cursor.move_up();
+        cursor.move_right();
+        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&5));
+
+        // Test rotations.
+        let mut cursor = tree.cursor_mut();
+        cursor.rotate_right().unwrap();
+
+        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&2));
+        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
+        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&1));
+        cursor.move_right();
+        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&4));
+        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
+    }
+}
+
