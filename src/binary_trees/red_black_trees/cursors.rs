@@ -1,97 +1,156 @@
-use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut};
-use super::red_black_tree::{NodeId, RedBlackNode, RedBlackTree};
+use derive_more::Debug;
 
-pub struct RedBlackTreeCursor<'t, K, V> {
-    tree: &'t RedBlackTree<K, V>,
-    node_id: NodeId,
-}
+use super::red_black_tree::RedBlackNode;
+use crate::binary_trees::{
+    binary_tree::{self, binary_tree::BinaryTreeNode}, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}
+};
 
-impl<'t, K, V> RedBlackTreeCursor<'t, K, V> {
-    pub(super) fn new(tree: &'t RedBlackTree<K, V>, node_id: NodeId) -> Self {
-        Self {
-            tree,
-            node_id,
-        }
+/// A cursor over a RedBlackTree.
+/// A Cursor can freely walk through the tree.
+/// When created, Cursors start at the (possibly non-existent) root of the tree.
+#[derive(Debug)]
+pub struct Cursor<'tree, K, V>(binary_tree::cursors::Cursor<'tree, RedBlackNode<K, V>>);
+
+impl<'tree, K, V> Cursor<'tree, K, V> {
+    pub(super) fn new(cursor: binary_tree::cursors::Cursor<'tree, RedBlackNode<K, V>>) -> Self {
+        Self(cursor)
     }
 }
 
-impl<'t, K, V> BinaryTreeCursor for RedBlackTreeCursor<'t, K, V> {
+impl<'tree, K, V> Clone for Cursor<'tree, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'tree, K, V> Copy for Cursor<'tree, K, V> {}
+
+impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
     type Node = RedBlackNode<K, V>;
 
     fn node(&self) -> Option<&Self::Node> {
-        self.tree.node(self.node_id)
+        self.0.node().map(BinaryTreeNode::data)
     }
 
+    fn peek_up(&self) -> Option<&Self::Node> {
+        self.0.peek_up().map(BinaryTreeNode::data)
+    }
+
+    fn peek_left(&self) -> Option<&Self::Node> {
+        self.0.peek_left().map(BinaryTreeNode::data)
+    }
+
+    fn peek_right(&self) -> Option<&Self::Node> {
+        self.0.peek_right().map(BinaryTreeNode::data)
+    }
+
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
-        self.node()
+        self.0.move_up().map(BinaryTreeNode::data)
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.left_id()?;
-        self.node()
+        self.0.move_left().map(BinaryTreeNode::data)
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.right_id()?;
-        self.node()
+        self.0.move_right().map(BinaryTreeNode::data)
     }
 }
 
-pub(crate) struct RedBlackTreeCursorMut<'t, K, V> {
-    tree: &'t mut RedBlackTree<K, V>,
-    node_id: NodeId,
-}
+/// A cursor over a BinaryTree with editing operations.
+/// A Cursor can freely walk through the tree.
+/// When created, Cursors start at the (possibly non-existent) root of the tree.
+/// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
+#[derive(Debug)]
+pub struct CursorMut<'tree, K, V>(binary_tree::cursors::CursorMut<'tree, RedBlackNode<K, V>>);
 
-impl<'t, K, V> RedBlackTreeCursorMut<'t, K, V> {
-    pub(super) fn new(tree: &'t mut RedBlackTree<K, V>, node_id: NodeId) -> Self {
-        Self {
-            tree,
-            node_id,
-        }
+impl<'tree, K, V> CursorMut<'tree, K, V> {
+    pub(super) fn new(cursor: binary_tree::cursors::CursorMut<'tree, RedBlackNode<K, V>>) -> Self {
+        Self(cursor)
     }
 }
 
-impl<'t, K, V> BinaryTreeCursor for RedBlackTreeCursorMut<'t, K, V> {
+impl<'tree, K, V> BinaryTreeCursor for CursorMut<'tree, K, V> {
     type Node = RedBlackNode<K, V>;
 
     fn node(&self) -> Option<&Self::Node> {
-        self.tree.node(self.node_id)
+        self.0.node().map(BinaryTreeNode::data)
     }
 
+    fn peek_up(&self) -> Option<&Self::Node> {
+        self.0.peek_up().map(BinaryTreeNode::data)
+    }
+
+    fn peek_left(&self) -> Option<&Self::Node> {
+        self.0.peek_left().map(BinaryTreeNode::data)
+    }
+
+    fn peek_right(&self) -> Option<&Self::Node> {
+        self.0.peek_right().map(BinaryTreeNode::data)
+    }
+
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
-        self.node()
+        self.0.move_up().map(BinaryTreeNode::data)
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.left_id()?;
-        self.node()
+        self.0.move_left().map(BinaryTreeNode::data)
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right(&mut self) -> Option<&Self::Node> {
-        self.node_id = self.node()?.right_id()?;
-        self.node()
+        self.0.move_right().map(BinaryTreeNode::data)
     }
 }
 
-impl<'t, K, V> BinaryTreeCursorMut for RedBlackTreeCursorMut<'t, K, V> {
+impl<'tree, K, V> BinaryTreeCursorMut for CursorMut<'tree, K, V> {
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node_id)
+        self.0.node_mut().map(BinaryTreeNode::data_mut)
     }
 
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
+        self.0.peek_up_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
+        self.0.peek_left_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
+        self.0.peek_right_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>) {
+        let (left, right) = self.0.peek_both_mut();
+        (left.map(BinaryTreeNode::data_mut), right.map(BinaryTreeNode::data_mut))
+    }
+    
+    /// Advances the cursor to the parent node.
+    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.parent_id()?;
-        self.node_mut()
+        self.0.move_up_mut().map(BinaryTreeNode::data_mut)
     }
     
+    /// Advances the cursor to the left child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.left_id()?;
-        self.node_mut()
+        self.0.move_left_mut().map(BinaryTreeNode::data_mut)
     }
     
+    /// Advances the cursor to the right child node.
+    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
     fn move_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.node_id = self.node()?.right_id()?;
-        self.node_mut()
+        self.0.move_right_mut().map(BinaryTreeNode::data_mut)
     }
 }

@@ -294,6 +294,18 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
         self.tree.node_mut(self.node()?.right_id())
     }
     
+    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>) {
+        let Some(node) = self.node() else { return (None, None); };
+        if node.left_id().is_null() {
+            (None, self.peek_right_mut())
+        } else if node.right_id().is_null() {
+            (self.peek_left_mut(), None)
+        } else {
+            let [left, right] = self.tree.disjoint_nodes_mut([node.left_id(), node.right_id()]).unwrap();
+            (Some(left), Some(right))
+        }
+    }
+
     /// Advances the cursor to the parent node.
     /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
     fn move_up_mut(&mut self) -> Option<&mut Self::Node> {

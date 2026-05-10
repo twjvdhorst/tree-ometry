@@ -15,6 +15,10 @@ pub trait BinaryTreeCursor: Sized {
         }
     }
 
+    fn peek_both(&self) -> (Option<&Self::Node>, Option<&Self::Node>) {
+        (self.peek_left(), self.peek_right())
+    }
+    
     fn move_up(&mut self) -> Option<&Self::Node>;
     fn move_left(&mut self) -> Option<&Self::Node>;
     fn move_right(&mut self) -> Option<&Self::Node>;
@@ -38,6 +42,8 @@ pub trait BinaryTreeCursorMut: BinaryTreeCursor {
             Side::Right => self.peek_right_mut(),
         }
     }
+
+    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>);
 
     fn move_up_mut(&mut self) -> Option<&mut Self::Node>;
     fn move_left_mut(&mut self) -> Option<&mut Self::Node>;
