@@ -262,10 +262,10 @@ where
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 let mut left_cursor = cursor;
                 let mut right_cursor = cursor.clone();
-                if left_cursor.move_left() {
+                if left_cursor.try_move_left() {
                     recursive_fmt(left_cursor, f, &new_prefix, true)?;
                 }
-                if right_cursor.move_right() {
+                if right_cursor.try_move_right() {
                     recursive_fmt(right_cursor, f, &new_prefix, false)?;
                 }
                 Ok(())
@@ -309,10 +309,10 @@ where
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 let mut left_cursor = cursor;
                 let mut right_cursor = cursor.clone();
-                if left_cursor.move_left() {
+                if left_cursor.try_move_left() {
                     recursive_fmt(left_cursor, f, &new_prefix, true)?;
                 }
-                if right_cursor.move_right() {
+                if right_cursor.try_move_right() {
                     recursive_fmt(right_cursor, f, &new_prefix, false)?;
                 }
                 Ok(())
@@ -341,7 +341,7 @@ use super::*;
         cursor.create_root(1).unwrap();
         cursor.attach_child(2, Side::Left).unwrap();
         cursor.attach_child(5, Side::Right).unwrap();
-        cursor.move_left();
+        cursor.try_move_left();
         cursor.attach_child(3, Side::Left).unwrap();
         cursor.attach_child(4, Side::Right).unwrap();
 
@@ -350,11 +350,11 @@ use super::*;
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&1));
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&2));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
-        cursor.move_left();
+        cursor.try_move_left();
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&4));
-        cursor.move_up();
-        cursor.move_right();
+        cursor.try_move_up();
+        cursor.try_move_right();
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&5));
 
         // Test rotations.
@@ -364,7 +364,7 @@ use super::*;
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&2));
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&1));
-        cursor.move_right();
+        cursor.try_move_right();
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&4));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
     }

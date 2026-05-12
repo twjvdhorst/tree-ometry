@@ -132,22 +132,22 @@ where
 
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
         let mut side = MaybeUninit::uninit();
-        while let Some(node) = cursor.node() {
+        while let Some(node) = cursor.node_mut() {
             match K::cmp(&key, &node.key) {
                 Ordering::Less => {
-                    if !cursor.move_left() {
+                    if !cursor.try_move_left() {
                         side.write(Side::Left);
                         break;
                     }
                 },
                 Ordering::Greater => {
-                    if !cursor.move_right() {
+                    if !cursor.try_move_right() {
                         side.write(Side::Right);
                         break;
                     }
                 },
                 Ordering::Equal => {
-                    let old_value = std::mem::replace(cursor.node_mut().unwrap().value_mut(), value);
+                    let old_value = std::mem::replace(node.value_mut(), value);
                     return Some(old_value);
                 },
             };
@@ -236,10 +236,10 @@ mod tests {
             let Some(node) = cursor.node() else { return None; };
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
-            let left_result = if left_cursor.move_left() {
+            let left_result = if left_cursor.try_move_left() {
                 assert_binary_search_tree_recursive(left_cursor)
             } else { None };
-            let right_result = if right_cursor.move_right() {
+            let right_result = if right_cursor.try_move_right() {
                 assert_binary_search_tree_recursive(right_cursor)
             } else { None };
 
@@ -280,10 +280,10 @@ mod tests {
             // Assert validity of subtrees.
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
-            let num_black_left = if left_cursor.move_left() {
+            let num_black_left = if left_cursor.try_move_left() {
                 assert_valid_tree_recursive(left_cursor)
             } else { 1 }; // Leaves are considered black.
-            let num_black_right = if right_cursor.move_right() {
+            let num_black_right = if right_cursor.try_move_right() {
                 assert_valid_tree_recursive(right_cursor)
             } else { 1 }; // Leaves are considered black.
 

@@ -27,9 +27,15 @@ impl<'tree, K, V> Copy for Cursor<'tree, K, V> {}
 
 impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
     type Node = RedBlackNode<K, V>;
+    type Cursor<'c> = Self
+    where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.0.node().map(BinaryTreeNode::data)
+    }
+
+    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+        self.clone()
     }
 
     fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
@@ -48,22 +54,28 @@ impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
         self.0.peek_right().map(BinaryTreeNode::data)
     }
 
-    /// Advances the cursor to the parent node.
-    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
     fn move_up(&mut self) -> Option<Side> {
         self.0.move_up()
     }
-    
-    /// Advances the cursor to the left child node.
-    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
-    fn move_left(&mut self) -> bool {
-        self.0.move_left()
+
+    fn move_left(&mut self) {
+        self.0.move_left();
     }
-    
-    /// Advances the cursor to the right child node.
-    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
-    fn move_right(&mut self) -> bool {
-        self.0.move_right()
+
+    fn move_right(&mut self) {
+        self.0.move_right();
     }
 }
 
@@ -104,9 +116,15 @@ impl<'tree, K, V> CursorMut<'tree, K, V> {
 
 impl<'tree, K, V> BinaryTreeCursor for CursorMut<'tree, K, V> {
     type Node = RedBlackNode<K, V>;
+    type Cursor<'c> = Cursor<'c, K, V>
+    where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.0.node().map(BinaryTreeNode::data)
+    }
+
+    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+        Cursor::new(self.0.spawn_cursor())
     }
 
     fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
@@ -125,35 +143,34 @@ impl<'tree, K, V> BinaryTreeCursor for CursorMut<'tree, K, V> {
         self.0.peek_right().map(BinaryTreeNode::data)
     }
 
-    /// Advances the cursor to the parent node.
-    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
     fn move_up(&mut self) -> Option<Side> {
         self.0.move_up()
     }
-    
-    /// Advances the cursor to the left child node.
-    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
-    fn move_left(&mut self) -> bool {
-        self.0.move_left()
+
+    fn move_left(&mut self) {
+        self.0.move_left();
     }
-    
-    /// Advances the cursor to the right child node.
-    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
-    fn move_right(&mut self) -> bool {
-        self.0.move_right()
+
+    fn move_right(&mut self) {
+        self.0.move_right();
     }
 }
 
 impl<'tree, K, V> BinaryTreeCursorMut for CursorMut<'tree, K, V> {
-    type Cursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
-
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.node_mut().map(BinaryTreeNode::data_mut)
-    }
-
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
-        Cursor::new(self.0.spawn_cursor())
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
