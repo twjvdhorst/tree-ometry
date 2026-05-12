@@ -7,7 +7,7 @@ use super::cursors::{Cursor, CursorMut};
 
 new_key_type! { pub(super) struct NodeId; }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BinaryTreeNode<T> {
     data: T,
     parent_id: NodeId,
@@ -31,6 +31,10 @@ impl<T> BinaryTreeNode<T> {
 
     pub fn data_mut(&mut self) -> &mut T {
         &mut self.data
+    }
+
+    pub fn replace_data(&mut self, new_data: T) -> T {
+        std::mem::replace(&mut self.data, new_data)
     }
 
     pub(super) fn has_parent(&self) -> bool {
@@ -102,7 +106,7 @@ impl<T> BinaryTreeNode<T> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
     root_id: NodeId,
@@ -228,6 +232,53 @@ impl<T> BinaryTree<T> {
     }
 }
 
+impl<T> Debug for BinaryTreeNode<T>
+where 
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
+}
+
+impl<T> Debug for BinaryTree<T>
+where 
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn recursive_fmt<T>(cursor: Cursor<'_, T>, f: &mut std::fmt::Formatter, prefix: &str, is_left: bool) -> std::fmt::Result
+        where
+            T: Debug,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(node) = cursor.node() {
+                node.fmt(f)?;
+                writeln!(f, "")?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                let mut left_cursor = cursor;
+                let mut right_cursor = cursor.clone();
+                if left_cursor.move_left() {
+                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
+                }
+                if right_cursor.move_right() {
+                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+        
+        write!(f, "\n")?;
+        recursive_fmt(self.cursor(), f, "", false)
+    }
+}
+
 impl<T> Display for BinaryTreeNode<T>
 where 
     T: Display,
@@ -258,10 +309,10 @@ where
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
                 let mut left_cursor = cursor;
                 let mut right_cursor = cursor.clone();
-                if left_cursor.move_left().is_some() {
+                if left_cursor.move_left() {
                     recursive_fmt(left_cursor, f, &new_prefix, true)?;
                 }
-                if right_cursor.move_right().is_some() {
+                if right_cursor.move_right() {
                     recursive_fmt(right_cursor, f, &new_prefix, false)?;
                 }
                 Ok(())

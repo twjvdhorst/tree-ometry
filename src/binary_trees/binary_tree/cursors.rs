@@ -41,6 +41,10 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
         self.tree.node(self.node_id)
     }
 
+    fn side_of_parent(&self) -> Option<Side> {
+        self.peek_up()?.side_of(self.node_id)
+    }
+
     fn peek_up(&self) -> Option<&Self::Node> {
         self.tree.parent(self.node()?)
     }
@@ -55,32 +59,33 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
 
     /// Advances the cursor to the parent node.
     /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
-    fn move_up(&mut self) -> Option<&Self::Node> {
+    fn move_up(&mut self) -> Option<Side> {
+        let node_id = self.node_id;
         let parent_id = self.node()?.parent_id();
         if !parent_id.is_null() {
             self.node_id = parent_id;
-            self.node()
+            self.node()?.side_of(node_id)
         } else { None }
     }
     
     /// Advances the cursor to the left child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_left(&mut self) -> Option<&Self::Node> {
-        let left_id = self.node()?.left_id();
-        if !left_id.is_null() {
+    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
+    fn move_left(&mut self) -> bool {
+        let left_id = self.node().map(BinaryTreeNode::left_id);
+        if let Some(left_id) = left_id && !left_id.is_null() {
             self.node_id = left_id;
-            self.node()
-        } else { None }
+            true
+        } else { false }
     }
     
     /// Advances the cursor to the right child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_right(&mut self) -> Option<&Self::Node> {
-        let right_id = self.node()?.right_id();
-        if !right_id.is_null() {
+    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
+    fn move_right(&mut self) -> bool {
+        let right_id = self.node().map(BinaryTreeNode::right_id);
+        if let Some(right_id) = right_id && !right_id.is_null() {
             self.node_id = right_id;
-            self.node()
-        } else { None }
+            true
+        } else { false }
     }
 }
 
@@ -159,6 +164,7 @@ impl<'tree, T> CursorMut<'tree, T> {
     }
     
     /// Performs a left rotation around the node pointed at by the cursor.
+    /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_left(&mut self) -> Result<(), CursorError> {
         // Gather ids of the relevant nodes.
         // Right child must exist for a right rotation to work.
@@ -166,7 +172,7 @@ impl<'tree, T> CursorMut<'tree, T> {
         let node = self.node().ok_or(CursorError::RotateLeftError)?;
 
         let right_id = node.right_id();
-        let right_node = self.tree.node(right_id).ok_or(CursorError::RotateRightError)?;
+        let right_node = self.tree.node(right_id).ok_or(CursorError::RotateLeftError)?;
 
         let parent_id = node.parent_id();
         let rotating_id = right_node.left_id();
@@ -186,13 +192,11 @@ impl<'tree, T> CursorMut<'tree, T> {
         }
 
         self.tree.add_edge(right_id, node_id, Side::Left);
-        
-        // Move the cursor to the new "root".
-        self.move_up();
         Ok(())
     }
 
     /// Performs a right rotation around the node pointed at by the cursor.
+    /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_right(&mut self) -> Result<(), CursorError> {
         // Gather ids of the relevant nodes.
         // Left child must exist for a right rotation to work.
@@ -220,9 +224,6 @@ impl<'tree, T> CursorMut<'tree, T> {
         }
         
         self.tree.add_edge(left_id, node_id, Side::Right);
-
-        // Move the cursor to the new "root".
-        self.move_up();
         Ok(())
     }
 }
@@ -232,6 +233,10 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
 
     fn node(&self) -> Option<&Self::Node> {
         self.tree.node(self.node_id)
+    }
+
+    fn side_of_parent(&self) -> Option<Side> {
+        self.peek_up()?.side_of(self.node_id)
     }
 
     fn peek_up(&self) -> Option<&Self::Node> {
@@ -248,38 +253,46 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
 
     /// Advances the cursor to the parent node.
     /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
-    fn move_up(&mut self) -> Option<&Self::Node> {
+    fn move_up(&mut self) -> Option<Side> {
+        let node_id = self.node_id;
         let parent_id = self.node()?.parent_id();
         if !parent_id.is_null() {
             self.node_id = parent_id;
-            self.node()
+            self.node()?.side_of(node_id)
         } else { None }
     }
     
     /// Advances the cursor to the left child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_left(&mut self) -> Option<&Self::Node> {
-        let left_id = self.node()?.left_id();
-        if !left_id.is_null() {
+    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
+    fn move_left(&mut self) -> bool {
+        let left_id = self.node().map(BinaryTreeNode::left_id);
+        if let Some(left_id) = left_id && !left_id.is_null() {
             self.node_id = left_id;
-            self.node()
-        } else { None }
+            true
+        } else { false }
     }
     
     /// Advances the cursor to the right child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_right(&mut self) -> Option<&Self::Node> {
-        let right_id = self.node()?.right_id();
-        if !right_id.is_null() {
+    /// If the cursor is already at a leaf of the tree, false is returned and the cursor is not moved.
+    fn move_right(&mut self) -> bool {
+        let right_id = self.node().map(BinaryTreeNode::right_id);
+        if let Some(right_id) = right_id && !right_id.is_null() {
             self.node_id = right_id;
-            self.node()
-        } else { None }
+            true
+        } else { false }
     }
 }
 
 impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
+    type Cursor<'c> = Cursor<'c, T>
+    where Self: 'c;
+
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.tree.node_mut(self.node_id)
+    }
+
+    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+        Cursor::new(self.tree, self.node_id)
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
@@ -304,35 +317,5 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
             let [left, right] = self.tree.disjoint_nodes_mut([node.left_id(), node.right_id()]).unwrap();
             (Some(left), Some(right))
         }
-    }
-
-    /// Advances the cursor to the parent node.
-    /// If the cursor is already at the root of the tree, None is returned and the cursor is not moved.
-    fn move_up_mut(&mut self) -> Option<&mut Self::Node> {
-        let parent_id = self.node()?.parent_id();
-        if !parent_id.is_null() {
-            self.node_id = parent_id;
-            self.node_mut()
-        } else { None }
-    }
-    
-    /// Advances the cursor to the left child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_left_mut(&mut self) -> Option<&mut Self::Node> {
-        let left_id = self.node()?.left_id();
-        if !left_id.is_null() {
-            self.node_id = left_id;
-            self.node_mut()
-        } else { None }
-    }
-    
-    /// Advances the cursor to the right child node.
-    /// If the cursor is already at a leaf of the tree, None is returned and the cursor is not moved.
-    fn move_right_mut(&mut self) -> Option<&mut Self::Node> {
-        let right_id = self.node()?.right_id();
-        if !right_id.is_null() {
-            self.node_id = right_id;
-            self.node_mut()
-        } else { None }
     }
 }

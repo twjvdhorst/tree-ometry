@@ -1,5 +1,8 @@
-pub mod red_black_tree;
-pub mod cursors;
+mod red_black_tree;
+mod cursors;
+
+pub use red_black_tree::*;
+pub use cursors::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Color {

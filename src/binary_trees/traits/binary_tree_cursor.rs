@@ -1,9 +1,10 @@
-use crate::binary_trees::Side;
+use crate::binary_trees::{Side, traits::BinaryTree};
 
 pub trait BinaryTreeCursor: Sized {
     type Node;
 
     fn node(&self) -> Option<&Self::Node>;
+    fn side_of_parent(&self) -> Option<Side>;
 
     fn peek_up(&self) -> Option<&Self::Node>;
     fn peek_left(&self) -> Option<&Self::Node>;
@@ -19,10 +20,10 @@ pub trait BinaryTreeCursor: Sized {
         (self.peek_left(), self.peek_right())
     }
     
-    fn move_up(&mut self) -> Option<&Self::Node>;
-    fn move_left(&mut self) -> Option<&Self::Node>;
-    fn move_right(&mut self) -> Option<&Self::Node>;
-    fn move_side(&mut self, side: Side) -> Option<&Self::Node> {
+    fn move_up(&mut self) -> Option<Side>;
+    fn move_left(&mut self) -> bool;
+    fn move_right(&mut self) -> bool;
+    fn move_side(&mut self, side: Side) -> bool {
         match side {
             Side::Left => self.move_left(),
             Side::Right => self.move_right(),
@@ -31,7 +32,12 @@ pub trait BinaryTreeCursor: Sized {
 }
 
 pub trait BinaryTreeCursorMut: BinaryTreeCursor {
+    type Cursor<'c>: BinaryTreeCursor<Node = Self::Node>
+    where Self: 'c;
+
     fn node_mut(&mut self) -> Option<&mut Self::Node>;
+
+    fn spawn_cursor(&self) -> Self::Cursor<'_>;
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node>;
     fn peek_left_mut(&mut self) -> Option<&mut Self::Node>;
@@ -44,14 +50,4 @@ pub trait BinaryTreeCursorMut: BinaryTreeCursor {
     }
 
     fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>);
-
-    fn move_up_mut(&mut self) -> Option<&mut Self::Node>;
-    fn move_left_mut(&mut self) -> Option<&mut Self::Node>;
-    fn move_right_mut(&mut self) -> Option<&mut Self::Node>;
-    fn move_side_mut(&mut self, side: Side) -> Option<&mut Self::Node> {
-        match side {
-            Side::Left => self.move_left_mut(),
-            Side::Right => self.move_right_mut(),
-        }
-    }
 }

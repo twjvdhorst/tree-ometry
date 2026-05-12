@@ -1,9 +1,9 @@
-use std::fmt::Display;
+use std::{cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
 
-use crate::binary_trees::binary_tree::binary_tree::BinaryTree;
+use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
 use super::{Color, cursors::{Cursor, CursorMut}};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct RedBlackNode<K, V> {
     key: K, 
     value: V,
@@ -23,6 +23,14 @@ impl<K, V> RedBlackNode<K, V> {
         &mut self.value
     }
 
+    fn is_red(&self) -> bool {
+        self.color == Color::Red
+    }
+
+    fn is_black(&self) -> bool {
+        self.color == Color::Black
+    }
+
     pub(super) fn color(&self) -> Color {
         self.color
     }
@@ -32,7 +40,7 @@ impl<K, V> RedBlackNode<K, V> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RedBlackTree<K, V>(BinaryTree<RedBlackNode<K, V>>);
 
 impl<K, V> Default for RedBlackTree<K, V> {
@@ -44,6 +52,14 @@ impl<K, V> Default for RedBlackTree<K, V> {
 impl<K, V> RedBlackTree<K, V> {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
+        self.0.root().map(BinaryTreeNode::data)
+    }
+
+    fn root_mut(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        self.0.root_mut().map(BinaryTreeNode::data_mut)
     }
 
     pub fn cursor(&self) -> Cursor<'_, K, V> {
@@ -60,13 +76,123 @@ impl<K, V> RedBlackTree<K, V>
 where 
     K: Ord,
 {
+    fn insert_fixup(cursor: &mut CursorMut<'_, K, V>) {
+        // Cormen et al.'s algorithm.
+        while cursor.peek_up().map_or(false, RedBlackNode::is_red) {
+            // Throughout the loop, cursor points to z, and peeking_cursor moves around to check states of various nodes.
+            let mut peeking_cursor = cursor.spawn_cursor();
+            let side_current = peeking_cursor.move_up().unwrap(); // Move the cursor to z.p
+            let side_parent = peeking_cursor.move_up() // Move the cursor to z.p.p
+                .unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
+
+            if let Some(uncle) = peeking_cursor.peek_side(side_parent.opposite()) && uncle.is_red() {
+                // Case 1
+                cursor.move_up(); // Move the cursor to z.p
+                cursor.set_color(Color::Black);
+                cursor.move_up(); // Move the cursor to z.p.p, where it stays for the next iteration.
+                cursor.set_color(Color::Red);
+                cursor.peek_side_mut(side_parent.opposite()).unwrap().set_color(Color::Black);
+            } else {
+                if side_current == side_parent.opposite() {
+                    // Case 2
+                    cursor.move_up();
+                    cursor.rotate(side_parent).unwrap();
+                }
+
+                // Case 3
+                cursor.move_up();
+                cursor.set_color(Color::Black);
+                cursor.move_up();
+                cursor.set_color(Color::Red);
+                cursor.rotate(side_parent.opposite()).unwrap();
+
+                // After rotating around z.p.p, z is the sibling of the node pointed at by the cursor.
+                let side = cursor.move_up().unwrap();
+                cursor.move_side(side.opposite());
+            }
+        }
+    }
+
     /// Inserts the key-value pair into the tree.
     /// If the key was not present in the tree yet, None is returned.
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        // TODO: Cormen's algorithm. Simple and iterative, using two passes of the tree. Works very well with cursors, since you need to peek only one node up/down.
-        todo!()
+        // Cormen et al.'s algorithm.
+        if self.root().is_none() {
+            self.0 = BinaryTree::new_singleton(RedBlackNode {
+                key,
+                value,
+                color: Color::Black,
+            });
+            return None;
+        }
+
+        let mut cursor = self.cursor_mut();
+
+        // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
+        let mut side = MaybeUninit::uninit();
+        while let Some(node) = cursor.node() {
+            match K::cmp(&key, &node.key) {
+                Ordering::Less => {
+                    if !cursor.move_left() {
+                        side.write(Side::Left);
+                        break;
+                    }
+                },
+                Ordering::Greater => {
+                    if !cursor.move_right() {
+                        side.write(Side::Right);
+                        break;
+                    }
+                },
+                Ordering::Equal => {
+                    let old_value = std::mem::replace(cursor.node_mut().unwrap().value_mut(), value);
+                    return Some(old_value);
+                },
+            };
+        }
+
+        // The cursor now points to the parent of the node we will create.
+        let new_node = RedBlackNode {
+            key,
+            value,
+            color: Color::Red
+        };
+        let side = unsafe { side.assume_init() };
+        cursor.attach_child(new_node, side).unwrap();
+
+        // Fix the red-black tree structure.
+        cursor.move_side(side);
+        Self::insert_fixup(&mut cursor);
+
+        // Maintain the invariant that the root is black.
+        self.root_mut().unwrap().set_color(Color::Black); // Can unwrap safely: we already handled the case where the tree was empty.
+        None
+    }
+}
+
+impl<K, V> Debug for RedBlackNode<K, V>
+where 
+    K: Debug,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let c = match self.color {
+            Color::Red => "r",
+            Color::Black => "b",
+        };
+        write!(f, "({:?}: {:?}) ({c})", self.key, self.value)
+    }
+}
+
+impl<K, V> Debug for RedBlackTree<K, V>
+where 
+    K: Debug,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -110,10 +236,12 @@ mod tests {
             let Some(node) = cursor.node() else { return None; };
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
-            left_cursor.move_left();
-            right_cursor.move_right();
-            let left_result = assert_binary_search_tree_recursive(left_cursor);
-            let right_result = assert_binary_search_tree_recursive(right_cursor);
+            let left_result = if left_cursor.move_left() {
+                assert_binary_search_tree_recursive(left_cursor)
+            } else { None };
+            let right_result = if right_cursor.move_right() {
+                assert_binary_search_tree_recursive(right_cursor)
+            } else { None };
 
             if let Some((_, max_left)) = left_result.as_ref() {
                 assert_eq!(K::cmp(&node.key, &max_left), Ordering::Greater);
@@ -140,8 +268,8 @@ mod tests {
         where
             K: Clone + Ord,
         {
-            // Leaves are considered black.
-            let Some(node) = cursor.node() else { return 1; };
+            // Tree is non-empty.
+            let node = cursor.node().unwrap();
 
             // Assert no consecutive red nodes.
             if node.color == Color::Red {
@@ -152,10 +280,12 @@ mod tests {
             // Assert validity of subtrees.
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
-            left_cursor.move_left();
-            right_cursor.move_right();
-            let num_black_left = assert_valid_tree_recursive(left_cursor);
-            let num_black_right = assert_valid_tree_recursive(right_cursor);
+            let num_black_left = if left_cursor.move_left() {
+                assert_valid_tree_recursive(left_cursor)
+            } else { 1 }; // Leaves are considered black.
+            let num_black_right = if right_cursor.move_right() {
+                assert_valid_tree_recursive(right_cursor)
+            } else { 1 }; // Leaves are considered black.
 
             // Assert black counts match.
             assert_eq!(num_black_left, num_black_right);
@@ -171,9 +301,9 @@ mod tests {
         let cursor = tree.cursor();
         if let Some(node) = cursor.node() {
             assert_eq!(node.color, Color::Black);
+            assert_binary_search_tree(tree);
+            assert_valid_tree_recursive(cursor);
         }
-        assert_binary_search_tree(tree);
-        assert_valid_tree_recursive(cursor);
     }
 
     #[test]
