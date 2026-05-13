@@ -24,6 +24,10 @@ impl<'tree, T> Cursor<'tree, T> {
             node_id,
         }
     }
+
+    fn node_id(&self) -> NodeId {
+        self.node_id
+    }
 }
 
 impl<'tree, T> Clone for Cursor<'tree, T> {
@@ -131,6 +135,19 @@ impl<'tree, T> CursorMut<'tree, T> {
         }
     }
 
+    /// Spawn N cursors and move them around the tree according to the supplied function.
+    /// Reports mutable references to the nodes the cursors end up pointing at.
+    /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut BinaryTreeNode<T>; N]>
+    where
+        F: FnOnce(&mut [Cursor<'_, T>; N]),
+    {
+        let mut cursors = [self.spawn_cursor(); N];
+        cursors_fn(&mut cursors);
+        let ids = cursors.map(|cursor| cursor.node_id);
+        self.tree.disjoint_nodes_mut(ids)
+    }
+
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     pub fn attach_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
         let Some(node) = self.node() else { return Err(CursorError::NullError); };
@@ -149,7 +166,7 @@ impl<'tree, T> CursorMut<'tree, T> {
     /// The cursor stays in place.
     /// Does nothing if the child node is not a leaf.
     /// Returns the detached node.
-    pub fn detach_child(&mut self, side: Side) -> Option<BinaryTreeNode<T>> {
+    pub fn detach_child(&mut self, side: Side) -> Option<T> {
         let node_id = self.node_id;
         let child_id = self.node()?.child_id(side);
         let child_node = self.peek_side(side)?;
@@ -164,7 +181,7 @@ impl<'tree, T> CursorMut<'tree, T> {
     /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
     /// Does nothing if the cursor does not point to a leaf.
     /// Returns the detached node.
-    pub fn detach_node(&mut self) -> Option<BinaryTreeNode<T>> {
+    pub fn detach_node(&mut self) -> Option<T> {
         let node_id = self.node_id;
         let node = self.node()?;
         if !node.has_left() && !node.has_right() {
@@ -174,6 +191,46 @@ impl<'tree, T> CursorMut<'tree, T> {
             self.tree.remove_node(node_id)
         } else {
             None
+        }
+    }
+
+    /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
+    /// Replaces the node by its child, after which the cursor points to this child.
+    /// Does nothing if the node has zero or two children.
+    /// Returns the removed node.
+    pub fn transplant_child(&mut self) -> Option<T> {
+        let node_id = self.node_id;
+        let node = self.node()?;
+        let side_of_parent = self.side_of_parent();
+        let parent_id = node.parent_id();
+        match self.peek_both() {
+            (Some(_), None) => {
+                let left_id = node.left_id();
+                self.tree.remove_edge(self.node_id, left_id);
+                if let Some(side_of_parent) = side_of_parent {
+                    self.tree.remove_edge(parent_id, self.node_id);
+                    self.tree.add_edge(parent_id, left_id, side_of_parent);
+                } else {
+                    // Removed node was root.
+                    self.tree.set_root_id(left_id);
+                }
+                self.node_id = left_id;
+                self.tree.remove_node(node_id)
+            },
+            (None, Some(_)) => {
+                let right_id = node.right_id();
+                self.tree.remove_edge(self.node_id, right_id);
+                if let Some(side_of_parent) = side_of_parent {
+                    self.tree.remove_edge(parent_id, self.node_id);
+                    self.tree.add_edge(parent_id, right_id, side_of_parent);
+                } else {
+                    // Removed node was root.
+                    self.tree.set_root_id(right_id);
+                }
+                self.node_id = right_id;
+                self.tree.remove_node(node_id)
+            },
+            _ => None,
         }
     }
     

@@ -33,6 +33,10 @@ impl<T> BinaryTreeNode<T> {
         &mut self.data
     }
 
+    pub fn into_data(self) -> T {
+        self.data
+    }
+
     pub fn replace_data(&mut self, new_data: T) -> T {
         std::mem::replace(&mut self.data, new_data)
     }
@@ -191,11 +195,11 @@ impl<T> BinaryTree<T> {
         self.nodes.get_mut(node.right_id)
     }
     
-    pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<BinaryTreeNode<T>> {
+    pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<T> {
         if self.root_id == node_id {
             self.root_id = NodeId::null();
         }
-        self.nodes.remove(node_id)
+        self.nodes.remove(node_id).map(BinaryTreeNode::into_data)
     }
 
     pub(super) fn add_edge(&mut self, parent_id: NodeId, child_id: NodeId, side: Side) -> bool {
@@ -341,7 +345,7 @@ use super::*;
         cursor.create_root(1).unwrap();
         cursor.attach_child(2, Side::Left).unwrap();
         cursor.attach_child(5, Side::Right).unwrap();
-        cursor.try_move_left();
+        cursor.move_left();
         cursor.attach_child(3, Side::Left).unwrap();
         cursor.attach_child(4, Side::Right).unwrap();
 
@@ -350,21 +354,22 @@ use super::*;
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&1));
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&2));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
-        cursor.try_move_left();
+        cursor.move_left();
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&4));
-        cursor.try_move_up();
-        cursor.try_move_right();
+        cursor.move_up();
+        cursor.move_right();
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&5));
 
         // Test rotations.
         let mut cursor = tree.cursor_mut();
         cursor.rotate_right().unwrap();
+        cursor.move_up();
 
         assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&2));
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&1));
-        cursor.try_move_right();
+        cursor.move_right();
         assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&4));
         assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
     }

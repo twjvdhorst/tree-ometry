@@ -15,6 +15,10 @@ impl<'tree, K, V> Cursor<'tree, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'tree, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
     }
+
+    fn inner(&self) -> &binary_tree::Cursor<'tree, RedBlackNode<K, V>> {
+        &self.0
+    }
 }
 
 impl<'tree, K, V> Clone for Cursor<'tree, K, V> {
@@ -101,9 +105,40 @@ impl<'tree, K, V> CursorMut<'tree, K, V> {
         }
     }
 
+    /// Spawn N cursors and move them around the tree according to the supplied function.
+    /// Reports mutable references to the nodes the cursors end up pointing at.
+    /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut RedBlackNode<K, V>; N]>
+    where
+        F: FnOnce(&mut [Cursor<'_, K, V>; N]),
+    {
+        // "Downgrade" cursors_fn to one that works on binary_tree::Cursor.
+        let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, RedBlackNode<K, V>>; N]| {
+            let mut rb_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
+            cursors_fn(&mut rb_cursors);
+            *cursors = rb_cursors.map(|cursor| cursor.0);
+        };
+        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(BinaryTreeNode::data_mut))
+    }
+
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     pub(super) fn attach_child(&mut self, node: RedBlackNode<K, V>, side: Side) -> Result<(), CursorError> {
         self.0.attach_child(node, side)
+    }
+
+    /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
+    /// Does nothing if the cursor does not point to a leaf.
+    /// Returns the detached node.
+    pub(super) fn detach_node(&mut self) -> Option<(K, V)> {
+        self.0.detach_node().map(RedBlackNode::into_data)
+    }
+
+    /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
+    /// Replaces the node by its child, after which the cursor points to this child.
+    /// Does nothing if the node has zero or two children.
+    /// Returns the removed node.
+    pub(super) fn transplant_child(&mut self) -> Option<(K, V)> {
+        self.0.transplant_child().map(RedBlackNode::into_data)
     }
 
     pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {

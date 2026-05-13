@@ -1,4 +1,6 @@
-use std::{cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
+use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
+
+use lending_iterator::lending_iterator::constructors::FromIter;
 
 use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
 use super::{Color, cursors::{Cursor, CursorMut}};
@@ -21,6 +23,14 @@ impl<K, V> RedBlackNode<K, V> {
 
     pub fn value_mut(&mut self) -> &mut V {
         &mut self.value
+    }
+
+    pub(super) fn data_mut(&mut self) -> (&mut K, &mut V) {
+        (&mut self.key, &mut self.value)
+    }
+
+    pub fn into_data(self) -> (K, V) {
+        (self.key, self.value)
     }
 
     fn is_red(&self) -> bool {
@@ -46,6 +56,28 @@ pub struct RedBlackTree<K, V>(BinaryTree<RedBlackNode<K, V>>);
 impl<K, V> Default for RedBlackTree<K, V> {
     fn default() -> Self {
         Self(BinaryTree::default())
+    }
+}
+
+impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
+where 
+    K: Ord,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for (key, value) in iter {
+            self.insert(key, value);
+        }
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
+where 
+    K: Ord,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut tree = Self::default();
+        tree.extend(iter);
+        tree
     }
 }
 
@@ -169,6 +201,167 @@ where
         // Maintain the invariant that the root is black.
         self.root_mut().unwrap().set_color(Color::Black); // Can unwrap safely: we already handled the case where the tree was empty.
         None
+    }
+}
+
+/// Deletions.
+impl<K, V> RedBlackTree<K, V>
+where 
+    K: Ord + Debug, V: Debug
+{
+    /// Creates a cursor at the node storing the given key.
+    /// Returns None if the key is not in the tree.
+    fn get_cursor_mut_at_key<Q>(&mut self, key: &Q) -> Option<CursorMut<'_, K, V>>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor_mut();
+        while let Some(node) = cursor.node() {
+            match Q::cmp(key, node.key.borrow()) {
+                Ordering::Less => cursor.move_left(),
+                Ordering::Greater => cursor.move_right(),
+                Ordering::Equal => return Some(cursor),
+            };
+        }
+        None
+    }
+
+    fn move_cursor_to_successor(cursor: &mut impl BinaryTreeCursor) -> usize {
+        if !cursor.try_move_right() {
+            return 0;
+        }
+        
+        let mut depth = 1;
+        while cursor.try_move_left() { 
+            depth += 1;
+        }
+        depth
+    }
+
+    
+    /// Helper function for the case where we deleted a black leaf node.
+    /// In this case, no node replaced the deleted node, so the cursor does not point to the "original" location.
+    fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V>, side: Side) {
+        if cursor.node().is_some() { // Check if the deleted leaf was not the root.
+            let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
+            if sibling.is_red() {
+                sibling.set_color(Color::Black);
+                cursor.set_color(Color::Red);
+                cursor.rotate(side).unwrap();
+            }
+            
+            cursor.move_side(side.opposite()); // Move the cursor to w
+            if let (left, right) = cursor.peek_both()
+                && left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black)
+            {
+                cursor.set_color(Color::Red);
+                cursor.move_up(); // Move the cursor to x.p
+            } else {
+                if cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
+                    cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
+                    cursor.set_color(Color::Red);
+                    cursor.rotate(side.opposite()).unwrap();
+                    cursor.move_up();
+                }
+
+                cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
+                cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
+                cursor.move_up();
+                cursor.set_color(Color::Black);
+                cursor.rotate(side).unwrap();
+
+                // Move cursor to root.
+                while cursor.try_move_up().is_some() {}
+            }
+
+            Self::remove_fixup(cursor);
+        }
+    }
+
+    fn remove_fixup(cursor: &mut CursorMut<'_, K, V>) {//, mut side: Side) {
+        // Cormen et al.'s algorithm.
+        while cursor.peek_up().is_some() && cursor.node().unwrap().is_black() {
+            let side = cursor.move_up().unwrap(); // Move the cursor to x.p
+            let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
+            if sibling.is_red() {
+                sibling.set_color(Color::Black);
+                cursor.set_color(Color::Red);
+                cursor.rotate(side).unwrap();
+            }
+            
+            cursor.move_side(side.opposite()); // Move the cursor to w
+            if let (left, right) = cursor.peek_both()
+                && left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black)
+            {
+                cursor.set_color(Color::Red);
+                cursor.move_up(); // Move the cursor to x.p
+            } else {
+                if cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
+                    cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
+                    cursor.set_color(Color::Red);
+                    cursor.rotate(side.opposite()).unwrap();
+                    cursor.move_up();
+                }
+
+                cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
+                cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
+                cursor.move_up();
+                cursor.set_color(Color::Black);
+                cursor.rotate(side).unwrap();
+
+                // Move cursor to root.
+                while cursor.try_move_up().is_some() {}
+            }
+        }
+        
+        cursor.set_color(Color::Black);
+    }
+
+    /// Removes the node with the given key from the tree.
+    /// Returns the key and associated value.
+    /// Time complexity: O(log n).
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized + Debug,
+    {
+        let mut cursor = self.get_cursor_mut_at_key(key)?;
+        if let (Some(_), Some(_)) = cursor.peek_both() {
+            // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
+            let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
+                Self::move_cursor_to_successor(successor_cursor);
+            }).unwrap();
+            std::mem::swap(&mut key_node.key, &mut successor_node.key);
+            std::mem::swap(&mut key_node.value, &mut successor_node.value);
+
+            // Move the cursor to the successor node, which now holds the to-be-removed data.
+            Self::move_cursor_to_successor(&mut cursor);
+        }
+
+        // The to-be-removed node has at most one child.
+        let key_color = cursor.node().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let data = match cursor.peek_both() {
+            (None, None) => {
+                let Some(side) = cursor.side_of_parent() else {
+                    // The to-be-deleted node is the only node left in the tree.
+                    return cursor.detach_node();
+                };
+                let data = cursor.detach_node().unwrap();
+                if key_color == Color::Black {
+                    Self::remove_fixup_leaf(&mut cursor, side);
+                }
+                data
+            },
+            _ => {
+                let data = cursor.transplant_child().unwrap();
+                if key_color == Color::Black {
+                    Self::remove_fixup(&mut cursor);
+                }
+                data
+            }
+        };
+        Some(data)
     }
 }
 
@@ -339,6 +532,28 @@ mod tests {
                 let old_value_tree = tree.insert(key.clone(), value.clone());
                 let old_value_map = key_data_map.insert(key.clone(), value.clone());
                 assert_eq!(old_value_tree, old_value_map);
+            }
+        }
+    }
+
+    #[test]
+    fn test_deletion() {
+        // Test deleting values in random order.
+        let mut rng = rand::rng();
+        for _ in 0..50 {
+            let mut keys = (1..=30).collect::<Vec<_>>();
+            keys.shuffle(&mut rng);
+            let data = keys.clone().into_iter()
+                .map(|i| (i, i % 10));
+            let mut tree = data.clone().collect::<RedBlackTree<_, _>>();
+            let mut map = data.collect::<HashMap<_, _>>();
+
+            keys.shuffle(&mut rng);
+            for key in keys {
+                let entry_tree = tree.remove_entry(&key);
+                let entry_map = map.remove_entry(&key);
+                assert_eq!(entry_tree, entry_map);
+                assert_valid_tree(&tree);
             }
         }
     }
