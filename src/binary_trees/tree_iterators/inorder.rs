@@ -68,12 +68,12 @@ where
             if !self.is_current_node_valid() {
                 self.cursor.move_up();
             }
-            self.cursor.node()
-        } else {
-            // In successive iterations, the cursor starts in the node reported in the previous iteration.
-            self.move_cursor_to_successor();
-            self.cursor.node()
+            return self.cursor.node();
         }
+
+        // In successive iterations, the cursor starts in the node reported in the previous iteration.
+        self.move_cursor_to_successor();
+        self.cursor.node()
     }
 }
 
@@ -133,12 +133,12 @@ where
             if !self.is_current_node_valid() {
                 self.cursor.move_up();
             }
-            self.cursor.node_mut()
-        } else {
-            // In successive iterations, the cursor starts in the node reported in the previous iteration.
-            self.move_cursor_to_successor();
-            self.cursor.node_mut()
+            return self.cursor.node_mut();
         }
+
+        // In successive iterations, the cursor starts in the node reported in the previous iteration.
+        self.move_cursor_to_successor();
+        self.cursor.node_mut()
     }
 }
 
