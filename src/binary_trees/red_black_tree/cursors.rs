@@ -1,8 +1,8 @@
 use derive_more::Debug;
 
-use super::red_black_tree::RedBlackNode;
+use super::{Color, RedBlackNode};
 use crate::binary_trees::{
-    Side, binary_tree::{self, BinaryTreeNode}, cursor_errors::CursorError, red_black_trees::Color, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}
+    Side, binary_tree::{self, BinaryTreeNode}, cursor_errors::CursorError, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}
 };
 
 /// A cursor over a RedBlackTree.
@@ -79,7 +79,7 @@ impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
     }
 }
 
-/// A cursor over a BinaryTree with editing operations.
+/// A cursor over a RedBlackTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.

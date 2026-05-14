@@ -1,7 +1,7 @@
 use derive_more::Debug;
 use slotmap::Key;
 
-use super::binary_tree::{BinaryTree, BinaryTreeNode, NodeId};
+use super::{BinaryTree, BinaryTreeNode, NodeId};
 use crate::binary_trees::{
     Side,
     cursor_errors::CursorError,

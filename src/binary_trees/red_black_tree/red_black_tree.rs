@@ -1,7 +1,5 @@
 use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
 
-use lending_iterator::lending_iterator::constructors::FromIter;
-
 use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
 use super::{Color, cursors::{Cursor, CursorMut}};
 
@@ -207,7 +205,7 @@ where
 /// Deletions.
 impl<K, V> RedBlackTree<K, V>
 where 
-    K: Ord + Debug, V: Debug
+    K: Ord,
 {
     /// Creates a cursor at the node storing the given key.
     /// Returns None if the key is not in the tree.
@@ -227,16 +225,10 @@ where
         None
     }
 
-    fn move_cursor_to_successor(cursor: &mut impl BinaryTreeCursor) -> usize {
-        if !cursor.try_move_right() {
-            return 0;
+    fn move_cursor_to_successor(cursor: &mut impl BinaryTreeCursor) {
+        if cursor.try_move_right() {
+            while cursor.try_move_left() {}
         }
-        
-        let mut depth = 1;
-        while cursor.try_move_left() { 
-            depth += 1;
-        }
-        depth
     }
 
     fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V>, mut side: Side) {
