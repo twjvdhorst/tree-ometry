@@ -2,7 +2,16 @@ use std::fmt::{Debug, Display};
 
 use slotmap::{Key, SlotMap, new_key_type};
 
-use crate::binary_trees::{Side, traits::binary_tree_cursor::BinaryTreeCursor};
+use crate::binary_trees::{
+    Side, 
+    traits::{
+        binary_tree::{
+            BinaryTree as BinaryTreeTrait, 
+            BinaryTreeMut
+        }, 
+        binary_tree_cursor::BinaryTreeCursor
+    }
+};
 use super::cursors::{Cursor, CursorMut};
 
 new_key_type! { pub(super) struct NodeId; }
@@ -125,6 +134,25 @@ impl<T> Default for BinaryTree<T> {
     }
 }
 
+impl<T> BinaryTreeTrait for BinaryTree<T> {
+    type Node = BinaryTreeNode<T>;
+    type Cursor<'c> = Cursor<'c, T>
+    where Self: 'c;
+
+    fn cursor(&self) -> Self::Cursor<'_> {
+        Cursor::new(self, self.root_id)
+    }
+}
+
+impl<T> BinaryTreeMut for BinaryTree<T> {
+    type CursorMut<'c> = CursorMut<'c, T>
+    where Self: 'c;
+    
+    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
+        CursorMut::new(self, self.root_id)
+    }
+}
+
 impl<T> BinaryTree<T> {
     pub fn new() -> Self {
         Self::default()
@@ -225,14 +253,6 @@ impl<T> BinaryTree<T> {
         } else {
             false
         }
-    }
-
-    pub fn cursor(&self) -> Cursor<'_, T> {
-        Cursor::new(self, self.root_id)
-    }
-
-    pub fn cursor_mut(&mut self) -> CursorMut<'_, T> {
-        CursorMut::new(self, self.root_id)
     }
 }
 

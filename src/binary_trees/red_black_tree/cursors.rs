@@ -4,7 +4,12 @@ use derive_more::Debug;
 
 use super::RedBlackNode;
 use crate::binary_trees::{
-    Side, semigroup_rb_tree, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}
+    Side, 
+    semigroup_rb_tree, 
+    traits::binary_tree_cursor::{
+        BinaryTreeCursor,
+        BinaryTreeCursorMut
+    }
 };
 
 /// A cursor over a RedBlackTree.

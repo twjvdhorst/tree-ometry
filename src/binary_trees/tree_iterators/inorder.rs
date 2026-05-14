@@ -1,114 +1,144 @@
 use lending_iterator::prelude::*;
 
 use crate::binary_trees::{
-    tree_iterators::{
-        traversal_stack::TraversalStack,
-        traversal_stack_mut::TraversalStackMut,
-    },
+    Side, 
     traits::{
-        BinaryTree,
+        BinaryTree, 
         BinaryTreeMut,
-        BinaryTreeNode,
-        BinaryTreeNodeMut,
+        binary_tree_cursor::{
+            BinaryTreeCursor,
+            BinaryTreeCursorMut
+        }
     },
 };
 
-macro_rules! impl_inorder_next {
-    ($self: ident) => {{
-        while let Some(tree) = $self.stack.last_tree() {
-            if !($self.subtree_filter)(tree) {
-                $self.stack.pop();
-                continue;
-            }
-
-            if $self.stack.expand_left() {
-                continue;
-            }
-            
-            // Left subtree has previously been expanded and reported.
-            if !$self.stack.is_reported() {
-                return $self.stack.report();
-            } else if $self.stack.expand_right() {
-                continue;
-            } else {
-                // Tree and right subtree have previously been reported.
-                $self.stack.pop();
-                continue;
-            }
-        }
-        None
-    }}
-}
-
-pub struct InorderIter<'tree, T, F>
+pub struct InorderIter<'t, T, F>
 where 
-    T: BinaryTree + ?Sized,
-    F: Fn(&T) -> bool,
+    T: BinaryTree + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
 {
-    stack: TraversalStack<'tree, T>,
+    cursor: T::Cursor<'t>,
     subtree_filter: F,
+    first_iteration: bool,
 }
 
-impl<'tree, T, F> InorderIter<'tree, T, F> 
+impl<'t, T, F> InorderIter<'t, T, F>
 where 
-    T: BinaryTree<Node: BinaryTreeNode<Tree = T>> + ?Sized,
-    F: Fn(&T) -> bool,
+    T: BinaryTree + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
 {
-    pub fn new(tree: &'tree T, subtree_filter: F) -> Self {
+    pub fn new(tree: &'t T, subtree_filter: F) -> Self {
         Self {
-            stack: TraversalStack::new(tree),
+            cursor: tree.cursor(),
             subtree_filter,
+            first_iteration: true,
         }
     }
-}
 
-impl<'tree, T, F> Iterator for InorderIter<'tree, T, F>
-where 
-    T: BinaryTree<Node: BinaryTreeNode<Tree = T>> + ?Sized,
-    F: Fn(&T) -> bool,
-{
-    type Item = &'tree T;
+    fn is_current_node_valid(&self) -> bool {
+        self.cursor.node().map_or(false, &self.subtree_filter)
+    }
     
-    fn next(&mut self) -> Option<Self::Item> {
-        impl_inorder_next!(self)
-    }
-}
-
-pub(crate) struct InorderIterMut<'tree, T, F>
-where 
-    T: BinaryTreeMut<Node: BinaryTreeNodeMut<Tree = T>>,
-    F: Fn(&T) -> bool,
-{
-    stack: TraversalStackMut<'tree, T>,
-    subtree_filter: F,
-}
-
-impl<'tree, T, F> InorderIterMut<'tree, T, F>
-where 
-    T: BinaryTreeMut<Node: BinaryTreeNodeMut<Tree = T>>,
-    F: Fn(&T) -> bool,
-{
-    pub(crate) fn new(tree: &'tree mut T, subtree_filter: F) -> Self {
-        Self {
-            stack: TraversalStackMut::new(tree),
-            subtree_filter,
+    /// Moves the cursor to the (possibly non-existent) inorder successor that passes the subtree_filter.
+    fn move_cursor_to_successor(&mut self) {        
+        if self.cursor.try_move_right() {
+            while self.is_current_node_valid() && self.cursor.try_move_left() {}
+        } else {
+            while self.cursor.move_up() == Some(Side::Right) {}
         }
     }
 }
 
 #[gat]
-impl<'tree, T, F> LendingIterator for InorderIterMut<'tree, T, F>
+impl<'t, T, F> LendingIterator for InorderIter<'t, T, F>
 where 
-    T: BinaryTreeMut<Node: BinaryTreeNodeMut<Tree = T>>,
-    F: Fn(&T) -> bool,
+    T: BinaryTree + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
 {
     type Item<'next>
     where 
         Self: 'next,
-        = &'next mut T;
+        = &'next T::Node;
 
-    fn next(self: &mut InorderIterMut<'tree, T, F>) -> Option<&mut T> {
-        impl_inorder_next!(self)
+    fn next(self: &mut InorderIter<'t, T, F>) -> Option<&T::Node> {
+        if self.first_iteration {
+            // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
+            self.first_iteration = false;
+            while self.is_current_node_valid() && self.cursor.try_move_left() {}
+            if !self.is_current_node_valid() {
+                self.cursor.move_up();
+            }
+            self.cursor.node()
+        } else {
+            // In successive iterations, the cursor starts in the node reported in the previous iteration.
+            self.move_cursor_to_successor();
+            self.cursor.node()
+        }
+    }
+}
+
+pub struct InorderIterMut<'t, T, F>
+where 
+    T: BinaryTreeMut + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
+{
+    cursor: T::CursorMut<'t>,
+    subtree_filter: F,
+    first_iteration: bool,
+}
+
+impl<'t, T, F> InorderIterMut<'t, T, F>
+where 
+    T: BinaryTreeMut + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
+{
+    pub fn new(tree: &'t mut T, subtree_filter: F) -> Self {
+        Self {
+            cursor: tree.cursor_mut(),
+            subtree_filter,
+            first_iteration: true,
+        }
+    }
+
+    fn is_current_node_valid(&self) -> bool {
+        self.cursor.node().map_or(false, &self.subtree_filter)
+    }
+    
+    /// Moves the cursor to the (possibly non-existent) inorder successor that passes the subtree_filter.
+    fn move_cursor_to_successor(&mut self) {        
+        if self.cursor.try_move_right() {
+            while self.is_current_node_valid() && self.cursor.try_move_left() {}
+        } else {
+            while self.cursor.move_up() == Some(Side::Right) {}
+        }
+    }
+}
+
+#[gat]
+impl<'t, T, F> LendingIterator for InorderIterMut<'t, T, F>
+where 
+    T: BinaryTreeMut + ?Sized + 't,
+    F: Fn(&T::Node) -> bool,
+{
+    type Item<'next>
+    where 
+        Self: 'next,
+        = &'next mut T::Node;
+
+    fn next(self: &mut InorderIterMut<'t, T, F>) -> Option<&mut T::Node> {
+        if self.first_iteration {
+            // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
+            self.first_iteration = false;
+            while self.is_current_node_valid() && self.cursor.try_move_left() {}
+            if !self.is_current_node_valid() {
+                self.cursor.move_up();
+            }
+            self.cursor.node_mut()
+        } else {
+            // In successive iterations, the cursor starts in the node reported in the previous iteration.
+            self.move_cursor_to_successor();
+            self.cursor.node_mut()
+        }
     }
 }
 
@@ -123,30 +153,31 @@ mod tests {
     use super::*;
     use crate::binary_trees::{
         Side,
-        red_black_trees_old::old_red_black_tree::RedBlackTree,
-        traits::{BinaryTree, Dynamic},
+        red_black_tree::RedBlackTree,
     };
 
-    fn path_to_key<K, V>(mut tree: &RedBlackTree<K, V>, key: &K) -> Vec<Side>
+    fn path_to_key<K, V>(tree: &RedBlackTree<K, V>, key: &K) -> Option<Vec<Side>>
     where 
         K: Ord,
     {
+        let mut cursor = tree.cursor();
         let mut path = Vec::new();
-        loop {
-            let Some(root_key) = tree.root().map(|root| root.key()) else { break; };
-            match K::cmp(&key, root_key) {
+        while let Some(node) = cursor.node() {
+            match K::cmp(key, node.key()) {
                 Ordering::Less => {
                     path.push(Side::Left);
-                    tree = tree.root().unwrap().left_subtree()
+                    cursor.move_left();
                 },
                 Ordering::Greater => {
                     path.push(Side::Right);
-                    tree = tree.root().unwrap().right_subtree()
+                    cursor.move_right();
                 },
-                Ordering::Equal => break,
+                Ordering::Equal => return Some(path),
             }
         }
-        path
+
+        // Key not in tree.
+        None
     }
 
     fn get_sequence<K, V>(tree: &RedBlackTree<K, V>) -> Vec<K>
@@ -155,7 +186,7 @@ mod tests {
     {
             let mut iter = InorderIter::new(tree, |_| true);
             let mut sequence = Vec::new();
-            while let Some(node) = iter.next().and_then(|tree| tree.root()) {
+            while let Some(node) = iter.next() {
                 sequence.push(node.key().clone());
             }
             sequence
@@ -167,7 +198,7 @@ mod tests {
     {
             let mut iter = InorderIterMut::new(tree, |_| true);
             let mut sequence = Vec::new();
-            while let Some(node) = iter.next().and_then(|tree| tree.root()) {
+            while let Some(node) = iter.next() {
                 sequence.push(node.key().clone());
             }
             sequence
@@ -195,7 +226,7 @@ mod tests {
             
             // Verify that the sequence is inorder.
             let paths = get_sequence(&tree).iter()
-                .map(|key| path_to_key(&tree, key))
+                .map(|key| path_to_key(&tree, key).unwrap_or(Vec::new()))
                 .collect::<Vec<_>>();
             for window in paths.windows(2) {
                 let path1 = &window[0];
@@ -215,3 +246,4 @@ mod tests {
         }
     }
 }
+

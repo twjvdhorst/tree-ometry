@@ -1,7 +1,13 @@
 use ref_cast::RefCast;
 use std::{borrow::Borrow, fmt::{Debug, Display}};
 
-use crate::binary_trees::semigroup_rb_tree::{SemigroupRbNode, SemigroupRbTree};
+use crate::binary_trees::{
+    traits, 
+    semigroup_rb_tree::{
+        SemigroupRbNode, 
+        SemigroupRbTree
+    }
+};
 use super::{cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq, RefCast)]
@@ -63,6 +69,25 @@ where
     }
 }
 
+impl<K, V> traits::BinaryTree for RedBlackTree<K, V> {
+    type Node = RedBlackNode<K, V>;
+    type Cursor<'c> = Cursor<'c, K, V>
+    where Self: 'c;
+
+    fn cursor(&self) -> Self::Cursor<'_> {
+        Cursor::new(self.0.cursor())
+    }
+}
+
+impl<K, V> traits::BinaryTreeMut for RedBlackTree<K, V> {
+    type CursorMut<'c> = CursorMut<'c, K, V>
+    where Self: 'c;
+    
+    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
+        CursorMut::new(self.0.cursor_mut())
+    }
+}
+
 impl<K, V> RedBlackTree<K, V> {
     pub fn new() -> Self {
         Self::default()
@@ -70,14 +95,6 @@ impl<K, V> RedBlackTree<K, V> {
 
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
         self.0.root().map(Borrow::borrow)
-    }
-
-    pub fn cursor(&self) -> Cursor<'_, K, V> {
-        Cursor::new(self.0.cursor())
-    }
-
-    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V> {
-        CursorMut::new(self.0.cursor_mut())
     }
 }
 

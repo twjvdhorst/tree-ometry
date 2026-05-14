@@ -2,7 +2,17 @@ use derive_more::Debug;
 
 use super::{Color, SemigroupRbNode};
 use crate::binary_trees::{
-    Side, binary_tree::{self, BinaryTreeNode}, cursor_errors::CursorError, semigroup_rb_tree::TreeSemigroup, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}
+    Side, 
+    binary_tree::{
+        self, 
+        BinaryTreeNode
+    }, 
+    cursor_errors::CursorError, 
+    semigroup_rb_tree::TreeSemigroup, 
+    traits::binary_tree_cursor::{
+        BinaryTreeCursor, 
+        BinaryTreeCursorMut
+    }
 };
 
 /// A cursor over a SemigroupRbTree.

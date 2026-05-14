@@ -2,7 +2,25 @@ use std::{borrow::{Borrow, BorrowMut}, cmp::Ordering, fmt::{Debug, Display}, mem
 
 use ref_cast::RefCast;
 
-use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, red_black_tree::RedBlackNode, semigroup_rb_tree::TreeSemigroup, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
+use crate::binary_trees::{
+    Side, 
+    binary_tree::{
+        BinaryTree, 
+        BinaryTreeNode
+    }, 
+    red_black_tree::RedBlackNode, 
+    semigroup_rb_tree::TreeSemigroup, 
+    traits::{
+        binary_tree::{
+            BinaryTree as BinaryTreeTrait, 
+            BinaryTreeMut
+        }, 
+        binary_tree_cursor::{
+            BinaryTreeCursor, 
+            BinaryTreeCursorMut
+        }
+    }
+};
 use super::{Color, cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -119,6 +137,25 @@ where
     }
 }
 
+impl<K, V, S> BinaryTreeTrait for SemigroupRbTree<K, V, S> {
+    type Node = SemigroupRbNode<K, V, S>;
+    type Cursor<'c> = Cursor<'c, K, V, S>
+    where Self: 'c;
+
+    fn cursor(&self) -> Self::Cursor<'_> {
+        Cursor::new(self.0.cursor())
+    }
+}
+
+impl<K, V, S> BinaryTreeMut for SemigroupRbTree<K, V, S> {
+    type CursorMut<'c> = CursorMut<'c, K, V, S>
+    where Self: 'c;
+    
+    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
+        CursorMut::new(self.0.cursor_mut())
+    }
+}
+
 impl<K, V, S> SemigroupRbTree<K, V, S> {
     pub fn new() -> Self {
         Self::default()
@@ -130,14 +167,6 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
 
     fn root_mut(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
         self.0.root_mut().map(BinaryTreeNode::data_mut)
-    }
-
-    pub fn cursor(&self) -> Cursor<'_, K, V, S> {
-        Cursor::new(self.0.cursor())
-    }
-
-    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V, S> {
-        CursorMut::new(self.0.cursor_mut())
     }
 }
 
@@ -436,7 +465,6 @@ mod tests {
 
     use super::*;
     use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval, CanonSubset};
-    use crate::binary_trees::traits::binary_tree_cursor::BinaryTreeCursor;
 
     fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 

@@ -5,7 +5,10 @@ use super::{BinaryTree, BinaryTreeNode, NodeId};
 use crate::binary_trees::{
     Side,
     cursor_errors::CursorError,
-    traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut},
+    traits::binary_tree_cursor::{
+        BinaryTreeCursor, 
+        BinaryTreeCursorMut
+    },
 };
 
 /// A cursor over a BinaryTree.

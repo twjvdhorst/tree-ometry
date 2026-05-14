@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 pub mod binary_tree;
 pub mod cursor_errors;
+pub mod tree_iterators;
 
 //pub mod cartesian_trees;
 pub mod red_black_tree;

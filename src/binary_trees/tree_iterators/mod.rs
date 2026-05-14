@@ -1,5 +1,7 @@
-mod traversal_stack;
-mod traversal_stack_mut;
-pub mod inorder;
-pub mod postorder;
-pub mod preorder;
+mod preorder;
+mod postorder;
+mod inorder;
+
+pub use preorder::*;
+pub use postorder::*;
+pub use inorder::*;
