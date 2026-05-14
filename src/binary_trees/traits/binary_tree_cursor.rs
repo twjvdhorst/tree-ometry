@@ -1,6 +1,6 @@
 use crate::binary_trees::Side;
 
-pub trait BinaryTreeCursor: Sized {
+pub trait BinaryTreeCursor {
     type Node;
     type Cursor<'c>: BinaryTreeCursor<Node = Self::Node>
     where Self: 'c;
