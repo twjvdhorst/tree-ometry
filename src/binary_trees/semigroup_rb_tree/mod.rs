@@ -7,7 +7,7 @@ pub use tree_semigroup::*;
 pub use cursors::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Color {
+pub(super) enum Color {
     Red,
     Black,
 }

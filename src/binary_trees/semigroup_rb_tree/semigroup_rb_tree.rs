@@ -1,6 +1,8 @@
-use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
+use std::{borrow::{Borrow, BorrowMut}, cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
 
-use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, semigroup_rb_tree::TreeSemigroup, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
+use ref_cast::RefCast;
+
+use crate::binary_trees::{Side, binary_tree::{BinaryTree, BinaryTreeNode}, red_black_tree::RedBlackNode, semigroup_rb_tree::TreeSemigroup, traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut}};
 use super::{Color, cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -23,6 +25,18 @@ where
             semigroup_value,
             color,
         }
+    }
+}
+
+impl<K, V> Borrow<RedBlackNode<K, V>> for SemigroupRbNode<K, V, ()> {
+    fn borrow(&self) -> &RedBlackNode<K, V> {
+        RedBlackNode::ref_cast(self)
+    }
+}
+
+impl<K, V> BorrowMut<RedBlackNode<K, V>> for SemigroupRbNode<K, V, ()> {
+    fn borrow_mut(&mut self) -> &mut RedBlackNode<K, V> {
+        RedBlackNode::ref_cast_mut(self)
     }
 }
 
@@ -63,7 +77,7 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         self.color == Color::Black
     }
 
-    pub(super) fn color(&self) -> Color {
+    pub(in crate::binary_trees) fn color(&self) -> Color {
         self.color
     }
 
