@@ -12,6 +12,37 @@ use crate::binary_trees::{
     },
 };
 
+fn is_cursor_in_valid_node<C, F>(cursor: &C, subtree_filter: F) -> bool
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    cursor.node().map_or(false, subtree_filter)
+}
+
+fn move_cursor_to_successor_in_subtree<C, F>(cursor: &mut C, subtree_filter: F)
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    if cursor.try_move_right() {
+        while is_cursor_in_valid_node(cursor, &subtree_filter) && cursor.try_move_left() {}
+    }
+}
+
+/// Moves the given cursor to the next (possibly null) node of the postorder iterator.
+/// Assumes the cursor points to the previous element in the iterator.
+fn move_cursor_to_next_node<C, F>(cursor: &mut C, subtree_filter: F)
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    if cursor.move_up() == Some(Side::Left) {
+        // Explore the right subtree of the node's parent (which the cursor points to now).
+        move_cursor_to_successor_in_subtree(cursor, subtree_filter);
+    }
+}
+
 pub struct PostorderIter<'t, T, F>
 where 
     T: BinaryTree + ?Sized + 't,
@@ -34,17 +65,6 @@ where
             first_iteration: true,
         }
     }
-
-    fn is_current_node_valid(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
-    }
-    
-    /// Moves the cursor to the (possibly non-existent) inorder successor that passes the subtree_filter.
-    fn move_cursor_to_successor_in_subtree(&mut self) {        
-        if self.cursor.try_move_right() {
-            while self.is_current_node_valid() && self.cursor.try_move_left() {}
-        }
-    }
 }
 
 #[gat]
@@ -62,19 +82,15 @@ where
         if self.first_iteration {
             // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
             self.first_iteration = false;
-            while self.is_current_node_valid() && self.cursor.try_move_left() {}
-            if !self.is_current_node_valid() {
+            while is_cursor_in_valid_node(&self.cursor, &self.subtree_filter) && self.cursor.try_move_left() {}
+            if !is_cursor_in_valid_node(&self.cursor, &self.subtree_filter) {
                 self.cursor.move_up();
             }
-            return self.cursor.node();
+            self.cursor.node()
+        } else {
+            move_cursor_to_next_node(&mut self.cursor, &self.subtree_filter);
+            self.cursor.node()
         }
-
-        // In successive iterations, the cursor starts in the node reported in the previous iteration.
-        if self.cursor.move_up()? == Side::Left {
-            // Explore the right subtree of the node's parent (which the cursor points to now).
-            self.move_cursor_to_successor_in_subtree();
-        }
-        self.cursor.node()
     }
 }
 
@@ -100,17 +116,6 @@ where
             first_iteration: true,
         }
     }
-
-    fn is_current_node_valid(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
-    }
-    
-    /// Moves the cursor to the (possibly non-existent) inorder successor that passes the subtree_filter.
-    fn move_cursor_to_successor_in_subtree(&mut self) {        
-        if self.cursor.try_move_right() {
-            while self.is_current_node_valid() && self.cursor.try_move_left() {}
-        }
-    }
 }
 
 #[gat]
@@ -128,19 +133,15 @@ where
         if self.first_iteration {
             // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
             self.first_iteration = false;
-            while self.is_current_node_valid() && self.cursor.try_move_left() {}
-            if !self.is_current_node_valid() {
+            while is_cursor_in_valid_node(&self.cursor, &self.subtree_filter) && self.cursor.try_move_left() {}
+            if !is_cursor_in_valid_node(&self.cursor, &self.subtree_filter) {
                 self.cursor.move_up();
             }
-            return self.cursor.node_mut();
+            self.cursor.node_mut()
+        } else {
+            move_cursor_to_next_node(&mut self.cursor, &self.subtree_filter);
+            self.cursor.node_mut()
         }
-
-        // In successive iterations, the cursor starts in the node reported in the previous iteration.
-        if self.cursor.move_up()? == Side::Left {
-            // Explore the right subtree of the node's parent (which the cursor points to now).
-            self.move_cursor_to_successor_in_subtree();
-        }
-        self.cursor.node_mut()
     }
 }
 

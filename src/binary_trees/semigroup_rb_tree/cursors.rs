@@ -101,10 +101,6 @@ impl<'tree, K, V, S> CursorMut<'tree, K, V, S> {
         Self(cursor)
     }
 
-    pub(super) fn color(&self) -> Option<Color> {
-        self.node().map(SemigroupRbNode::color)
-    }
-
     pub(super) fn set_color(&mut self, color: Color) {
         if let Some(node) = self.node_mut() {
             node.set_color(color);

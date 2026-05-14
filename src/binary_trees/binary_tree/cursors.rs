@@ -27,10 +27,6 @@ impl<'tree, T> Cursor<'tree, T> {
             node_id,
         }
     }
-
-    fn node_id(&self) -> NodeId {
-        self.node_id
-    }
 }
 
 impl<'tree, T> Clone for Cursor<'tree, T> {

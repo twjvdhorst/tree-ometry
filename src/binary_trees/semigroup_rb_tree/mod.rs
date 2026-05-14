@@ -11,12 +11,3 @@ pub(super) enum Color {
     Red,
     Black,
 }
-
-impl Color {
-    fn opposite(&self) -> Color {
-        match self {
-            Color::Red => Color::Black,
-            Color::Black => Color::Red,
-        }
-    }
-}

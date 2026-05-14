@@ -12,6 +12,62 @@ use crate::binary_trees::{
     },
 };
 
+fn move_cursor_left_if_valid<C, F>(cursor: &mut C, subtree_filter: F) -> bool
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    if !cursor.try_move_left() {
+        return false;
+    }
+
+    if !(subtree_filter)(cursor.node().unwrap()) {
+        cursor.move_up();
+        false
+    } else {
+        true
+    }
+}
+
+fn move_cursor_right_if_valid<C, F>(cursor: &mut C, subtree_filter: F) -> bool
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    if !cursor.try_move_right() {
+        return false;
+    }
+
+    if !(subtree_filter)(cursor.node().unwrap()) {
+        cursor.move_up();
+        false
+    } else {
+        true
+    }
+}
+
+/// Moves the given cursor to the next (possibly null) node of the preorder iterator.
+/// Assumes the cursor points to the previous element in the iterator.
+fn move_cursor_to_next_node<C, F>(cursor: &mut C, subtree_filter: F)
+where 
+    C: BinaryTreeCursor,
+    F: Fn(&C::Node) -> bool,
+{
+    if move_cursor_left_if_valid(cursor, &subtree_filter) {
+        return;
+    }
+    
+    if move_cursor_right_if_valid(cursor, &subtree_filter) {
+        return;
+    }
+    
+    while let Some(side) = cursor.move_up() {
+        if side == Side::Left && move_cursor_right_if_valid(cursor, &subtree_filter) {
+            return;
+        }
+    }
+}
+
 pub struct PreorderIter<'t, T, F>
 where 
     T: BinaryTree + ?Sized + 't,
@@ -34,36 +90,6 @@ where
             first_iteration: true,
         }
     }
-
-    fn is_current_node_valid(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
-    }
-
-    fn move_cursor_left_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_left() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
-
-    fn move_cursor_right_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_right() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
 }
 
 #[gat]
@@ -81,25 +107,15 @@ where
         if self.first_iteration {
             // In the first iteration, simply report the root node pointed at by the cursor.
             self.first_iteration = false;
-            return if self.is_current_node_valid() {
-                self.cursor.node()
+            let node = self.cursor.node()?;
+            if (self.subtree_filter)(node) {
+                Some(node)
             } else {
                 None
-            };
-        }
-        
-        // In successive iterations, the cursor starts in the node reported in the previous iteration.
-        if self.move_cursor_left_if_valid() {
-            self.cursor.node()
-        } else if self.move_cursor_right_if_valid() {
-            self.cursor.node()
-        } else {
-            while let Some(side) = self.cursor.move_up() {
-                if side == Side::Left && self.move_cursor_right_if_valid() {
-                    return self.cursor.node();
-                }
             }
-            None
+        } else {
+            move_cursor_to_next_node(&mut self.cursor, &self.subtree_filter);
+            self.cursor.node()
         }
     }
 }
@@ -126,36 +142,6 @@ where
             first_iteration: true,
         }
     }
-
-    fn is_current_node_valid(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
-    }
-
-    fn move_cursor_left_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_left() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
-
-    fn move_cursor_right_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_right() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
 }
 
 #[gat]
@@ -173,25 +159,15 @@ where
         if self.first_iteration {
             // In the first iteration, simply report the root node pointed at by the cursor.
             self.first_iteration = false;
-            return if self.is_current_node_valid() {
-                self.cursor.node_mut()
+            let node = self.cursor.node_mut()?;
+            if (self.subtree_filter)(node) {
+                Some(node)
             } else {
                 None
-            };
-        }
-        
-        // In successive iterations, the cursor starts in the node reported in the previous iteration.
-        if self.move_cursor_left_if_valid() {
-            self.cursor.node_mut()
-        } else if self.move_cursor_right_if_valid() {
-            self.cursor.node_mut()
-        } else {
-            while let Some(side) = self.cursor.move_up() {
-                if side == Side::Left && self.move_cursor_right_if_valid() {
-                    return self.cursor.node_mut();
-                }
             }
-            None
+        } else {
+            move_cursor_to_next_node(&mut self.cursor, &self.subtree_filter);
+            self.cursor.node_mut()
         }
     }
 }

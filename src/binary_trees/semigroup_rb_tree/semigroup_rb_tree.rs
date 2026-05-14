@@ -79,10 +79,6 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         self.semigroup_value = semigroup_value;
     }
 
-    pub(super) fn data_mut(&mut self) -> (&mut K, &mut V) {
-        (&mut self.key, &mut self.value)
-    }
-
     pub fn into_data(self) -> (K, V) {
         (self.key, self.value)
     }
@@ -185,6 +181,29 @@ where
     K: Ord,
     S: TreeSemigroup<K>,
 {
+    /// Moves the cursor to the direct predecessor or successor of the value being inserted.
+    /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
+    fn find_node_to_insert_at(cursor: &mut CursorMut<'_, K, V, S>, key: &K) -> Option<Side> {
+        while let Some(node) = cursor.node_mut() {
+            match K::cmp(&key, &node.key) {
+                Ordering::Less => {
+                    if !cursor.try_move_left() {
+                        return Some(Side::Left);
+                    }
+                },
+                Ordering::Greater => {
+                    if !cursor.try_move_right() {
+                        return Some(Side::Right);
+                    }
+                },
+                Ordering::Equal => {
+                    return None;
+                },
+            };
+        }
+        None
+    }
+
     fn insert_fixup(cursor: &mut CursorMut<'_, K, V, S>) {
         // Cormen et al.'s algorithm.
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
@@ -239,31 +258,14 @@ where
         let mut cursor = self.cursor_mut();
 
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
-        let mut side = MaybeUninit::uninit();
-        while let Some(node) = cursor.node_mut() {
-            match K::cmp(&key, &node.key) {
-                Ordering::Less => {
-                    if !cursor.try_move_left() {
-                        side.write(Side::Left);
-                        break;
-                    }
-                },
-                Ordering::Greater => {
-                    if !cursor.try_move_right() {
-                        side.write(Side::Right);
-                        break;
-                    }
-                },
-                Ordering::Equal => {
-                    let old_value = std::mem::replace(node.value_mut(), value);
-                    return Some(old_value);
-                },
-            };
-        }
+        let Some(side) = Self::find_node_to_insert_at(&mut cursor, &key) else {
+            // Cursor was moved to the node containing the key.
+            let old_value = std::mem::replace(cursor.node_mut().unwrap().value_mut(), value);
+            return Some(old_value);
+        };
 
         // The cursor now points to the parent of the node we will create.
         let new_node = SemigroupRbNode::new_with_color(key, value, Color::Red);
-        let side = unsafe { side.assume_init() };
         cursor.attach_child(new_node, side).unwrap();
 
         // Fix the red-black tree structure.
