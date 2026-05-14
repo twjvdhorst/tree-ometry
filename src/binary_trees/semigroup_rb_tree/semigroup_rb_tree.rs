@@ -127,6 +127,15 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
     }
 }
 
+impl<K, V, S> SemigroupRbTree<K, V, S>
+where 
+    S: TreeSemigroup<K>,
+{
+    fn fix_ancestor_semigroup_values(cursor: &mut CursorMut<'_, K, V, S>) {
+        while cursor.move_up_and_recompute_semigroup_value().is_some() {}
+    }
+}
+
 /// Insertions.
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where 
@@ -154,7 +163,7 @@ where
                 if side_current == side_parent.opposite() {
                     // Case 2
                     cursor.move_up_and_recompute_semigroup_value();
-                    cursor.rotate(side_parent).unwrap();
+                    cursor.rotate_and_fix_semigroup_value(side_parent).unwrap();
                 }
 
                 // Case 3
@@ -162,7 +171,7 @@ where
                 cursor.set_color(Color::Black);
                 cursor.move_up_and_recompute_semigroup_value();
                 cursor.set_color(Color::Red);
-                cursor.rotate(side_parent.opposite()).unwrap();
+                cursor.rotate_and_fix_semigroup_value(side_parent.opposite()).unwrap();
 
                 // After rotating around z.p.p, z is the sibling of the node pointed at by the cursor.
                 let side = cursor.move_up_and_recompute_semigroup_value().unwrap();
@@ -170,8 +179,7 @@ where
             }
         }
 
-        // Fix the semigroup values of the ancestors.
-        while cursor.move_up_and_recompute_semigroup_value().is_some() {}
+        Self::fix_ancestor_semigroup_values(cursor);
     }
 
     /// Inserts the key-value pair into the tree.
@@ -256,13 +264,14 @@ where
     }
 
     fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V, S>, mut side: Side) {
+        // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
         while cursor.node().is_some() && cursor.peek_side(side).map_or(true, SemigroupRbNode::is_black) {
             let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
             if sibling.is_red() {
                 // Case 1.
                 sibling.set_color(Color::Black);
                 cursor.set_color(Color::Red);
-                cursor.rotate(side).unwrap();
+                cursor.rotate_and_fix_semigroup_value(side).unwrap();
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
@@ -271,30 +280,30 @@ where
             {
                 // Case 2.
                 cursor.set_color(Color::Red);
-                cursor.move_up(); // Move the cursor to x.p
+                cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to x.p
             } else {
                 if cursor.peek_side(side.opposite()).map_or(true, SemigroupRbNode::is_black) {
                     // Case 3.
                     cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
                     cursor.set_color(Color::Red);
-                    cursor.rotate(side.opposite()).unwrap();
-                    cursor.move_up();
+                    cursor.rotate_and_fix_semigroup_value(side.opposite()).unwrap();
+                    cursor.move_up_and_recompute_semigroup_value();
                 }
 
                 // Case 4.
                 cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
                 cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
-                cursor.move_up();
+                cursor.move_up_and_recompute_semigroup_value();
                 cursor.set_color(Color::Black);
-                cursor.rotate(side).unwrap();
+                cursor.rotate_and_fix_semigroup_value(side).unwrap();
 
                 // Move cursor to root and maintain the invariant that the root is black.
-                while cursor.try_move_up().is_some() {}
+                while cursor.try_move_up_and_recompute_semigroup_value().is_some() {}
                 cursor.set_color(Color::Black);
                 return;
             }
 
-            if let Some(side_parent) = cursor.move_up() {
+            if let Some(side_parent) = cursor.move_up_and_recompute_semigroup_value() {
                 side = side_parent;
             } else {
                 break;
@@ -334,12 +343,14 @@ where
             (None, None) => {
                 let Some(side) = cursor.side_of_parent() else {
                     // The to-be-deleted node is the only node left in the tree.
+                    // No need to fix semigroup values after removal.
                     return cursor.detach_node();
                 };
                 let data = cursor.detach_node().unwrap();
                 if key_color == Color::Black {
                     Self::remove_fixup_leaf(&mut cursor, side);
                 }
+                Self::fix_ancestor_semigroup_values(&mut cursor);
                 data
             },
             _ => {
@@ -347,6 +358,7 @@ where
                 // This means it is black and its child is red, so we can simply transplant and recolor.
                 let data = cursor.transplant_child().unwrap();
                 cursor.set_color(Color::Black);
+                Self::fix_ancestor_semigroup_values(&mut cursor);
                 data
             }
         };

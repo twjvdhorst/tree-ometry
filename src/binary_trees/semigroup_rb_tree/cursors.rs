@@ -150,8 +150,15 @@ where
         Some(side)
     }
 
+    
+    pub(super) fn try_move_up_and_recompute_semigroup_value(&mut self) -> Option<Side> {
+        let side = self.try_move_up()?;
+        self.recompute_semigroup_value();
+        Some(side)
+    }
+
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
-    /// Recomputes the semigroup value for the cursor's node, but not of its ancestors.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
     pub(super) fn attach_child(&mut self, node: SemigroupRbNode<K, V, S>, side: Side) -> Result<(), CursorError> {
         self.0.attach_child(node, side)?;
         self.recompute_semigroup_value();
@@ -159,7 +166,7 @@ where
     }
 
     /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
-    /// Recomputes the semigroup value for the cursor's node, but not of its ancestors.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
     /// Does nothing if the cursor does not point to a leaf.
     /// Returns the detached node.
     pub(super) fn detach_node(&mut self) -> Option<(K, V)> {
@@ -168,23 +175,18 @@ where
         Some(data)
     }
 
-    pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
+    /// Performs a tree rotation.
+    /// The cursor keeps pointing to the node it originally pointed to.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
+    pub(super) fn rotate_and_fix_semigroup_value(&mut self, side: Side) -> Result<(), CursorError> {
         match side {
             Side::Left => {
                 self.0.rotate_left()?;
-                // Only the cursor node and its right child (now its parent) have their semigroup values changed.
                 self.recompute_semigroup_value();
-                self.move_up();
-                self.recompute_semigroup_value();
-                self.move_left();
             },
             Side::Right => {
                 self.0.rotate_right()?;
-                // Only the cursor node and its left child (now its parent) have their semigroup values changed.
                 self.recompute_semigroup_value();
-                self.move_up().unwrap();
-                self.recompute_semigroup_value();
-                self.move_right();
             },
         }
         Ok(())
