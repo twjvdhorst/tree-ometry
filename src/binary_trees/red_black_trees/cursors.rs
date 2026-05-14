@@ -15,10 +15,6 @@ impl<'tree, K, V> Cursor<'tree, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'tree, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
     }
-
-    fn inner(&self) -> &binary_tree::Cursor<'tree, RedBlackNode<K, V>> {
-        &self.0
-    }
 }
 
 impl<'tree, K, V> Clone for Cursor<'tree, K, V> {

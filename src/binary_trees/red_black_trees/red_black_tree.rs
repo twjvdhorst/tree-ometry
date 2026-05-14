@@ -239,13 +239,11 @@ where
         depth
     }
 
-    
-    /// Helper function for the case where we deleted a black leaf node.
-    /// In this case, no node replaced the deleted node, so the cursor does not point to the "original" location.
-    fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V>, side: Side) {
-        if cursor.node().is_some() { // Check if the deleted leaf was not the root.
+    fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V>, mut side: Side) {
+        while cursor.node().is_some() && cursor.peek_side(side).map_or(true, RedBlackNode::is_black) {
             let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
             if sibling.is_red() {
+                // Case 1.
                 sibling.set_color(Color::Black);
                 cursor.set_color(Color::Red);
                 cursor.rotate(side).unwrap();
@@ -255,66 +253,40 @@ where
             if let (left, right) = cursor.peek_both()
                 && left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black)
             {
+                // Case 2.
                 cursor.set_color(Color::Red);
                 cursor.move_up(); // Move the cursor to x.p
             } else {
                 if cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
+                    // Case 3.
                     cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
                     cursor.set_color(Color::Red);
                     cursor.rotate(side.opposite()).unwrap();
                     cursor.move_up();
                 }
 
+                // Case 4.
                 cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
                 cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
                 cursor.move_up();
                 cursor.set_color(Color::Black);
                 cursor.rotate(side).unwrap();
 
-                // Move cursor to root.
+                // Move cursor to root and maintain the invariant that the root is black.
                 while cursor.try_move_up().is_some() {}
+                cursor.set_color(Color::Black);
+                return;
             }
 
-            Self::remove_fixup(cursor);
-        }
-    }
-
-    fn remove_fixup(cursor: &mut CursorMut<'_, K, V>) {//, mut side: Side) {
-        // Cormen et al.'s algorithm.
-        while cursor.peek_up().is_some() && cursor.node().unwrap().is_black() {
-            let side = cursor.move_up().unwrap(); // Move the cursor to x.p
-            let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
-            if sibling.is_red() {
-                sibling.set_color(Color::Black);
-                cursor.set_color(Color::Red);
-                cursor.rotate(side).unwrap();
-            }
-            
-            cursor.move_side(side.opposite()); // Move the cursor to w
-            if let (left, right) = cursor.peek_both()
-                && left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black)
-            {
-                cursor.set_color(Color::Red);
-                cursor.move_up(); // Move the cursor to x.p
+            if let Some(side_parent) = cursor.move_up() {
+                side = side_parent;
             } else {
-                if cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
-                    cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
-                    cursor.set_color(Color::Red);
-                    cursor.rotate(side.opposite()).unwrap();
-                    cursor.move_up();
-                }
-
-                cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
-                cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
-                cursor.move_up();
-                cursor.set_color(Color::Black);
-                cursor.rotate(side).unwrap();
-
-                // Move cursor to root.
-                while cursor.try_move_up().is_some() {}
+                break;
             }
         }
-        
+
+        // Cursor points to the parent of x.
+        cursor.move_side(side);
         cursor.set_color(Color::Black);
     }
 
@@ -326,6 +298,7 @@ where
         K: Borrow<Q>,
         Q: Ord + ?Sized + Debug,
     {
+        // Cormen et al.'s algorithm, with some simplifications.
         let mut cursor = self.get_cursor_mut_at_key(key)?;
         if let (Some(_), Some(_)) = cursor.peek_both() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
@@ -354,10 +327,10 @@ where
                 data
             },
             _ => {
+                // The to-be-deleted node has exactly one child.
+                // This means it is black and its child is red, so we can simply transplant and recolor.
                 let data = cursor.transplant_child().unwrap();
-                if key_color == Color::Black {
-                    Self::remove_fixup(&mut cursor);
-                }
+                cursor.set_color(Color::Black);
                 data
             }
         };
