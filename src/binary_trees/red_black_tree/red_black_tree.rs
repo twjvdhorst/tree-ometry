@@ -142,11 +142,11 @@ where
     V: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        traits::binary_tree::fmt_debug_binary_tree(self, f)
     }
 }
 
-/*
+
 impl<K, V> Display for RedBlackNode<K, V>
 where 
     K: Display,
@@ -160,10 +160,9 @@ where
 impl<K, V> Display for RedBlackTree<K, V>
 where 
     K: Display,
-    V: Display,
+    V: Display
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        traits::binary_tree::fmt_display_binary_tree(self, f)
     }
 }
-*/

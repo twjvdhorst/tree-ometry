@@ -5,11 +5,11 @@ use slotmap::{Key, SlotMap, new_key_type};
 use crate::binary_trees::{
     Side, 
     traits::{
+        self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
             BinaryTreeMut
-        }, 
-        binary_tree_cursor::BinaryTreeCursor
+        },
     }
 };
 use super::cursors::{Cursor, CursorMut};
@@ -276,36 +276,7 @@ where
     T: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn recursive_fmt<T>(cursor: Cursor<'_, T>, f: &mut std::fmt::Formatter, prefix: &str, is_left: bool) -> std::fmt::Result
-        where
-            T: Debug,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(node) = cursor.node() {
-                node.fmt(f)?;
-                writeln!(f, "")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                let mut left_cursor = cursor;
-                let mut right_cursor = cursor.clone();
-                if left_cursor.try_move_left() {
-                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
-                }
-                if right_cursor.try_move_right() {
-                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
-                }
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self.cursor(), f, "", false)
+        traits::binary_tree::fmt_debug_binary_tree(self, f)
     }
 }
 
@@ -323,36 +294,7 @@ where
     T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn recursive_fmt<T>(cursor: Cursor<'_, T>, f: &mut std::fmt::Formatter, prefix: &str, is_left: bool) -> std::fmt::Result
-        where
-            T: Display,
-        {
-            write!(f, "{prefix}")?;
-            if is_left {
-                write!(f, "├──")?;
-            } else {
-                write!(f, "└──")?;
-            };
-            if let Some(node) = cursor.node() {
-                node.fmt(f)?;
-                writeln!(f, "")?;
-                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                let mut left_cursor = cursor;
-                let mut right_cursor = cursor.clone();
-                if left_cursor.try_move_left() {
-                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
-                }
-                if right_cursor.try_move_right() {
-                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
-                }
-                Ok(())
-            } else {
-                write!(f, "L\n")
-            }
-        }
-        
-        write!(f, "\n")?;
-        recursive_fmt(self.cursor(), f, "", false)
+        traits::binary_tree::fmt_display_binary_tree(self, f)
     }
 }
 

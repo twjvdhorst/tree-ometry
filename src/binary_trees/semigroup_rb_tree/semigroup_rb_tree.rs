@@ -1,4 +1,14 @@
-use std::{borrow::{Borrow, BorrowMut}, cmp::Ordering, fmt::{Debug, Display}, mem::MaybeUninit};
+use std::{
+    borrow::{
+        Borrow, 
+        BorrowMut,
+    }, 
+    cmp::Ordering, 
+    fmt::{
+        Debug, 
+        Display,
+    },
+};
 
 use ref_cast::RefCast;
 
@@ -11,6 +21,7 @@ use crate::binary_trees::{
     red_black_tree::RedBlackNode, 
     semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
     traits::{
+        self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
             BinaryTreeMut
@@ -433,7 +444,7 @@ where
     S: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        traits::binary_tree::fmt_debug_binary_tree(self, f)
     }
 }
 
@@ -455,7 +466,7 @@ where
     S: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        traits::binary_tree::fmt_display_binary_tree(self, f)
     }
 }
 
