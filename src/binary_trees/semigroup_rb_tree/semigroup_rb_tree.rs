@@ -9,7 +9,7 @@ use crate::binary_trees::{
         BinaryTreeNode
     }, 
     red_black_tree::RedBlackNode, 
-    semigroup_rb_tree::TreeSemigroup, 
+    semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
     traits::{
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
@@ -320,7 +320,7 @@ where
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
-            if let (left, right) = cursor.peek_both()
+            if let Neighborhood { left, right, .. } = cursor.peek_neighborhood()
                 && left.map_or(true, SemigroupRbNode::is_black) && right.map_or(true, SemigroupRbNode::is_black)
             {
                 // Case 2.
@@ -370,7 +370,7 @@ where
     {
         // Cormen et al.'s algorithm, with some simplifications.
         let mut cursor = self.get_cursor_mut_at_key(key)?;
-        if let (Some(_), Some(_)) = cursor.peek_both() {
+        if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
             let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
                 Self::move_cursor_to_successor(successor_cursor);
@@ -384,8 +384,8 @@ where
 
         // The to-be-removed node has at most one child.
         let key_color = cursor.node().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
-        let data = match cursor.peek_both() {
-            (None, None) => {
+        let data = match cursor.peek_neighborhood() {
+            Neighborhood { left: None, right: None, .. } => {
                 let Some(side) = cursor.side_of_parent() else {
                     // The to-be-deleted node is the only node left in the tree.
                     // No need to fix semigroup values after removal.
@@ -466,7 +466,7 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval, CanonSubset};
+    use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval};
 
     fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 
@@ -617,7 +617,7 @@ mod tests {
             S: TreeSemigroup<K> + Debug + PartialEq,
         {
             let Some(node) = cursor.node() else { return; };
-            let (left, right) = cursor.peek_both();
+            let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
             assert_eq!(
                 *node.semigroup_value(),
                 S::op(node.key(), left.map(SemigroupRbNode::semigroup_value), right.map(SemigroupRbNode::semigroup_value))

@@ -195,8 +195,14 @@ impl<T> BinaryTree<T> {
 
     /// Returns mutable references to the nodes with the given ids.
     /// All ids must be valid and disjoint, otherwise None is returned.
-    pub(super) fn disjoint_nodes_mut<const N: usize>(&mut self, node_ids: [NodeId; N]) -> Option<[&mut BinaryTreeNode<T>; N]> {
+    pub(super) fn get_disjoint_nodes_mut<const N: usize>(&mut self, node_ids: [NodeId; N]) -> Option<[&mut BinaryTreeNode<T>; N]> {
         self.nodes.get_disjoint_mut(node_ids)
+    }
+
+    /// Returns mutable references to the nodes with the given ids.
+    /// All ids must be valid and disjoint, otherwise it is potentially unsafe.
+    pub(super) unsafe fn get_disjoint_nodes_unchecked_mut<const N: usize>(&mut self, node_ids: [NodeId; N]) -> [&mut BinaryTreeNode<T>; N] {
+        unsafe { self.nodes.get_disjoint_unchecked_mut(node_ids) }
     }
 
     pub fn parent(&self, node: &BinaryTreeNode<T>) -> Option<&BinaryTreeNode<T>> {
@@ -231,7 +237,7 @@ impl<T> BinaryTree<T> {
     }
 
     pub(super) fn add_edge(&mut self, parent_id: NodeId, child_id: NodeId, side: Side) -> bool {
-        let Some([parent, child]) = self.disjoint_nodes_mut([parent_id, child_id]) else { return false; };
+        let Some([parent, child]) = self.get_disjoint_nodes_mut([parent_id, child_id]) else { return false; };
         if !parent.has_child(side) && !child.has_parent() {
             parent.set_child_id(child_id, side);
             child.set_parent_id(parent_id);
@@ -240,7 +246,7 @@ impl<T> BinaryTree<T> {
     }
 
     pub(super) fn remove_edge(&mut self, parent_id: NodeId, child_id: NodeId) -> bool {
-        let Some([parent, child]) = self.disjoint_nodes_mut([parent_id, child_id]) else { return false; };
+        let Some([parent, child]) = self.get_disjoint_nodes_mut([parent_id, child_id]) else { return false; };
         if child.parent_id != parent_id { return false; }
         if parent.left_id == child_id {
             parent.left_id = NodeId::null();

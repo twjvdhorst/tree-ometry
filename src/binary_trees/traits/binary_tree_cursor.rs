@@ -2,11 +2,11 @@ use crate::binary_trees::Side;
 
 pub trait BinaryTreeCursor {
     type Node;
-    type Cursor<'c>: BinaryTreeCursor<Node = Self::Node>
+    type SpawnedCursor<'c>: BinaryTreeCursor<Node = Self::Node>
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node>;
-    fn spawn_cursor(&self) -> Self::Cursor<'_>;
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_>;
 
     fn side_of_parent(&self) -> Option<Side>;
 
@@ -18,10 +18,6 @@ pub trait BinaryTreeCursor {
             Side::Left => self.peek_left(),
             Side::Right => self.peek_right(),
         }
-    }
-
-    fn peek_both(&self) -> (Option<&Self::Node>, Option<&Self::Node>) {
-        (self.peek_left(), self.peek_right())
     }
     
     /// Advances the cursor to the parent node, returning the side of the parent node that the cursor previously pointed to.
@@ -75,6 +71,4 @@ pub trait BinaryTreeCursorMut: BinaryTreeCursor {
             Side::Right => self.peek_right_mut(),
         }
     }
-
-    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>);
 }

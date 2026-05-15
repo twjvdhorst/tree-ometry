@@ -15,36 +15,51 @@ use crate::binary_trees::{
     }
 };
 
+pub struct Neighborhood<'c, K, V, S> {
+    pub parent: Option<&'c SemigroupRbNode<K, V, S>>,
+    pub left: Option<&'c SemigroupRbNode<K, V, S>>,
+    pub right: Option<&'c SemigroupRbNode<K, V, S>>,
+}
+
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'tree, K, V, S>(binary_tree::Cursor<'tree, SemigroupRbNode<K, V, S>>);
+pub struct Cursor<'t, K, V, S>(binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>);
 
-impl<'tree, K, V, S> Cursor<'tree, K, V, S> {
-    pub(super) fn new(cursor: binary_tree::Cursor<'tree, SemigroupRbNode<K, V, S>>) -> Self {
+impl<'t, K, V, S> Cursor<'t, K, V, S> {
+    pub(super) fn new(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
+    }
+
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V, S> {
+        let binary_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            parent: parent.map(BinaryTreeNode::data),
+            left: left.map(BinaryTreeNode::data),
+            right: right.map(BinaryTreeNode::data),
+        }
     }
 }
 
-impl<'tree, K, V, S> Clone for Cursor<'tree, K, V, S> {
+impl<'t, K, V, S> Clone for Cursor<'t, K, V, S> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<'tree, K, V, S> Copy for Cursor<'tree, K, V, S> {}
+impl<'t, K, V, S> Copy for Cursor<'t, K, V, S> {}
 
-impl<'tree, K, V, S> BinaryTreeCursor for Cursor<'tree, K, V, S> {
+impl<'t, K, V, S> BinaryTreeCursor for Cursor<'t, K, V, S> {
     type Node = SemigroupRbNode<K, V, S>;
-    type Cursor<'c> = Self
+    type SpawnedCursor<'c> = Self
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.0.node().map(BinaryTreeNode::data)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         self.clone()
     }
 
@@ -89,21 +104,39 @@ impl<'tree, K, V, S> BinaryTreeCursor for Cursor<'tree, K, V, S> {
     }
 }
 
+pub struct NeighborhoodMut<'c, K, V, S> {
+    pub parent: Option<&'c mut SemigroupRbNode<K, V, S>>,
+    pub left: Option<&'c mut SemigroupRbNode<K, V, S>>,
+    pub right: Option<&'c mut SemigroupRbNode<K, V, S>>,
+}
+
 /// A cursor over a SemigroupRbTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
-pub struct CursorMut<'tree, K, V, S>(binary_tree::CursorMut<'tree, SemigroupRbNode<K, V, S>>);
+pub struct CursorMut<'t, K, V, S>(binary_tree::CursorMut<'t, SemigroupRbNode<K, V, S>>);
 
-impl<'tree, K, V, S> CursorMut<'tree, K, V, S> {
-    pub(super) fn new(cursor: binary_tree::CursorMut<'tree, SemigroupRbNode<K, V, S>>) -> Self {
+impl<'t, K, V, S> CursorMut<'t, K, V, S> {
+    pub(super) fn new(cursor: binary_tree::CursorMut<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
     }
 
-    pub(super) fn set_color(&mut self, color: Color) {
-        if let Some(node) = self.node_mut() {
-            node.set_color(color);
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V, S> {
+        let binary_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            parent: parent.map(BinaryTreeNode::data),
+            left: left.map(BinaryTreeNode::data),
+            right: right.map(BinaryTreeNode::data),
+        }
+    }
+
+    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V, S> {
+        let binary_tree::NeighborhoodMut { parent, left, right } = self.0.peek_neighborhood_mut();
+        NeighborhoodMut {
+            parent: parent.map(BinaryTreeNode::data_mut),
+            left: left.map(BinaryTreeNode::data_mut),
+            right: right.map(BinaryTreeNode::data_mut),
         }
     }
 
@@ -123,6 +156,12 @@ impl<'tree, K, V, S> CursorMut<'tree, K, V, S> {
         self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(BinaryTreeNode::data_mut))
     }
 
+    pub(super) fn set_color(&mut self, color: Color) {
+        if let Some(node) = self.node_mut() {
+            node.set_color(color);
+        }
+    }
+
     /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
     /// Replaces the node by its child, after which the cursor points to this child.
     /// Does nothing if the node has zero or two children.
@@ -133,14 +172,14 @@ impl<'tree, K, V, S> CursorMut<'tree, K, V, S> {
     }
 }
 
-impl<'tree, K, V, S> CursorMut<'tree, K, V, S>
+impl<'t, K, V, S> CursorMut<'t, K, V, S>
 where 
     S: TreeSemigroup<K>,
 {
     pub(super) fn recompute_semigroup_value(&mut self) {
         let new_semigroup_value = {
             let Some(node) = self.node() else { return; };
-            let (left, right) = self.peek_both();
+            let Neighborhood { left, right, .. } = self.peek_neighborhood();
             S::op(
                 node.key(),
                 left.map(SemigroupRbNode::semigroup_value),
@@ -199,16 +238,16 @@ where
     }
 }
 
-impl<'tree, K, V, S> BinaryTreeCursor for CursorMut<'tree, K, V, S> {
+impl<'t, K, V, S> BinaryTreeCursor for CursorMut<'t, K, V, S> {
     type Node = SemigroupRbNode<K, V, S>;
-    type Cursor<'c> = Cursor<'c, K, V, S>
+    type SpawnedCursor<'c> = Cursor<'c, K, V, S>
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.0.node().map(BinaryTreeNode::data)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         Cursor::new(self.0.spawn_cursor())
     }
 
@@ -253,7 +292,7 @@ impl<'tree, K, V, S> BinaryTreeCursor for CursorMut<'tree, K, V, S> {
     }
 }
 
-impl<'tree, K, V, S> BinaryTreeCursorMut for CursorMut<'tree, K, V, S> {
+impl<'t, K, V, S> BinaryTreeCursorMut for CursorMut<'t, K, V, S> {
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.node_mut().map(BinaryTreeNode::data_mut)
     }
@@ -268,10 +307,5 @@ impl<'tree, K, V, S> BinaryTreeCursorMut for CursorMut<'tree, K, V, S> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.peek_right_mut().map(BinaryTreeNode::data_mut)
-    }
-
-    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>) {
-        let (left, right) = self.0.peek_both_mut();
-        (left.map(BinaryTreeNode::data_mut), right.map(BinaryTreeNode::data_mut))
     }
 }

@@ -11,42 +11,56 @@ use crate::binary_trees::{
     },
 };
 
+pub struct Neighborhood<'c, T> {
+    pub parent: Option<&'c BinaryTreeNode<T>>,
+    pub left: Option<&'c BinaryTreeNode<T>>,
+    pub right: Option<&'c BinaryTreeNode<T>>,
+}
+
 /// A cursor over a BinaryTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'tree, T> {
-    tree: &'tree BinaryTree<T>,
+pub struct Cursor<'c, T> {
+    tree: &'c BinaryTree<T>,
     node_id: NodeId,
 }
 
-impl<'tree, T> Cursor<'tree, T> {
-    pub(super) fn new(tree: &'tree BinaryTree<T>, node_id: NodeId) -> Self {
+impl<'t, T> Cursor<'t, T> {
+    pub(super) fn new(tree: &'t BinaryTree<T>, node_id: NodeId) -> Self {
         Self {
             tree,
             node_id,
         }
     }
+
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
+        Neighborhood {
+            parent: self.peek_up(),
+            left: self.peek_left(),
+            right: self.peek_right()
+        }
+    }
 }
 
-impl<'tree, T> Clone for Cursor<'tree, T> {
+impl<'t, T> Clone for Cursor<'t, T> {
     fn clone(&self) -> Self {
         Self::new(self.tree, self.node_id)
     }
 }
 
-impl<'tree, T> Copy for Cursor<'tree, T> {}
+impl<'t, T> Copy for Cursor<'t, T> {}
 
-impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
+impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
     type Node = BinaryTreeNode<T>;
-    type Cursor<'c> = Self
+    type SpawnedCursor<'c> = Self
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.tree.node(self.node_id)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         self.clone()
     }
 
@@ -106,31 +120,110 @@ impl<'tree, T> BinaryTreeCursor for Cursor<'tree, T> {
     }
 }
 
+pub struct NeighborhoodMut<'c, T> {
+    pub parent: Option<&'c mut BinaryTreeNode<T>>,
+    pub left: Option<&'c mut BinaryTreeNode<T>>,
+    pub right: Option<&'c mut BinaryTreeNode<T>>,
+}
+
 /// A cursor over a BinaryTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
-pub struct CursorMut<'tree, T> {
-    tree: &'tree mut BinaryTree<T>,
+pub struct CursorMut<'t, T> {
+    tree: &'t mut BinaryTree<T>,
     node_id: NodeId,
 }
 
-impl<'tree, T> CursorMut<'tree, T> {
-    pub(super) fn new(tree: &'tree mut BinaryTree<T>, node_id: NodeId) -> Self {
+impl<'t, T> CursorMut<'t, T> {
+    pub(super) fn new(tree: &'t mut BinaryTree<T>, node_id: NodeId) -> Self {
         Self {
             tree,
             node_id,
         }
     }
 
-    /// Creates a new root node, if the tree is empty.
-    pub fn create_root(&mut self, data: T) -> Result<(), CursorError> {
-        if !self.node_id.is_null() {
-            Err(CursorError::RootCreationError)
-        } else {
-            self.node_id = self.tree.new_node(data);
-            Ok(())
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
+        Neighborhood {
+            parent: self.peek_up(),
+            left: self.peek_left(),
+            right: self.peek_right()
+        }
+    }
+
+    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, T> {
+        let Some(node) = self.node() else {
+            return NeighborhoodMut {
+                parent: None,
+                left: None,
+                right: None,
+            };
+        };
+
+        match (node.parent_id(), node.left_id(), node.right_id()) {
+            (parent_id, left_id, right_id) 
+                if !parent_id.is_null() && !left_id.is_null() && !right_id.is_null() => 
+            {
+                let [parent, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([parent_id, left_id, right_id]) };
+                NeighborhoodMut {
+                    parent: Some(parent),
+                    left: Some(left),
+                    right: Some(right),
+                }
+            },
+            (_, left_id, right_id) 
+                if !left_id.is_null() && !right_id.is_null() => 
+            {
+                let [left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([left_id, right_id]) };
+                NeighborhoodMut {
+                    parent: None,
+                    left: Some(left),
+                    right: Some(right),
+                }
+            },
+            (parent_id, _, right_id) 
+                if !parent_id.is_null() && !right_id.is_null() => 
+            {
+                let [parent, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([parent_id, right_id]) };
+                NeighborhoodMut {
+                    parent: Some(parent),
+                    left: None,
+                    right: Some(right),
+                }
+            },
+            (parent_id, left_id, _) 
+                if !parent_id.is_null() && !left_id.is_null() => 
+            {
+                let [parent, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([parent_id, left_id]) };
+                NeighborhoodMut {
+                    parent: Some(parent),
+                    left: Some(left),
+                    right: None,
+                }
+            },
+            (parent_id, _, _) if !parent_id.is_null() => {
+                NeighborhoodMut {
+                    parent: self.peek_up_mut(),
+                    left: None,
+                    right: None,
+                }
+            },
+            (_, left_id, _) if !left_id.is_null() => {
+                NeighborhoodMut {
+                    parent: None,
+                    left: self.peek_left_mut(),
+                    right: None,
+                }
+            },
+            (_, _, right_id) if !right_id.is_null() => {
+                NeighborhoodMut {
+                    parent: None,
+                    left: None,
+                    right: self.peek_right_mut(),
+                }
+            },
+            _ => NeighborhoodMut { parent: None, left: None, right: None }
         }
     }
 
@@ -144,7 +237,17 @@ impl<'tree, T> CursorMut<'tree, T> {
         let mut cursors = [self.spawn_cursor(); N];
         cursors_fn(&mut cursors);
         let ids = cursors.map(|cursor| cursor.node_id);
-        self.tree.disjoint_nodes_mut(ids)
+        self.tree.get_disjoint_nodes_mut(ids)
+    }
+
+    /// Creates a new root node, if the tree is empty.
+    pub fn create_root(&mut self, data: T) -> Result<(), CursorError> {
+        if !self.node_id.is_null() {
+            Err(CursorError::RootCreationError)
+        } else {
+            self.node_id = self.tree.new_node(data);
+            Ok(())
+        }
     }
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
@@ -202,7 +305,8 @@ impl<'tree, T> CursorMut<'tree, T> {
         let node = self.node()?;
         let side_of_parent = self.side_of_parent();
         let parent_id = node.parent_id();
-        match self.peek_both() {
+        let Neighborhood { left, right, .. } = self.peek_neighborhood();
+        match (left, right) {
             (Some(_), None) => {
                 let left_id = node.left_id();
                 self.tree.remove_edge(self.node_id, left_id);
@@ -298,16 +402,16 @@ impl<'tree, T> CursorMut<'tree, T> {
     }
 }
 
-impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
+impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
     type Node = BinaryTreeNode<T>;
-    type Cursor<'c> = Cursor<'c, T>
+    type SpawnedCursor<'c> = Cursor<'c, T>
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.tree.node(self.node_id)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         Cursor::new(self.tree, self.node_id)
     }
 
@@ -367,7 +471,7 @@ impl<'tree, T> BinaryTreeCursor for CursorMut<'tree, T> {
     }
 }
 
-impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
+impl<'t, T> BinaryTreeCursorMut for CursorMut<'t, T> {
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.tree.node_mut(self.node_id)
     }
@@ -382,17 +486,5 @@ impl<'tree, T> BinaryTreeCursorMut for CursorMut<'tree, T> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
         self.tree.node_mut(self.node()?.right_id())
-    }
-    
-    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>) {
-        let Some(node) = self.node() else { return (None, None); };
-        if node.left_id().is_null() {
-            (None, self.peek_right_mut())
-        } else if node.right_id().is_null() {
-            (self.peek_left_mut(), None)
-        } else {
-            let [left, right] = self.tree.disjoint_nodes_mut([node.left_id(), node.right_id()]).unwrap();
-            (Some(left), Some(right))
-        }
     }
 }

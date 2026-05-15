@@ -12,36 +12,51 @@ use crate::binary_trees::{
     }
 };
 
+pub struct Neighborhood<'c, K, V> {
+    pub parent: Option<&'c RedBlackNode<K, V>>,
+    pub left: Option<&'c RedBlackNode<K, V>>,
+    pub right: Option<&'c RedBlackNode<K, V>>,
+}
+
 /// A cursor over a RedBlackTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'tree, K, V>(semigroup_rb_tree::Cursor<'tree, K, V, ()>);
+pub struct Cursor<'t, K, V>(semigroup_rb_tree::Cursor<'t, K, V, ()>);
 
-impl<'tree, K, V> Cursor<'tree, K, V> {
-    pub(super) fn new(cursor: semigroup_rb_tree::Cursor<'tree, K, V, ()>) -> Self {
+impl<'t, K, V> Cursor<'t, K, V> {
+    pub(super) fn new(cursor: semigroup_rb_tree::Cursor<'t, K, V, ()>) -> Self {
         Self(cursor)
+    }
+
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
+        let semigroup_rb_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            parent: parent.map(Borrow::borrow),
+            left: left.map(Borrow::borrow),
+            right: right.map(Borrow::borrow),
+        }
     }
 }
 
-impl<'tree, K, V> Clone for Cursor<'tree, K, V> {
+impl<'t, K, V> Clone for Cursor<'t, K, V> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<'tree, K, V> Copy for Cursor<'tree, K, V> {}
+impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
-impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
+impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
     type Node = RedBlackNode<K, V>;
-    type Cursor<'c> = Self
+    type SpawnedCursor<'c> = Self
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
        self.0.node().map(Borrow::borrow)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         self.clone()
     }
 
@@ -86,16 +101,40 @@ impl<'tree, K, V> BinaryTreeCursor for Cursor<'tree, K, V> {
     }
 }
 
+pub struct NeighborhoodMut<'c, K, V> {
+    pub parent: Option<&'c mut RedBlackNode<K, V>>,
+    pub left: Option<&'c mut RedBlackNode<K, V>>,
+    pub right: Option<&'c mut RedBlackNode<K, V>>,
+}
+
 /// A cursor over a RedBlackTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
-pub struct CursorMut<'tree, K, V>(semigroup_rb_tree::CursorMut<'tree, K, V, ()>);
+pub struct CursorMut<'t, K, V>(semigroup_rb_tree::CursorMut<'t, K, V, ()>);
 
-impl<'tree, K, V> CursorMut<'tree, K, V> {
-    pub(super) fn new(cursor: semigroup_rb_tree::CursorMut<'tree, K, V, ()>) -> Self {
+impl<'t, K, V> CursorMut<'t, K, V> {
+    pub(super) fn new(cursor: semigroup_rb_tree::CursorMut<'t, K, V, ()>) -> Self {
         Self(cursor)
+    }
+
+    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
+        let semigroup_rb_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            parent: parent.map(Borrow::borrow),
+            left: left.map(Borrow::borrow),
+            right: right.map(Borrow::borrow),
+        }
+    }
+
+    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
+        let semigroup_rb_tree::NeighborhoodMut { parent, left, right } = self.0.peek_neighborhood_mut();
+        NeighborhoodMut {
+            parent: parent.map(BorrowMut::borrow_mut),
+            left: left.map(BorrowMut::borrow_mut),
+            right: right.map(BorrowMut::borrow_mut),
+        }
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
@@ -115,16 +154,16 @@ impl<'tree, K, V> CursorMut<'tree, K, V> {
     }
 }
 
-impl<'tree, K, V> BinaryTreeCursor for CursorMut<'tree, K, V> {
+impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
     type Node = RedBlackNode<K, V>;
-    type Cursor<'c> = Cursor<'c, K, V>
+    type SpawnedCursor<'c> = Cursor<'c, K, V>
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.0.node().map(Borrow::borrow)
     }
 
-    fn spawn_cursor(&self) -> Self::Cursor<'_> {
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
         Cursor::new(self.0.spawn_cursor())
     }
 
@@ -169,7 +208,7 @@ impl<'tree, K, V> BinaryTreeCursor for CursorMut<'tree, K, V> {
     }
 }
 
-impl<'tree, K, V> BinaryTreeCursorMut for CursorMut<'tree, K, V> {
+impl<'t, K, V> BinaryTreeCursorMut for CursorMut<'t, K, V> {
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.node_mut().map(BorrowMut::borrow_mut)
     }
@@ -184,10 +223,5 @@ impl<'tree, K, V> BinaryTreeCursorMut for CursorMut<'tree, K, V> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.peek_right_mut().map(BorrowMut::borrow_mut)
-    }
-
-    fn peek_both_mut(&mut self) -> (Option<&mut Self::Node>, Option<&mut Self::Node>) {
-        let (left, right) = self.0.peek_both_mut();
-        (left.map(BorrowMut::borrow_mut), right.map(BorrowMut::borrow_mut))
     }
 }
