@@ -477,7 +477,7 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval};
+    use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval, CanonSubset};
 
     fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 
@@ -645,32 +645,43 @@ mod tests {
         assert_semigroup_recursive(tree.cursor());
     }
 
-    /*
     fn assert_semigroup_tuple<K, V, S1, S2>(tree: &SemigroupRbTree<K, V, (S1, S2)>)
     where 
         S1: TreeSemigroup<K> + Debug + PartialEq,
         S2: TreeSemigroup<K> + Debug + PartialEq,
     {
-        let Some(root) = tree.root() else { return; };
-        let (left, right) = root.subtrees();
-        assert_semigroup_tuple(left);
-        assert_semigroup_tuple(right);
-        let semigroup_1 = tree.semigroup_value().map(|(s1, _)| s1);
-        let semigroup_2 = tree.semigroup_value().map(|(_, s2)| s2);
-        let left_semigroup_1 = left.semigroup_value().map(|(s1, _)| s1);
-        let left_semigroup_2 = left.semigroup_value().map(|(_, s2)| s2);
-        let right_semigroup_1 = right.semigroup_value().map(|(s1, _)| s1);
-        let right_semigroup_2 = right.semigroup_value().map(|(_, s2)| s2);
-        assert_eq!(
-            *semigroup_1.unwrap(),
-            S1::op(root.key(), left_semigroup_1, right_semigroup_1)
-        );
-        assert_eq!(
-            *semigroup_2.unwrap(),
-            S2::op(root.key(), left_semigroup_2, right_semigroup_2)
-        );
+        fn assert_semigroup_tuple_recursive<K, V, S1, S2>(cursor: Cursor<'_, K, V, (S1, S2)>)
+        where 
+            S1: TreeSemigroup<K> + Debug + PartialEq,
+            S2: TreeSemigroup<K> + Debug + PartialEq,
+        {
+            let Some(node) = cursor.node() else { return; };
+            let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
+            let semigroup_1 = &node.semigroup_value().0;
+            let semigroup_2 = &node.semigroup_value().1;
+            let left_semigroup_1 = left.map(SemigroupRbNode::semigroup_value).map(|(s1, _)| s1);
+            let left_semigroup_2 = left.map(SemigroupRbNode::semigroup_value).map(|(_, s2)| s2);
+            let right_semigroup_1 = right.map(SemigroupRbNode::semigroup_value).map(|(s1, _)| s1);
+            let right_semigroup_2 = right.map(SemigroupRbNode::semigroup_value).map(|(_, s2)| s2);
+            assert_eq!(
+                *semigroup_1,
+                S1::op(node.key(), left_semigroup_1, right_semigroup_1)
+            );
+            assert_eq!(
+                *semigroup_2,
+                S2::op(node.key(), left_semigroup_2, right_semigroup_2)
+            );
+            
+            let mut left_cursor = cursor;
+            let mut right_cursor = cursor.spawn_cursor();
+            left_cursor.move_left();
+            right_cursor.move_right();
+            assert_semigroup_tuple_recursive(left_cursor);
+            assert_semigroup_tuple_recursive(right_cursor);
+        }
+
+        assert_semigroup_tuple_recursive(tree.cursor());
     }
-    */
 
     #[test]
     fn test_semigroup_tree() {
@@ -691,7 +702,6 @@ mod tests {
         tree.remove_entry(&12);
         assert_semigroup(&tree);
         
-        /*
         let mut tree = (1..=30).map(|i| (i, ()))
             .collect::<SemigroupRbTree<_, _, (Height, CanonSubset<i32>)>>();
         assert_semigroup(&tree);
@@ -701,6 +711,5 @@ mod tests {
         tree.remove_entry(&12);
         assert_semigroup(&tree);
         assert_semigroup_tuple(&tree);
-        */
     }
 }

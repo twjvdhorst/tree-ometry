@@ -43,6 +43,8 @@ pub struct CartesianTreeNode<K, V> {
 }
 
 pub struct CartesianTree<K, V, C>(BinaryTree<CartesianTreeNode<K, V>>, PhantomData<C>);
+pub type MinCartesianTree<K, V> = CartesianTree<K, V, Min>;
+pub type MaxCartesianTree<K, V> = CartesianTree<K, V, Max>;
 
 impl<K, V, C> Default for CartesianTree<K, V, C> {
     fn default() -> Self {
