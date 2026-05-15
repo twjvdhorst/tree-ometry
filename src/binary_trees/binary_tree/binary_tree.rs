@@ -173,12 +173,20 @@ impl<T> BinaryTree<T> {
         node_id
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.root_id.is_null()
+    }
+
     pub fn root(&self) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(self.root_id)
     }
 
     pub fn root_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(self.root_id)
+    }
+
+    pub(super) fn root_id(&mut self) -> NodeId {
+        self.root_id
     }
 
     pub(super) fn set_root_id(&mut self, root_id: NodeId) {
@@ -310,7 +318,7 @@ use super::*;
         let mut cursor = tree.cursor_mut();
         
         // Create the tree.
-        cursor.create_root(1).unwrap();
+        cursor.root_tree(1).unwrap();
         cursor.attach_child(2, Side::Left).unwrap();
         cursor.attach_child(5, Side::Right).unwrap();
         cursor.move_left();

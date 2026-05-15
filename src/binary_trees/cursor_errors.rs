@@ -7,9 +7,11 @@ pub enum CursorError {
     #[error("cursor does not point at a node")]
     NullError,
     #[error("tree already has a root")]
-    RootCreationError,
+    CreateRootError,
+    #[error("node already has a parent node")]
+    AttachParentError,
     #[error("node already has a child node on side {0}")]
-    AttachError(Side),
+    AttachChildError(Side),
     #[error("cannot delete node with children")]
     DetachError,
     #[error("cannot rotate left around cursor")]

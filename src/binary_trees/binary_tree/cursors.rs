@@ -241,13 +241,38 @@ impl<'t, T> CursorMut<'t, T> {
     }
 
     /// Creates a new root node, if the tree is empty.
-    pub fn create_root(&mut self, data: T) -> Result<(), CursorError> {
-        if !self.node_id.is_null() {
-            Err(CursorError::RootCreationError)
+    pub fn root_tree(&mut self, data: T) -> Result<(), CursorError> {
+        if !self.tree.is_empty() {
+            Err(CursorError::CreateRootError)
         } else {
             self.node_id = self.tree.new_node(data);
             Ok(())
         }
+    }
+
+    /// Creates a new root node.
+    /// If the tree already had a root, the old tree is attached as a child subtree to the new root.
+    /// Moves the cursor to the root of the new tree.
+    pub fn re_root_tree(&mut self, data: T, side: Side) {
+        let old_root_id = self.tree.root_id();
+        let new_root_id = self.tree.new_node(data);
+        self.tree.set_root_id(new_root_id);
+        self.tree.add_edge(new_root_id, old_root_id, side);
+        self.node_id = new_root_id;
+    }
+
+    /// Creates a new node and attaches the current node as a child to the new node.
+    pub fn attach_parent(&mut self, data: T, side: Side) -> Result<(), CursorError> {
+        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+
+        if node.has_parent() {
+            return Err(CursorError::AttachParentError);
+        }
+
+        let curr_id = self.node_id;
+        let new_id = self.tree.new_node(data);
+        self.tree.add_edge(new_id, curr_id, side);
+        Ok(())
     }
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
@@ -255,11 +280,45 @@ impl<'t, T> CursorMut<'t, T> {
         let Some(node) = self.node() else { return Err(CursorError::NullError); };
 
         if node.has_child(side) {
-            return Err(CursorError::AttachError(side));
+            return Err(CursorError::AttachChildError(side));
         }
 
         let curr_id = self.node_id;
         let new_id = self.tree.new_node(data);
+        self.tree.add_edge(curr_id, new_id, side);
+        Ok(())
+    }
+
+    /// Creates a new node and attaches the current node as a child to the new node.
+    /// If the cursor already had a parent, the new node is "inserted" onto the edge.
+    pub fn attach_or_insert_parent(&mut self, data: T, side: Side) -> Result<(), CursorError> {
+        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+
+        let curr_id = self.node_id;
+        let parent_id = node.parent_id();
+        let new_id = self.tree.new_node(data);
+
+        if !parent_id.is_null() {
+            self.tree.remove_edge(parent_id, curr_id);
+            self.tree.add_edge(parent_id, new_id, side);
+        }
+        self.tree.add_edge(new_id, curr_id, side);
+        Ok(())
+    }
+
+    /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
+    /// If the cursor already had a child on the assigned side, the new node is "inserted" onto the edge.
+    pub fn attach_or_insert_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
+        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+
+        let curr_id = self.node_id;
+        let child_id = node.child_id(side);
+        let new_id = self.tree.new_node(data);
+
+        if !child_id.is_null() {
+            self.tree.remove_edge(curr_id, child_id);
+            self.tree.add_edge(new_id, child_id, side);
+        }
         self.tree.add_edge(curr_id, new_id, side);
         Ok(())
     }
@@ -294,6 +353,16 @@ impl<'t, T> CursorMut<'t, T> {
         } else {
             None
         }
+    }
+
+    /// Swaps the left child of the cursor's node with the right child.
+    pub fn swap_children(&mut self) -> Result<(), CursorError> {
+        let Some(node) = self.node_mut() else { return Err(CursorError::NullError); };
+        let left_id = node.left_id();
+        let right_id = node.right_id();
+        node.set_left_id(right_id);
+        node.set_right_id(left_id);
+        Ok(())
     }
 
     /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
