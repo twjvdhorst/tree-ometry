@@ -42,6 +42,20 @@ pub struct CartesianTreeNode<K, V> {
     value: V,
 }
 
+impl<K, V> CartesianTreeNode<K, V> {
+    pub fn key(&self) -> &K {
+        &self.key
+    }
+
+    pub fn value(&self) -> &V {
+        &self.value
+    }
+
+    pub fn value_mut(&mut self) -> &mut V {
+        &mut self.value
+    }
+}
+
 pub struct CartesianTree<K, V, C>(BinaryTree<CartesianTreeNode<K, V>>, PhantomData<C>);
 pub type MinCartesianTree<K, V> = CartesianTree<K, V, Min>;
 pub type MaxCartesianTree<K, V> = CartesianTree<K, V, Max>;
@@ -56,6 +70,10 @@ impl<K, V, C> CartesianTree<K, V, C> {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub(super) fn inner(&self) -> &BinaryTree<CartesianTreeNode<K, V>> {
+        &self.0
+    }
 }
 
 impl<K, V, C> FromIterator<(K, V)> for CartesianTree<K, V, C>
@@ -68,7 +86,7 @@ where
         let mut cursor = tree.cursor_mut();
         for (key, value) in iter {
             // Find the node that becomes the parent of the new node.
-            while let Some(node) = cursor.node() && C::compare(&node.key, &key) == Ordering::Greater {
+            while let Some(node) = cursor.node() && C::compare(node.key(), &key) == Ordering::Greater {
                 cursor.move_up();
             }
 
@@ -153,6 +171,7 @@ mod tests {
 
     use lending_iterator::LendingIterator;
     use rand::prelude::*;
+use serde::Serialize;
 
     fn assert_max_heap<K, V>(tree: &CartesianTree<K, V, Max>)
     where 
@@ -182,8 +201,8 @@ mod tests {
 
     fn assert_cartesian_tree<K, V>(sequence: Vec<(K, V)>)
     where 
-        K: Clone + Debug + Ord,
-        V: Clone + Debug + Eq,
+        K: Clone + Debug + Ord + Serialize,
+        V: Clone + Debug + Eq + Serialize,
     {
         let tree = sequence.clone()
             .into_iter()

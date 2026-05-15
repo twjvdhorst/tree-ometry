@@ -1,5 +1,7 @@
 use ref_cast::RefCast;
 use std::{borrow::Borrow, fmt::{Debug, Display}};
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 use crate::binary_trees::{
     traits, 
@@ -11,6 +13,7 @@ use crate::binary_trees::{
 use super::{cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq, RefCast)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[repr(transparent)]
 pub struct RedBlackNode<K, V>(SemigroupRbNode<K, V, ()>);
 
@@ -95,6 +98,10 @@ impl<K, V> RedBlackTree<K, V> {
 
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
         self.0.root().map(Borrow::borrow)
+    }
+
+    pub(super) fn inner(&self) -> &SemigroupRbTree<K, V, ()> {
+        &self.0
     }
 }
 

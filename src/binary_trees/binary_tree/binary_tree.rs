@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use slotmap::{Key, SlotMap, new_key_type};
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 use crate::binary_trees::{
     Side, 
@@ -17,10 +19,14 @@ use super::cursors::{Cursor, CursorMut};
 new_key_type! { pub(super) struct NodeId; }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct BinaryTreeNode<T> {
     data: T,
+    #[serde(skip)]
     parent_id: NodeId,
+    #[serde(skip)]
     left_id: NodeId,
+    #[serde(skip)]
     right_id: NodeId,
 }
 
@@ -308,9 +314,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::binary_trees::traits::binary_tree_cursor::BinaryTreeCursor;
-
-use super::*;
     
     #[test]
     fn test_cursors() {

@@ -11,6 +11,8 @@ use std::{
 };
 
 use ref_cast::RefCast;
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 use crate::binary_trees::{
     Side, 
@@ -35,6 +37,7 @@ use crate::binary_trees::{
 use super::{Color, cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct SemigroupRbNode<K, V, S> {
     key: K, 
     value: V,
@@ -174,6 +177,10 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
 
     fn root_mut(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
         self.0.root_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    pub(super) fn inner(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
+        &self.0
     }
 }
 

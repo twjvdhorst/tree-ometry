@@ -4,6 +4,8 @@ use std::fmt;
 
 use paste::paste;
 use derive_more::{Debug, Display, From, Into};
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 pub trait TreeSemigroup<K> {
     fn op(key: &K, left: Option<&Self>, right: Option<&Self>) -> Self;
@@ -58,6 +60,7 @@ impl_tuple!(A B C D E F G H I J);
 
 /// Semigroup encoding the size (number of nodes) of a subtree.
 #[derive(Clone, Copy, Debug, Display, From, Into, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[debug("{_0:?}")]
 #[display("{_0}")]
 pub struct Size(usize);
@@ -71,6 +74,7 @@ impl<K> TreeSemigroup<K> for Size {
 
 /// Semigroup encoding the height of a subtree.
 #[derive(Clone, Copy, Debug, Display, From, Into, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[debug("{_0:?}")]
 #[display("{_0}")]
 pub struct Height(usize);
@@ -84,6 +88,7 @@ impl<K> TreeSemigroup<K> for Height {
 
 /// Semigroup encoding the canonical interval (min and max key) of a subtree.
 #[derive(Clone, Debug, Display, From, Into, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[debug("[{_0:?}, {_1:?}]")]
 #[display("[{_0}, {_1}]")]
 pub struct CanonInterval<K>(K, K);
@@ -103,6 +108,7 @@ where
 
 /// Semigroup encoding the canonical subset (all keys) of a subtree.
 #[derive(Clone, From, Into)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct CanonSubset<K>(HashSet<K>);
 impl<K> TreeSemigroup<K> for CanonSubset<K>
 where 
