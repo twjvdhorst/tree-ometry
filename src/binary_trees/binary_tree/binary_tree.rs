@@ -1,16 +1,21 @@
 use std::fmt::{Debug, Display};
+use paste::paste;
 
 use slotmap::{Key, SlotMap, new_key_type};
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
-    Side, binary_tree::{InorderIter, InorderIterFiltered, PostorderIter, PreorderIter}, traits::{
+    Side, 
+    traits::{
         self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
-            BinaryTreeMut
+            BinaryTreeMut,
         },
+    },
+    tree_iterators::{
+        self, InorderIter, InorderIterFiltered, InorderIterFilteredMut, InorderIterMut, PostorderIter, PostorderIterFiltered, PostorderIterFilteredMut, PostorderIterMut, PreorderIter, PreorderIterFiltered, PreorderIterFilteredMut, PreorderIterMut
     }
 };
 use super::cursors::{Cursor, CursorMut};
@@ -275,24 +280,9 @@ impl<T> BinaryTree<T> {
         }
     }
 
-    pub fn inorder_iter(&self) -> InorderIter<'_, T> {
-        InorderIter::new(self)
-    }
-
-    pub fn inorder_iter_filtered<P>(&self, subtree_filter: P) -> InorderIterFiltered<'_, T, P>
-    where 
-        P: Fn(&BinaryTreeNode<T>) -> bool,
-    {
-        InorderIterFiltered::new(self, subtree_filter)
-    }
-    
-    pub fn preorder_iter(&self) -> PreorderIter<'_, T> {
-        PreorderIter::new(self)
-    }
-    
-    pub fn postorder_iter(&self) -> PostorderIter<'_, T> {
-        PostorderIter::new(self)
-    }
+    tree_iterators::impl_iters!(pub, inorder);
+    tree_iterators::impl_iters!(pub, preorder);
+    tree_iterators::impl_iters!(pub, postorder);
 }
 
 impl<T> Debug for BinaryTreeNode<T>
@@ -334,7 +324,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::traits::binary_tree_cursor::BinaryTreeCursor;
+    use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut};
     
     #[test]
     fn test_cursors() {

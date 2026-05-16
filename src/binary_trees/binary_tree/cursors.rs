@@ -21,8 +21,8 @@ pub struct Neighborhood<'c, T> {
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'c, T> {
-    tree: &'c BinaryTree<T>,
+pub struct Cursor<'t, T> {
+    tree: &'t BinaryTree<T>,
     node_id: NodeId,
 }
 
@@ -55,12 +55,12 @@ impl<'t, T> Clone for Cursor<'t, T> {
 
 impl<'t, T> Copy for Cursor<'t, T> {}
 
-impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
+impl<'t, T> BinaryTreeCursor<'t> for Cursor<'t, T> {
     type Node = BinaryTreeNode<T>;
-    type SpawnedCursor<'c> = Self
+    type SpawnedCursor<'c> = Cursor<'c, T>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node> {
+    fn node(&self) -> Option<&'t Self::Node> {
         self.tree.node(self.node_id)
     }
 
@@ -479,13 +479,17 @@ impl<'t, T> CursorMut<'t, T> {
     }
 }
 
-impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
+impl<'t, T> BinaryTreeCursorMut for CursorMut<'t, T> {
     type Node = BinaryTreeNode<T>;
     type SpawnedCursor<'c> = Cursor<'c, T>
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
         self.tree.node(self.node_id)
+    }
+
+    fn node_mut(&mut self) -> Option<&mut Self::Node> {
+        self.tree.node_mut(self.node_id)
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -506,6 +510,18 @@ impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
 
     fn peek_right(&self) -> Option<&Self::Node> {
         self.tree.right_child(self.node()?)
+    }
+
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
+        self.tree.node_mut(self.node()?.parent_id())
+    }
+
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
+        self.tree.node_mut(self.node()?.left_id())
+    }
+
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
+        self.tree.node_mut(self.node()?.right_id())
     }
 
     fn try_move_up(&mut self) -> Option<Side> {
@@ -545,23 +561,5 @@ impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
 
     fn move_right(&mut self) {
         self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::right_id);
-    }
-}
-
-impl<'t, T> BinaryTreeCursorMut for CursorMut<'t, T> {
-    fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node_id)
-    }
-
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.parent_id())
-    }
-
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.left_id())
-    }
-
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.right_id())
     }
 }

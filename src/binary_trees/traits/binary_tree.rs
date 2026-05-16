@@ -4,7 +4,7 @@ use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTr
 
 pub trait BinaryTree {
     type Node;
-    type Cursor<'c>: BinaryTreeCursor<Node = Self::Node>
+    type Cursor<'c>: BinaryTreeCursor<'c, Node = Self::Node>
     where Self: 'c;
     
     fn cursor(&self) -> Self::Cursor<'_>;
@@ -23,7 +23,7 @@ macro_rules! fmt_binary_tree {
         where
             T: BinaryTree,
             T::Node: $fmt_trait,
-        {
+        {/*
             fn recursive_fmt<C>(cursor: C, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
             where
                 C: BinaryTreeCursor,
@@ -55,6 +55,8 @@ macro_rules! fmt_binary_tree {
             
             write!(f, "\n")?;
             recursive_fmt(tree.cursor(), f, "", false)
+            */
+            todo!()
         }
     };
 }
