@@ -5,8 +5,7 @@ use slotmap::{Key, SlotMap, new_key_type};
 use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
-    Side, 
-    traits::{
+    Side, binary_tree::{InorderIter, InorderIterFiltered, PostorderIter, PreorderIter}, traits::{
         self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
@@ -274,6 +273,25 @@ impl<T> BinaryTree<T> {
         } else {
             false
         }
+    }
+
+    pub fn inorder_iter(&self) -> InorderIter<'_, T> {
+        InorderIter::new(self)
+    }
+
+    pub fn inorder_iter_filtered<P>(&self, subtree_filter: P) -> InorderIterFiltered<'_, T, P>
+    where 
+        P: Fn(&BinaryTreeNode<T>) -> bool,
+    {
+        InorderIterFiltered::new(self, subtree_filter)
+    }
+    
+    pub fn preorder_iter(&self) -> PreorderIter<'_, T> {
+        PreorderIter::new(self)
+    }
+    
+    pub fn postorder_iter(&self) -> PostorderIter<'_, T> {
+        PostorderIter::new(self)
     }
 }
 

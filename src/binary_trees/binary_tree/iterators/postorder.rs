@@ -13,18 +13,18 @@ use crate::binary_trees::{
     },
 };
 
-fn is_cursor_in_valid_node<C, F>(cursor: &C, subtree_filter: F) -> bool
+fn is_cursor_in_valid_node<C, P>(cursor: &C, subtree_filter: P) -> bool
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     cursor.node().map_or(false, subtree_filter)
 }
 
-fn move_cursor_to_successor_in_subtree<C, F>(cursor: &mut C, subtree_filter: F)
+fn move_cursor_to_successor_in_subtree<C, P>(cursor: &mut C, subtree_filter: P)
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     if cursor.try_move_right() {
         while is_cursor_in_valid_node(cursor, &subtree_filter) && cursor.try_move_left() {}
@@ -33,10 +33,10 @@ where
 
 /// Moves the given cursor to the next (possibly null) node of the postorder iterator.
 /// Assumes the cursor points to the previous element in the iterator.
-fn move_cursor_to_next_node<C, F>(cursor: &mut C, subtree_filter: F)
+fn move_cursor_to_next_node<C, P>(cursor: &mut C, subtree_filter: P)
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     if cursor.move_up() == Some(Side::Left) {
         // Explore the right subtree of the node's parent (which the cursor points to now).
@@ -46,10 +46,10 @@ where
 
 pub struct PostorderIter<'t, T>(PostorderIterFiltered<'t, T, fn(&BinaryTreeNode<T>) -> bool>);
 
-pub struct PostorderIterFiltered<'t, T, F> {
+pub struct PostorderIterFiltered<'t, T, P> {
     tree: &'t BinaryTree<T>,
     cursor: Cursor<'t, T>,
-    subtree_filter: F,
+    subtree_filter: P,
     first_iteration: bool,
 }
 
@@ -59,8 +59,8 @@ impl<'t, T> PostorderIter<'t, T> {
     }
 }
 
-impl<'t, T, F> PostorderIterFiltered<'t, T, F> {
-    pub fn new(tree: &'t BinaryTree<T>, subtree_filter: F) -> Self {
+impl<'t, T, P> PostorderIterFiltered<'t, T, P> {
+    pub fn new(tree: &'t BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             tree,
             cursor: tree.cursor(),
@@ -78,9 +78,9 @@ impl<'t, T> Iterator for PostorderIter<'t, T> {
     }
 }
 
-impl<'t, T, F> Iterator for PostorderIterFiltered<'t, T, F>
+impl<'t, T, P> Iterator for PostorderIterFiltered<'t, T, P>
 where 
-    F: Fn(&BinaryTreeNode<T>) -> bool,
+    P: Fn(&BinaryTreeNode<T>) -> bool,
 {
     type Item = &'t BinaryTreeNode<T>;
 
@@ -102,14 +102,20 @@ where
 
 pub struct PostorderIterMut<'t, T>(PostorderIterFilteredMut<'t, T, fn(&BinaryTreeNode<T>) -> bool>);
 
-pub struct PostorderIterFilteredMut<'t, T, F> {
+pub struct PostorderIterFilteredMut<'t, T, P> {
     cursor: CursorMut<'t, T>,
-    subtree_filter: F,
+    subtree_filter: P,
     first_iteration: bool,
 }
 
-impl<'t, T, F> PostorderIterFilteredMut<'t, T, F> {
-    pub fn new(tree: &'t mut BinaryTree<T>, subtree_filter: F) -> Self {
+impl<'t, T> PostorderIterMut<'t, T> {
+    pub fn new(tree: &'t mut BinaryTree<T>) -> Self {
+        Self(PostorderIterFilteredMut::new(tree, |_| true))
+    }
+}
+
+impl<'t, T, P> PostorderIterFilteredMut<'t, T, P> {
+    pub fn new(tree: &'t mut BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             cursor: tree.cursor_mut(),
             subtree_filter,
@@ -131,16 +137,16 @@ impl<'t, T> LendingIterator for PostorderIterMut<'t, T> {
 }
 
 #[gat]
-impl<'t, T, F> LendingIterator for PostorderIterFilteredMut<'t, T, F>
+impl<'t, T, P> LendingIterator for PostorderIterFilteredMut<'t, T, P>
 where 
-    F: Fn(&BinaryTreeNode<T>) -> bool,
+    P: Fn(&BinaryTreeNode<T>) -> bool,
 {
     type Item<'next>
     where 
         Self: 'next,
         = &'next mut BinaryTreeNode<T>;
 
-    fn next(self: &mut PostorderIterFilteredMut<'t, T, F>) -> Option<&mut BinaryTreeNode<T>> {
+    fn next(self: &mut PostorderIterFilteredMut<'t, T, P>) -> Option<&mut BinaryTreeNode<T>> {
         if self.first_iteration {
             // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
             self.first_iteration = false;

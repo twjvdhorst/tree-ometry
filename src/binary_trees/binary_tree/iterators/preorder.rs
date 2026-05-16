@@ -13,10 +13,10 @@ use crate::binary_trees::{
     },
 };
 
-fn move_cursor_left_if_valid<C, F>(cursor: &mut C, subtree_filter: F) -> bool
+fn move_cursor_left_if_valid<C, P>(cursor: &mut C, subtree_filter: P) -> bool
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     if !cursor.try_move_left() {
         return false;
@@ -30,10 +30,10 @@ where
     }
 }
 
-fn move_cursor_right_if_valid<C, F>(cursor: &mut C, subtree_filter: F) -> bool
+fn move_cursor_right_if_valid<C, P>(cursor: &mut C, subtree_filter: P) -> bool
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     if !cursor.try_move_right() {
         return false;
@@ -49,10 +49,10 @@ where
 
 /// Moves the given cursor to the next (possibly null) node of the preorder iterator.
 /// Assumes the cursor points to the previous element in the iterator.
-fn move_cursor_to_next_node<C, F>(cursor: &mut C, subtree_filter: F)
+fn move_cursor_to_next_node<C, P>(cursor: &mut C, subtree_filter: P)
 where 
     C: BinaryTreeCursor,
-    F: Fn(&C::Node) -> bool,
+    P: Fn(&C::Node) -> bool,
 {
     if move_cursor_left_if_valid(cursor, &subtree_filter) {
         return;
@@ -71,10 +71,10 @@ where
 
 pub struct PreorderIter<'t, T>(PreorderIterFiltered<'t, T, fn(&BinaryTreeNode<T>) -> bool>);
 
-pub struct PreorderIterFiltered<'t, T, F> {
+pub struct PreorderIterFiltered<'t, T, P> {
     tree: &'t BinaryTree<T>,
     cursor: Cursor<'t, T>,
-    subtree_filter: F,
+    subtree_filter: P,
     first_iteration: bool,
 }
 
@@ -84,8 +84,8 @@ impl<'t, T> PreorderIter<'t, T> {
     }
 }
 
-impl<'t, T, F> PreorderIterFiltered<'t, T, F> {
-    pub fn new(tree: &'t BinaryTree<T>, subtree_filter: F) -> Self {
+impl<'t, T, P> PreorderIterFiltered<'t, T, P> {
+    pub fn new(tree: &'t BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             tree,
             cursor: tree.cursor(),
@@ -103,9 +103,9 @@ impl<'t, T> Iterator for PreorderIter<'t, T> {
     }
 }
 
-impl<'t, T, F> Iterator for PreorderIterFiltered<'t, T, F>
+impl<'t, T, P> Iterator for PreorderIterFiltered<'t, T, P>
 where 
-    F: Fn(&BinaryTreeNode<T>) -> bool,
+    P: Fn(&BinaryTreeNode<T>) -> bool,
 {
     type Item = &'t BinaryTreeNode<T>;
 
@@ -128,9 +128,9 @@ where
 
 pub struct PreorderIterMut<'t, T>(PreorderIterFilteredMut<'t, T, fn(&BinaryTreeNode<T>) -> bool>);
 
-pub struct PreorderIterFilteredMut<'t, T, F> {
+pub struct PreorderIterFilteredMut<'t, T, P> {
     cursor: CursorMut<'t, T>,
-    subtree_filter: F,
+    subtree_filter: P,
     first_iteration: bool,
 }
 
@@ -140,8 +140,8 @@ impl<'t, T> PreorderIterMut<'t, T> {
     }
 }
 
-impl<'t, T, F> PreorderIterFilteredMut<'t, T, F> {
-    pub fn new(tree: &'t mut BinaryTree<T>, subtree_filter: F) -> Self {
+impl<'t, T, P> PreorderIterFilteredMut<'t, T, P> {
+    pub fn new(tree: &'t mut BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             cursor: tree.cursor_mut(),
             subtree_filter,
@@ -163,16 +163,16 @@ impl<'t, T> LendingIterator for PreorderIterMut<'t, T> {
 }
 
 #[gat]
-impl<'t, T, F> LendingIterator for PreorderIterFilteredMut<'t, T, F>
+impl<'t, T, P> LendingIterator for PreorderIterFilteredMut<'t, T, P>
 where 
-    F: Fn(&BinaryTreeNode<T>) -> bool,
+    P: Fn(&BinaryTreeNode<T>) -> bool,
 {
     type Item<'next>
     where 
         Self: 'next,
         = &'next mut BinaryTreeNode<T>;
 
-    fn next(self: &mut PreorderIterFilteredMut<'t, T, F>) -> Option<&mut BinaryTreeNode<T>> {
+    fn next(self: &mut PreorderIterFilteredMut<'t, T, P>) -> Option<&mut BinaryTreeNode<T>> {
         if self.first_iteration {
             // In the first iteration, simply report the root node pointed at by the cursor.
             self.first_iteration = false;
