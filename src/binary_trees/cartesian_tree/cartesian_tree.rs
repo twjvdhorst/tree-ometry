@@ -2,47 +2,74 @@ use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 
+use crate::binary_trees::traits::BinaryTree as BinaryTreeTrait;
+use crate::binary_trees::binary_tree;
 use crate::binary_trees::{Side, binary_tree::BinaryTree, traits::{self, BinaryTreeMut, binary_tree_cursor::BinaryTreeCursor}};
 use super::{cursors::{Cursor, CursorMut}};
+
+use thiserror::Error;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
+#[derive(Error, Debug)]
+pub enum CartesianTreeError {
+    #[error("tree is not a {0} heap")]
+    HeapError(String),
+}
 
 pub struct Min;
 pub struct Max;
 
-mod sealed {
-    use std::cmp::Ordering;
+pub(super) trait Comparer {
+    fn name() -> String;
 
-    pub trait Comparer {
-        fn compare<T>(left: &T, right: &T) -> Ordering
-        where T: Ord;
+    fn compare<T>(left: &T, right: &T) -> Ordering
+    where T: Ord;
+}
+
+impl Comparer for super::Min {
+    fn name() -> String {
+        String::from("min")
     }
 
-    impl Comparer for super::Min {
-        fn compare<T>(left: &T, right: &T) -> Ordering
-        where T: Ord
-        {
-            T::cmp(left, right)
-        }
+    fn compare<T>(left: &T, right: &T) -> Ordering
+    where T: Ord
+    {
+        T::cmp(left, right)
+    }
+}
+
+impl Comparer for super::Max {
+    fn name() -> String {
+        String::from("max")
     }
 
-    impl Comparer for super::Max {
-        fn compare<T>(left: &T, right: &T) -> Ordering
-        where T: Ord
-        {
-            match T::cmp(left, right) {
-                Ordering::Less => Ordering::Greater,
-                Ordering::Greater => Ordering::Less,
-                Ordering::Equal => Ordering::Equal,
-            }
+    fn compare<T>(left: &T, right: &T) -> Ordering
+    where T: Ord
+    {
+        match T::cmp(left, right) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Greater => Ordering::Less,
+            Ordering::Equal => Ordering::Equal,
         }
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CartesianTreeNode<K, V> {
     key: K,
     value: V,
 }
 
 impl<K, V> CartesianTreeNode<K, V> {
+    pub fn new(key: K, value: V) -> Self {
+        Self {
+            key,
+            value,
+        }
+    }
+
     pub fn key(&self) -> &K {
         &self.key
     }
@@ -56,6 +83,7 @@ impl<K, V> CartesianTreeNode<K, V> {
     }
 }
 
+#[derive(Clone)]
 pub struct CartesianTree<K, V, C>(BinaryTree<CartesianTreeNode<K, V>>, PhantomData<C>);
 pub type MinCartesianTree<K, V> = CartesianTree<K, V, Min>;
 pub type MaxCartesianTree<K, V> = CartesianTree<K, V, Max>;
@@ -79,7 +107,7 @@ impl<K, V, C> CartesianTree<K, V, C> {
 impl<K, V, C> FromIterator<(K, V)> for CartesianTree<K, V, C>
 where
     K: Ord,
-    C: sealed::Comparer,
+    C: Comparer,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut tree = Self::default();
@@ -102,6 +130,59 @@ where
         }
         
         tree
+    }
+}
+
+fn is_heap<K, V, C>(tree: &BinaryTree<CartesianTreeNode<K, V>>) -> bool
+where 
+    K: Ord,
+    C: Comparer,
+{
+    fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianTreeNode<K, V>>) -> bool
+    where
+        K: Ord,
+        C: Comparer,
+    {
+        let Some(node) = cursor.node() else { return true; };
+        if let Some(left) = cursor.peek_left() {
+            if C::compare(node.data().key(), left.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut left_cursor = cursor.spawn_cursor();
+            left_cursor.move_left();
+            if !is_heap_recursive::<_, _, C>(left_cursor) {
+                return false;
+            };
+        }
+        if let Some(right) = cursor.peek_right() {
+            if C::compare(node.data().key(), right.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut right_cursor = cursor.spawn_cursor();
+            right_cursor.move_right();
+            if !is_heap_recursive::<_, _, C>(right_cursor) {
+                return false;
+            };
+        }
+        true
+    }
+        
+    is_heap_recursive::<_, _, C>(tree.cursor())
+}
+
+impl<K, V, C> TryFrom<BinaryTree<CartesianTreeNode<K, V>>> for CartesianTree<K, V, C>
+where
+    K: Ord,
+    C: Comparer,
+{
+    type Error = CartesianTreeError;
+
+    fn try_from(value: BinaryTree<CartesianTreeNode<K, V>>) -> Result<Self, Self::Error> {
+        if !is_heap::<_, _, C>(&value) {
+            Err(CartesianTreeError::HeapError(C::name()))
+        } else {
+            Ok(Self(value, PhantomData))
+        }
     }
 }
 
@@ -167,37 +248,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::traits::{binary_tree::BinaryTree, iterable_inorder::IterableInorder};
+    use crate::binary_trees::traits::iterable_inorder::IterableInorder;
 
     use lending_iterator::LendingIterator;
     use rand::prelude::*;
-use serde::Serialize;
-
-    fn assert_max_heap<K, V>(tree: &CartesianTree<K, V, Max>)
-    where 
-        K: Clone + Ord,
-    {
-        fn assert_max_heap_recursive<K, V>(cursor: Cursor<'_, K, V>)
-        where
-            K: Clone + Ord,
-        {
-            let Some(node) = cursor.node() else { return; };
-            if let Some(left) = cursor.peek_left() {
-                assert!(left.key <= node.key);
-                let mut left_cursor = cursor.spawn_cursor();
-                left_cursor.move_left();
-                assert_max_heap_recursive(left_cursor);
-            }
-            if let Some(right) = cursor.peek_right() {
-                assert!(right.key <= node.key);
-                let mut right_cursor = cursor.spawn_cursor();
-                right_cursor.move_right();
-                assert_max_heap_recursive(right_cursor);
-            }
-        }
-        
-        assert_max_heap_recursive(tree.cursor());
-    }
+    use serde::Serialize;
 
     fn assert_cartesian_tree<K, V>(sequence: Vec<(K, V)>)
     where 
@@ -207,8 +262,8 @@ use serde::Serialize;
         let tree = sequence.clone()
             .into_iter()
             .collect::<CartesianTree<_, _, Max>>();
-        assert_max_heap(&tree);
-
+        assert!(is_heap::<_, _, Max>(tree.inner()));
+        
         // Assert the sequence is preserved.
         let mut tree_sequence = Vec::new();
         let mut iter = tree.inorder_iter();

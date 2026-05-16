@@ -1,7 +1,7 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize, de::Error};
 
-use crate::binary_trees::binary_tree;
-use crate::binary_trees::semigroup_rb_tree::{SemigroupRbNode, SemigroupRbTree};
+use crate::binary_trees::binary_tree::{self, BinaryTree};
+use crate::binary_trees::semigroup_rb_tree::{Color, SemigroupRbNode, SemigroupRbTree, TreeSemigroup};
 
 impl<K, V, SG> Serialize for SemigroupRbTree<K, V, SG>
 where 
@@ -13,22 +13,38 @@ where
     where
         S: serde::Serializer
     {
-        Tree::new(self).serialize(serializer)
+        SerializationTree::new(self).serialize(serializer)
     }
 }
 
-#[derive(Serialize)]
-pub struct Node<'t, K, V, S> {
-    pub key: &'t K,
-    pub value: &'t V,
-    pub semigroup_value: &'t S,
-    pub left: Option<Box<Node<'t, K, V, S>>>,
-    pub right: Option<Box<Node<'t, K, V, S>>>,
+impl<'de, K, V, S> Deserialize<'de> for SemigroupRbTree<K, V, S>
+where 
+    K: Ord + Clone + Deserialize<'de>,
+    V: Deserialize<'de>,
+    S: TreeSemigroup<K> + PartialEq + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>
+    {
+        let tree = BinaryTree::from(SerializationTree::deserialize(deserializer)?);
+        Self::try_from(tree).map_err(D::Error::custom)
+    }
 }
 
-impl<'t, K, V, S> From<binary_tree::serialization::Node<'t, SemigroupRbNode<K, V, S>>> for Node<'t, K, V, S> {
-    fn from(value: binary_tree::serialization::Node<'t, SemigroupRbNode<K, V, S>>) -> Self {
-        let binary_tree::serialization::Node {
+#[derive(Serialize, Deserialize)]
+pub struct SerializationNode<K, V, S> {
+    pub(crate) key: K,
+    pub(crate) value: V,
+    pub(crate) semigroup_value: S,
+    pub(crate) color: Color,
+    pub(crate) left: Option<Box<SerializationNode<K, V, S>>>,
+    pub(crate) right: Option<Box<SerializationNode<K, V, S>>>,
+}
+
+impl<'t, K, V, S> From<binary_tree::serialization::SerializationNode<&'t SemigroupRbNode<K, V, S>>> for SerializationNode<&'t K, &'t V, &'t S> {
+    fn from(value: binary_tree::serialization::SerializationNode<&'t SemigroupRbNode<K, V, S>>) -> Self {
+        let binary_tree::serialization::SerializationNode {
             data: node,
             left,
             right
@@ -39,24 +55,50 @@ impl<'t, K, V, S> From<binary_tree::serialization::Node<'t, SemigroupRbNode<K, V
             key: node.key(),
             value: node.value(),
             semigroup_value: node.semigroup_value(),
+            color: node.color(),
             left: left.map(Into::into),
             right: right.map(Into::into),
         }
     }
 }
 
-#[derive(Serialize)]
-pub struct Tree<'t, K, V, S>(pub Option<Node<'t, K, V, S>>);
+impl<K, V, S> From<SerializationNode<K, V, S>> for binary_tree::serialization::SerializationNode<SemigroupRbNode<K, V, S>> {
+    fn from(value: SerializationNode<K, V, S>) -> Self {
+        let SerializationNode { key, value, semigroup_value, color, left, right } = value;
+        let left = if let Some(node) = left {
+            Some(Box::new(Self::from(*node)))
+        } else { None };
 
-impl<'t, K, V, S> Tree<'t, K, V, S> {
-    pub fn new(tree: &'t SemigroupRbTree<K, V, S>) -> Self {
-        Self::from(binary_tree::serialization::Tree::new(tree.inner()))
+        let right = if let Some(node) = right {
+            Some(Box::new(Self::from(*node)))
+        } else { None };
+
+        binary_tree::serialization::SerializationNode {
+            data: SemigroupRbNode::new_with_color_and_semigroup_value(key, value, semigroup_value, color),
+            left,
+            right,
+        }
     }
 }
 
-impl<'t, K, V, S> From<binary_tree::serialization::Tree<'t, SemigroupRbNode<K, V, S>>> for Tree<'t, K, V, S> {
-    fn from(value: binary_tree::serialization::Tree<'t, SemigroupRbNode<K, V, S>>) -> Self {
-        let binary_tree::serialization::Tree(root) = value;
+#[derive(Serialize, Deserialize)]
+pub struct SerializationTree<K, V, S>(pub Option<SerializationNode<K, V, S>>);
+
+impl<'t, K, V, S> SerializationTree<&'t K, &'t V, &'t S> {
+    pub fn new(tree: &'t SemigroupRbTree<K, V, S>) -> Self {
+        Self::from(binary_tree::serialization::SerializationTree::new(tree.inner()))
+    }
+}
+
+impl<'t, K, V, S> From<binary_tree::serialization::SerializationTree<&'t SemigroupRbNode<K, V, S>>> for SerializationTree<&'t K, &'t V, &'t S> {
+    fn from(value: binary_tree::serialization::SerializationTree<&'t SemigroupRbNode<K, V, S>>) -> Self {
+        let binary_tree::serialization::SerializationTree(root) = value;
         Self(root.map(Into::into))
+    }
+}
+
+impl<K, V, S> From<SerializationTree<K, V, S>> for BinaryTree<SemigroupRbNode<K, V, S>> {
+    fn from(value: SerializationTree<K, V, S>) -> Self {
+        Self::from(binary_tree::serialization::SerializationTree(value.0.map(binary_tree::serialization::SerializationNode::from)))
     }
 }

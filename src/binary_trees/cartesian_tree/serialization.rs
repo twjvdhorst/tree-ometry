@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize, de::Error};
 
-use crate::binary_trees::binary_tree;
+use super::Comparer;
+use crate::binary_trees::binary_tree::{self, BinaryTree};
 use crate::binary_trees::cartesian_tree::{CartesianTree, CartesianTreeNode};
 
 impl<K, V, C> Serialize for CartesianTree<K, V, C>
@@ -12,21 +13,36 @@ where
     where
         S: serde::Serializer
     {
-        Tree::new(self).serialize(serializer)
+        SerializationTree::new(self).serialize(serializer)
     }
 }
 
-#[derive(Serialize)]
-pub struct Node<'t, K, V> {
-    pub key: &'t K,
-    pub value: &'t V,
-    pub left: Option<Box<Node<'t, K, V>>>,
-    pub right: Option<Box<Node<'t, K, V>>>,
+impl<'de, K, V, C> Deserialize<'de> for CartesianTree<K, V, C>
+where 
+    K: Ord + Deserialize<'de>,
+    V: Deserialize<'de>,
+    C: Comparer,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>
+    {
+        let tree = BinaryTree::from(SerializationTree::deserialize(deserializer)?);
+        Self::try_from(tree).map_err(D::Error::custom)
+    }
 }
 
-impl<'t, K, V> From<binary_tree::serialization::Node<'t, CartesianTreeNode<K, V>>> for Node<'t, K, V> {
-    fn from(value: binary_tree::serialization::Node<'t, CartesianTreeNode<K, V>>) -> Self {
-        let binary_tree::serialization::Node {
+#[derive(Serialize, Deserialize)]
+pub struct SerializationNode<K, V> {
+    pub(crate) key: K,
+    pub(crate) value: V,
+    pub(crate) left: Option<Box<SerializationNode<K, V>>>,
+    pub(crate) right: Option<Box<SerializationNode<K, V>>>,
+}
+
+impl<'t, K, V> From<binary_tree::serialization::SerializationNode<&'t CartesianTreeNode<K, V>>> for SerializationNode<&'t K, &'t V> {
+    fn from(value: binary_tree::serialization::SerializationNode<&'t CartesianTreeNode<K, V>>) -> Self {
+        let binary_tree::serialization::SerializationNode {
             data: node,
             left,
             right
@@ -42,18 +58,43 @@ impl<'t, K, V> From<binary_tree::serialization::Node<'t, CartesianTreeNode<K, V>
     }
 }
 
-#[derive(Serialize)]
-pub struct Tree<'t, K, V>(pub Option<Node<'t, K, V>>);
+impl<K, V> From<SerializationNode<K, V>> for binary_tree::serialization::SerializationNode<CartesianTreeNode<K, V>> {
+    fn from(value: SerializationNode<K, V>) -> Self {
+        let SerializationNode { key, value, left, right } = value;
+        let left = if let Some(node) = left {
+            Some(Box::new(Self::from(*node)))
+        } else { None };
 
-impl<'t, K, V> Tree<'t, K, V> {
-    pub fn new<C>(tree: &'t CartesianTree<K, V, C>) -> Self {
-        Self::from(binary_tree::serialization::Tree::new(tree.inner()))
+        let right = if let Some(node) = right {
+            Some(Box::new(Self::from(*node)))
+        } else { None };
+
+        binary_tree::serialization::SerializationNode {
+            data: CartesianTreeNode::new(key, value),
+            left,
+            right,
+        }
     }
 }
 
-impl<'t, K, V> From<binary_tree::serialization::Tree<'t, CartesianTreeNode<K, V>>> for Tree<'t, K, V> {
-    fn from(value: binary_tree::serialization::Tree<'t, CartesianTreeNode<K, V>>) -> Self {
-        let binary_tree::serialization::Tree(root) = value;
+#[derive(Serialize, Deserialize)]
+pub struct SerializationTree<K, V>(pub Option<SerializationNode<K, V>>);
+
+impl<'t, K, V> SerializationTree<&'t K, &'t V> {
+    pub fn new<C>(tree: &'t CartesianTree<K, V, C>) -> Self {
+        Self::from(binary_tree::serialization::SerializationTree::new(tree.inner()))
+    }
+}
+
+impl<'t, K, V> From<binary_tree::serialization::SerializationTree<&'t CartesianTreeNode<K, V>>> for SerializationTree<&'t K, &'t V> {
+    fn from(value: binary_tree::serialization::SerializationTree<&'t CartesianTreeNode<K, V>>) -> Self {
+        let binary_tree::serialization::SerializationTree(root) = value;
         Self(root.map(Into::into))
+    }
+}
+
+impl<K, V> From<SerializationTree<K, V>> for BinaryTree<CartesianTreeNode<K, V>> {
+    fn from(value: SerializationTree<K, V>) -> Self {
+        Self::from(binary_tree::serialization::SerializationTree(value.0.map(binary_tree::serialization::SerializationNode::from)))
     }
 }

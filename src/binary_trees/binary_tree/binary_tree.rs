@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use slotmap::{Key, SlotMap, new_key_type};
 #[cfg(feature = "serde")]
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
     Side, 
@@ -19,7 +19,7 @@ use super::cursors::{Cursor, CursorMut};
 new_key_type! { pub(super) struct NodeId; }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BinaryTreeNode<T> {
     data: T,
     #[serde(skip)]
@@ -125,7 +125,8 @@ impl<T> BinaryTreeNode<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
+#[serde(from = "super::serialization::SerializationTree<T>")]
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
     root_id: NodeId,

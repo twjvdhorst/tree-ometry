@@ -50,6 +50,12 @@ impl<K, V> Default for RedBlackTree<K, V> {
     }
 }
 
+impl<K, V> From<SemigroupRbTree<K, V, ()>> for RedBlackTree<K, V> {
+    fn from(value: SemigroupRbTree<K, V, ()>) -> Self {
+        Self(value)
+    }
+}
+
 impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
 where 
     K: Ord,
