@@ -151,11 +151,11 @@ pub enum SemigroupRbTreeError {
 
 fn is_binary_search_tree<K, V, S>(tree: &BinaryTree<SemigroupRbNode<K, V, S>>) -> bool
 where 
-    K: Ord + Clone,
+    K: Ord,
 {
-    fn is_binary_search_tree_recursive<K, V, S>(cursor: binary_tree::Cursor<'_, SemigroupRbNode<K, V, S>>) -> (bool, Option<(K, K)>)
+    fn is_binary_search_tree_recursive<'t, K, V, S>(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> (bool, Option<(&'t K, &'t K)>)
     where
-        K: Ord + Clone,
+        K: Ord,
     {
         let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, None); };
         let mut left_cursor = cursor;
@@ -169,17 +169,17 @@ where
             return (false, None);
         }
 
-        if let Some((_, max_left)) = left_range.as_ref() && max_left > node.key() {
+        if let Some((_, max_left)) = left_range && max_left > node.key() {
             return (false, None);
         }
 
-        if let Some((min_right, _)) = right_range.as_ref() && min_right < node.key() {
+        if let Some((min_right, _)) = right_range && min_right < node.key() {
             return (false, None);
         }
 
         (true, Some((
-            left_range.map_or(node.key().clone(), |(min, _)| min),
-            right_range.map_or(node.key().clone(), |(_, max)| max)
+            left_range.map_or(node.key(), |(min, _)| min),
+            right_range.map_or(node.key(), |(_, max)| max)
         )))
     }
     
@@ -188,12 +188,12 @@ where
 
 fn is_red_black_tree<K, V, S>(tree: &BinaryTree<SemigroupRbNode<K, V, S>>) -> bool
 where 
-    K: Ord + Clone,
+    K: Ord,
 {
     /// Determines whether the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree.
     fn is_red_black_tree_recursive<K, V, S>(cursor: binary_tree::Cursor<'_, SemigroupRbNode<K, V, S>>) -> (bool, Option<usize>)
     where
-        K: Ord + Clone,
+        K: Ord,
     {
         // Leaves are black.
         let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, Some(1)); };
@@ -263,7 +263,7 @@ where
 
 impl<K, V, S> TryFrom<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S>
 where
-    K: Ord + Clone,
+    K: Ord,
     S: TreeSemigroup<K> + PartialEq,
 {
     type Error = SemigroupRbTreeError;

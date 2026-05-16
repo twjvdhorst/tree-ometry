@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Display};
 
-use crate::binary_trees::traits::binary_tree_cursor::{PeekingCursor, PeekingCursorMut};
+use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
 
 pub trait BinaryTree {
     type Node;
@@ -23,10 +23,10 @@ macro_rules! fmt_binary_tree {
         where
             T: BinaryTree,
             T::Node: $fmt_trait,
-        {/*
-            fn recursive_fmt<C>(cursor: C, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        {
+            fn recursive_fmt<'t, C>(cursor: C, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
             where
-                C: BinaryTreeCursor,
+                C: PeekingCursor<'t> + 't,
                 C::Node: $fmt_trait,
             {
                 write!(f, "{prefix}")?;
@@ -55,8 +55,6 @@ macro_rules! fmt_binary_tree {
             
             write!(f, "\n")?;
             recursive_fmt(tree.cursor(), f, "", false)
-            */
-            todo!()
         }
     };
 }
