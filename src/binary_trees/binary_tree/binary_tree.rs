@@ -192,7 +192,7 @@ impl<T> BinaryTree<T> {
         self.nodes.get_mut(self.root_id)
     }
 
-    pub(super) fn root_id(&mut self) -> NodeId {
+    pub(super) fn root_id(&self) -> NodeId {
         self.root_id
     }
 

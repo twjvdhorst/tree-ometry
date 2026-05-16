@@ -34,6 +34,10 @@ impl<'t, T> Cursor<'t, T> {
         }
     }
 
+    pub(super) fn node_id(&self) -> NodeId {
+        self.node_id
+    }
+
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
         Neighborhood {
             parent: self.peek_up(),
@@ -142,6 +146,10 @@ impl<'t, T> CursorMut<'t, T> {
             tree,
             node_id,
         }
+    }
+
+    pub(super) fn node_id(&self) -> NodeId {
+        self.node_id
     }
 
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
