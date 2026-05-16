@@ -24,11 +24,11 @@ new_key_type! { pub(super) struct NodeId; }
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BinaryTreeNode<T> {
     data: T,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     parent_id: NodeId,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     left_id: NodeId,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     right_id: NodeId,
 }
 
@@ -127,8 +127,8 @@ impl<T> BinaryTreeNode<T> {
     }
 }
 
-#[derive(Clone, Deserialize)]
-#[serde(from = "super::serialization::SerializationTree<T>")]
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Deserialize), serde(from = "super::serialization::SerializationTree<T>"))]
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
     root_id: NodeId,

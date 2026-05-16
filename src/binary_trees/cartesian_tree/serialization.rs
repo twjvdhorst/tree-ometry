@@ -34,10 +34,10 @@ where
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializationNode<K, V> {
-    pub(crate) key: K,
-    pub(crate) value: V,
-    pub(crate) left: Option<Box<SerializationNode<K, V>>>,
-    pub(crate) right: Option<Box<SerializationNode<K, V>>>,
+    key: K,
+    value: V,
+    left: Option<Box<SerializationNode<K, V>>>,
+    right: Option<Box<SerializationNode<K, V>>>,
 }
 
 impl<'t, K, V> From<binary_tree::serialization::SerializationNode<&'t CartesianTreeNode<K, V>>> for SerializationNode<&'t K, &'t V> {

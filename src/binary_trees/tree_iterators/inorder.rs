@@ -188,3 +188,108 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cmp::{
+        Ordering, 
+        min,
+    };
+    use rand::seq::SliceRandom;
+
+    use super::*;
+    use crate::binary_trees::{
+        Side,
+        red_black_tree::RedBlackTree,
+    };
+
+    fn path_to_key<K, V>(tree: &RedBlackTree<K, V>, key: &K) -> Option<Vec<Side>>
+    where 
+        K: Ord,
+    {
+        let mut cursor = tree.cursor();
+        let mut path = Vec::new();
+        while let Some(node) = cursor.node() {
+            match K::cmp(key, node.key()) {
+                Ordering::Less => {
+                    path.push(Side::Left);
+                    cursor.move_left();
+                },
+                Ordering::Greater => {
+                    path.push(Side::Right);
+                    cursor.move_right();
+                },
+                Ordering::Equal => return Some(path),
+            }
+        }
+
+        // Key not in tree.
+        None
+    }
+
+    fn get_sequence<K, V>(tree: &RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = InorderIter::new(tree);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key().clone());
+            }
+            sequence
+    }
+
+    fn get_sequence_mut<K, V>(tree: &mut RedBlackTree<K, V>) -> Vec<K>
+    where 
+        K: Ord + Clone,
+    {
+            let mut iter = InorderIterMut::new(tree);
+            let mut sequence = Vec::new();
+            while let Some(node) = iter.next() {
+                sequence.push(node.key().clone());
+            }
+            sequence
+    }
+
+    #[test]
+    fn test_inorder_iters() {
+        // Test the inorder iterators for random trees.
+        let mut rng = rand::rng();
+        for _ in 0..50 {
+            let mut tree = RedBlackTree::new();
+            let mut keys = (1..=30).collect::<Vec<_>>();
+            keys.shuffle(&mut rng);
+            for key in keys {
+                tree.insert(key, ());
+            }
+
+            // Ensure immutable and mutable iterators yield the same values.
+            for (k1, k2) in Iterator::zip(
+                get_sequence(&tree).iter(), 
+                get_sequence_mut(&mut tree).iter()
+            ) {
+                assert!(k1 == k2);
+            }
+            
+            // Verify that the sequence is inorder.
+            let paths = get_sequence(&tree).iter()
+                .map(|key| path_to_key(&tree, key).unwrap_or(Vec::new()))
+                .collect::<Vec<_>>();
+            for window in paths.windows(2) {
+                let path1 = &window[0];
+                let path2 = &window[1];
+                let first_divergence_idx = Iterator::zip(path1.iter(), path2.iter())
+                    .position(|(side1, side2)| side1 != side2)
+                    .unwrap_or(min(path1.len(), path2.len()));
+
+                assert!(
+                    match (path1.get(first_divergence_idx), path2.get(first_divergence_idx)) {
+                        (Some(side), _) => *side == Side::Left,
+                        (None, Some(side)) => *side == Side::Right,
+                        (None, None) => true,
+                    }
+                )
+            }
+        }
+    }
+}

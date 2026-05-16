@@ -32,11 +32,11 @@ where
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializationNode<K, V> {
-    pub(crate) key: K,
-    pub(crate) value: V,
-    pub(crate) color: Color,
-    pub(crate) left: Option<Box<SerializationNode<K, V>>>,
-    pub(crate) right: Option<Box<SerializationNode<K, V>>>,
+    key: K,
+    value: V,
+    color: Color,
+    left: Option<Box<SerializationNode<K, V>>>,
+    right: Option<Box<SerializationNode<K, V>>>,
 }
 
 impl<'t, K, V> From<semigroup_rb_tree::serialization::SerializationNode<&'t K, &'t V, &'t ()>> for SerializationNode<&'t K, &'t V> {

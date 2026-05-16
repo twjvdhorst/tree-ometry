@@ -34,12 +34,12 @@ where
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializationNode<K, V, S> {
-    pub(crate) key: K,
-    pub(crate) value: V,
-    pub(crate) semigroup_value: S,
-    pub(crate) color: Color,
-    pub(crate) left: Option<Box<SerializationNode<K, V, S>>>,
-    pub(crate) right: Option<Box<SerializationNode<K, V, S>>>,
+    pub(in super::super) key: K,
+    pub(in super::super) value: V,
+    pub(in super::super) semigroup_value: S,
+    pub(in super::super) color: Color,
+    pub(in super::super) left: Option<Box<SerializationNode<K, V, S>>>,
+    pub(in super::super) right: Option<Box<SerializationNode<K, V, S>>>,
 }
 
 impl<'t, K, V, S> From<binary_tree::serialization::SerializationNode<&'t SemigroupRbNode<K, V, S>>> for SerializationNode<&'t K, &'t V, &'t S> {
