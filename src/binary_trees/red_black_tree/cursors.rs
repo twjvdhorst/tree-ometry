@@ -14,6 +14,7 @@ use crate::binary_trees::{
 };
 
 pub struct Neighborhood<'c, K, V> {
+    pub node: Option<&'c RedBlackNode<K, V>>,
     pub parent: Option<&'c RedBlackNode<K, V>>,
     pub left: Option<&'c RedBlackNode<K, V>>,
     pub right: Option<&'c RedBlackNode<K, V>>,
@@ -30,9 +31,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
         Self(cursor)
     }
 
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let semigroup_rb_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+    pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
+        let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
+            node: node.map(Borrow::borrow),
             parent: parent.map(Borrow::borrow),
             left: left.map(Borrow::borrow),
             right: right.map(Borrow::borrow),
@@ -105,6 +107,7 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
 }
 
 pub struct NeighborhoodMut<'c, K, V> {
+    pub node: Option<&'c mut RedBlackNode<K, V>>,
     pub parent: Option<&'c mut RedBlackNode<K, V>>,
     pub left: Option<&'c mut RedBlackNode<K, V>>,
     pub right: Option<&'c mut RedBlackNode<K, V>>,
@@ -123,8 +126,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
 
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let semigroup_rb_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
+            node: node.map(Borrow::borrow),
             parent: parent.map(Borrow::borrow),
             left: left.map(Borrow::borrow),
             right: right.map(Borrow::borrow),
@@ -132,8 +136,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
-        let semigroup_rb_tree::NeighborhoodMut { parent, left, right } = self.0.peek_neighborhood_mut();
+        let semigroup_rb_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
         NeighborhoodMut {
+            node: node.map(BorrowMut::borrow_mut),
             parent: parent.map(BorrowMut::borrow_mut),
             left: left.map(BorrowMut::borrow_mut),
             right: right.map(BorrowMut::borrow_mut),

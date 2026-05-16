@@ -12,6 +12,7 @@ use crate::binary_trees::{
 };
 
 pub struct Neighborhood<'c, K, V> {
+    pub node: Option<&'c CartesianTreeNode<K, V>>,
     pub parent: Option<&'c CartesianTreeNode<K, V>>,
     pub left: Option<&'c CartesianTreeNode<K, V>>,
     pub right: Option<&'c CartesianTreeNode<K, V>>,
@@ -28,9 +29,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
         Self(cursor)
     }
 
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let binary_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+    pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
+        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
+            node: node.map(BinaryTreeNode::data),
             parent: parent.map(BinaryTreeNode::data),
             left: left.map(BinaryTreeNode::data),
             right: right.map(BinaryTreeNode::data),
@@ -103,6 +105,7 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
 }
 
 pub struct NeighborhoodMut<'c, K, V> {
+    pub node: Option<&'c mut CartesianTreeNode<K, V>>,
     pub parent: Option<&'c mut CartesianTreeNode<K, V>>,
     pub left: Option<&'c mut CartesianTreeNode<K, V>>,
     pub right: Option<&'c mut CartesianTreeNode<K, V>>,
@@ -121,8 +124,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
 
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let binary_tree::Neighborhood { parent, left, right } = self.0.peek_neighborhood();
+        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
+            node: node.map(BinaryTreeNode::data),
             parent: parent.map(BinaryTreeNode::data),
             left: left.map(BinaryTreeNode::data),
             right: right.map(BinaryTreeNode::data),
@@ -130,8 +134,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
-        let binary_tree::NeighborhoodMut { parent, left, right } = self.0.peek_neighborhood_mut();
+        let binary_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
         NeighborhoodMut {
+            node: node.map(BinaryTreeNode::data_mut),
             parent: parent.map(BinaryTreeNode::data_mut),
             left: left.map(BinaryTreeNode::data_mut),
             right: right.map(BinaryTreeNode::data_mut),
