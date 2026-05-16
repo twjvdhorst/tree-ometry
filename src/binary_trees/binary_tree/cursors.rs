@@ -6,8 +6,7 @@ use crate::binary_trees::{
     Side,
     cursor_errors::CursorError,
     traits::binary_tree_cursor::{
-        BinaryTreeCursor, 
-        BinaryTreeCursorMut
+        BinaryTreeCursor, PeekingCursor, PeekingCursorMut
     },
 };
 
@@ -34,10 +33,6 @@ impl<'t, T> Cursor<'t, T> {
         }
     }
 
-    pub(super) fn node_id(&self) -> NodeId {
-        self.node_id
-    }
-
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
         Neighborhood {
             parent: self.peek_up(),
@@ -55,35 +50,7 @@ impl<'t, T> Clone for Cursor<'t, T> {
 
 impl<'t, T> Copy for Cursor<'t, T> {}
 
-impl<'t, T> BinaryTreeCursor<'t> for Cursor<'t, T> {
-    type Node = BinaryTreeNode<T>;
-    type SpawnedCursor<'c> = Cursor<'c, T>
-    where Self: 'c;
-
-    fn node(&self) -> Option<&'t Self::Node> {
-        self.tree.node(self.node_id)
-    }
-
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
-        self.clone()
-    }
-
-    fn side_of_parent(&self) -> Option<Side> {
-        self.peek_up()?.side_of(self.node_id)
-    }
-
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.tree.parent(self.node()?)
-    }
-
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.tree.left_child(self.node()?)
-    }
-
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.tree.right_child(self.node()?)
-    }
-
+impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
     fn try_move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
         let parent_id = self.node()?.parent_id();
@@ -124,6 +91,36 @@ impl<'t, T> BinaryTreeCursor<'t> for Cursor<'t, T> {
     }
 }
 
+impl<'t, T> PeekingCursor<'t> for Cursor<'t, T> {
+    type Node = BinaryTreeNode<T>;
+    type SpawnedCursor<'c> = Cursor<'c, T>
+    where Self: 'c;
+
+    fn node(&self) -> Option<&'t Self::Node> {
+        self.tree.node(self.node_id)
+    }
+
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+        self.clone()
+    }
+
+    fn side_of_parent(&self) -> Option<Side> {
+        self.peek_up()?.side_of(self.node_id)
+    }
+
+    fn peek_up(&self) -> Option<&'t Self::Node> {
+        self.tree.parent(self.node()?)
+    }
+
+    fn peek_left(&self) -> Option<&'t Self::Node> {
+        self.tree.left_child(self.node()?)
+    }
+
+    fn peek_right(&self) -> Option<&'t Self::Node> {
+        self.tree.right_child(self.node()?)
+    }
+}
+
 pub struct NeighborhoodMut<'c, T> {
     pub parent: Option<&'c mut BinaryTreeNode<T>>,
     pub left: Option<&'c mut BinaryTreeNode<T>>,
@@ -146,10 +143,6 @@ impl<'t, T> CursorMut<'t, T> {
             tree,
             node_id,
         }
-    }
-
-    pub(super) fn node_id(&self) -> NodeId {
-        self.node_id
     }
 
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
@@ -479,7 +472,48 @@ impl<'t, T> CursorMut<'t, T> {
     }
 }
 
-impl<'t, T> BinaryTreeCursorMut for CursorMut<'t, T> {
+impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
+    fn try_move_up(&mut self) -> Option<Side> {
+        let node_id = self.node_id;
+        let parent_id = self.node()?.parent_id();
+        if !parent_id.is_null() {
+            self.node_id = parent_id;
+            self.node()?.side_of(node_id)
+        } else { None }
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        let left_id = self.node().map(BinaryTreeNode::left_id);
+        if let Some(left_id) = left_id && !left_id.is_null() {
+            self.node_id = left_id;
+            true
+        } else { false }
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        let right_id = self.node().map(BinaryTreeNode::right_id);
+        if let Some(right_id) = right_id && !right_id.is_null() {
+            self.node_id = right_id;
+            true
+        } else { false }
+    }
+
+    fn move_up(&mut self) -> Option<Side> {
+        let node_id = self.node_id;
+        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::parent_id);
+        self.node().and_then(|parent| parent.side_of(node_id))
+    }
+
+    fn move_left(&mut self) {
+        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::left_id);
+    }
+
+    fn move_right(&mut self) {
+        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::right_id);
+    }
+}
+
+impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
     type Node = BinaryTreeNode<T>;
     type SpawnedCursor<'c> = Cursor<'c, T>
     where Self: 'c;
@@ -522,44 +556,5 @@ impl<'t, T> BinaryTreeCursorMut for CursorMut<'t, T> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
         self.tree.node_mut(self.node()?.right_id())
-    }
-
-    fn try_move_up(&mut self) -> Option<Side> {
-        let node_id = self.node_id;
-        let parent_id = self.node()?.parent_id();
-        if !parent_id.is_null() {
-            self.node_id = parent_id;
-            self.node()?.side_of(node_id)
-        } else { None }
-    }
-    
-    fn try_move_left(&mut self) -> bool {
-        let left_id = self.node().map(BinaryTreeNode::left_id);
-        if let Some(left_id) = left_id && !left_id.is_null() {
-            self.node_id = left_id;
-            true
-        } else { false }
-    }
-    
-    fn try_move_right(&mut self) -> bool {
-        let right_id = self.node().map(BinaryTreeNode::right_id);
-        if let Some(right_id) = right_id && !right_id.is_null() {
-            self.node_id = right_id;
-            true
-        } else { false }
-    }
-
-    fn move_up(&mut self) -> Option<Side> {
-        let node_id = self.node_id;
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::parent_id);
-        self.node().and_then(|parent| parent.side_of(node_id))
-    }
-
-    fn move_left(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::left_id);
-    }
-
-    fn move_right(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::right_id);
     }
 }

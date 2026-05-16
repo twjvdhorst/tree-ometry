@@ -1,3 +1,4 @@
+use paste::paste;
 use std::{
     borrow::{
         Borrow, 
@@ -20,7 +21,7 @@ use crate::binary_trees::{
     binary_tree::{
         self,
         BinaryTree, 
-        BinaryTreeNode
+        BinaryTreeNode,
     }, 
     red_black_tree::RedBlackNode, 
     semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
@@ -32,9 +33,11 @@ use crate::binary_trees::{
         }, 
         binary_tree_cursor::{
             BinaryTreeCursor, 
-            BinaryTreeCursorMut
-        }
-    }
+            PeekingCursor,
+            PeekingCursorMut,
+        },
+    },
+    tree_iterators::{self, *},
 };
 use super::{Color, cursors::{Cursor, CursorMut}};
 
@@ -337,6 +340,10 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
     pub(super) fn inner(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
         &self.0
     }
+    
+    tree_iterators::impl_iters!(pub, inorder, SemigroupRbNode<K, V, S>);
+    tree_iterators::impl_iters!(pub, preorder, SemigroupRbNode<K, V, S>);
+    tree_iterators::impl_iters!(pub, postorder, SemigroupRbNode<K, V, S>);
 }
 
 impl<K, V, S> SemigroupRbTree<K, V, S>

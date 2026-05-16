@@ -7,7 +7,8 @@ use crate::binary_trees::{
         BinaryTreeMut, 
         binary_tree_cursor::{
             BinaryTreeCursor,
-            BinaryTreeCursorMut,
+            PeekingCursor,
+            PeekingCursorMut,
         },
     },
 };

@@ -8,7 +8,8 @@ use crate::binary_trees::{
     semigroup_rb_tree, 
     traits::binary_tree_cursor::{
         BinaryTreeCursor,
-        BinaryTreeCursorMut
+        PeekingCursor,
+        PeekingCursorMut,
     }
 };
 
@@ -48,34 +49,6 @@ impl<'t, K, V> Clone for Cursor<'t, K, V> {
 impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
-    type Node = RedBlackNode<K, V>;
-    type SpawnedCursor<'c> = Self
-    where Self: 'c;
-
-    fn node(&self) -> Option<&Self::Node> {
-       self.0.node().map(Borrow::borrow)
-    }
-
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
-        self.clone()
-    }
-
-    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
-        self.0.side_of_parent()
-    }
-
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.0.peek_up().map(Borrow::borrow)
-    }
-
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.0.peek_left().map(Borrow::borrow)
-    }
-
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.0.peek_right().map(Borrow::borrow)
-    }
-
     fn try_move_up(&mut self) -> Option<Side> {
         self.0.try_move_up()
     }
@@ -98,6 +71,36 @@ impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
 
     fn move_right(&mut self) {
         self.0.move_right();
+    }
+}
+
+impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
+    type Node = RedBlackNode<K, V>;
+    type SpawnedCursor<'c> = Cursor<'c, K, V>
+    where Self: 'c;
+
+    fn node(&self) -> Option<&'t Self::Node> {
+       self.0.node().map(Borrow::borrow)
+    }
+
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+        self.clone()
+    }
+
+    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
+        self.0.side_of_parent()
+    }
+
+    fn peek_up(&self) -> Option<&'t Self::Node> {
+        self.0.peek_up().map(Borrow::borrow)
+    }
+
+    fn peek_left(&self) -> Option<&'t Self::Node> {
+        self.0.peek_left().map(Borrow::borrow)
+    }
+
+    fn peek_right(&self) -> Option<&'t Self::Node> {
+        self.0.peek_right().map(Borrow::borrow)
     }
 }
 
@@ -155,34 +158,6 @@ impl<'t, K, V> CursorMut<'t, K, V> {
 }
 
 impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
-    type Node = RedBlackNode<K, V>;
-    type SpawnedCursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
-
-    fn node(&self) -> Option<&Self::Node> {
-        self.0.node().map(Borrow::borrow)
-    }
-
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
-        Cursor::new(self.0.spawn_cursor())
-    }
-
-    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
-        self.0.side_of_parent()
-    }
-
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.0.peek_up().map(Borrow::borrow)
-    }
-
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.0.peek_left().map(Borrow::borrow)
-    }
-
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.0.peek_right().map(Borrow::borrow)
-    }
-
     fn try_move_up(&mut self) -> Option<Side> {
         self.0.try_move_up()
     }
@@ -208,9 +183,37 @@ impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
     }
 }
 
-impl<'t, K, V> BinaryTreeCursorMut for CursorMut<'t, K, V> {
+impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
+    type Node = RedBlackNode<K, V>;
+    type SpawnedCursor<'c> = Cursor<'c, K, V>
+    where Self: 'c;
+
+    fn node(&self) -> Option<&Self::Node> {
+        self.0.node().map(Borrow::borrow)
+    }
+
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
         self.0.node_mut().map(BorrowMut::borrow_mut)
+    }
+
+    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+        Cursor::new(self.0.spawn_cursor())
+    }
+
+    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
+        self.0.side_of_parent()
+    }
+
+    fn peek_up(&self) -> Option<&Self::Node> {
+        self.0.peek_up().map(Borrow::borrow)
+    }
+
+    fn peek_left(&self) -> Option<&Self::Node> {
+        self.0.peek_left().map(Borrow::borrow)
+    }
+
+    fn peek_right(&self) -> Option<&Self::Node> {
+        self.0.peek_right().map(Borrow::borrow)
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {

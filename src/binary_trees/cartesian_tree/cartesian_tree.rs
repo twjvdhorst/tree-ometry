@@ -1,10 +1,27 @@
 use std::fmt::{Debug, Display};
+use paste::paste;
+
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 
-use crate::binary_trees::traits::BinaryTree as BinaryTreeTrait;
-use crate::binary_trees::binary_tree;
-use crate::binary_trees::{Side, binary_tree::BinaryTree, traits::{self, BinaryTreeMut, binary_tree_cursor::BinaryTreeCursor}};
+use crate::binary_trees::{
+    Side, 
+    binary_tree::{
+        self,
+        BinaryTree,
+    },
+    tree_iterators::{self, *},
+    traits::{
+        self,
+        BinaryTree as BinaryTreeTrait,
+        BinaryTreeMut, 
+        binary_tree_cursor::{
+            BinaryTreeCursor, 
+            PeekingCursor,
+            PeekingCursorMut,
+        },
+    },
+};
 use super::{cursors::{Cursor, CursorMut}};
 
 use thiserror::Error;
@@ -102,6 +119,10 @@ impl<K, V, C> CartesianTree<K, V, C> {
     pub(super) fn inner(&self) -> &BinaryTree<CartesianTreeNode<K, V>> {
         &self.0
     }
+
+    tree_iterators::impl_iters!(pub, inorder, CartesianTreeNode<K, V>);
+    tree_iterators::impl_iters!(pub, preorder, CartesianTreeNode<K, V>);
+    tree_iterators::impl_iters!(pub, postorder, CartesianTreeNode<K, V>);
 }
 
 impl<K, V, C> FromIterator<(K, V)> for CartesianTree<K, V, C>
@@ -248,9 +269,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::traits::iterable_inorder::IterableInorder;
 
-    use lending_iterator::LendingIterator;
     use rand::prelude::*;
     use serde::Serialize;
 

@@ -14,9 +14,7 @@ use crate::binary_trees::{
             BinaryTreeMut,
         },
     },
-    tree_iterators::{
-        self, InorderIter, InorderIterFiltered, InorderIterFilteredMut, InorderIterMut, PostorderIter, PostorderIterFiltered, PostorderIterFilteredMut, PostorderIterMut, PreorderIter, PreorderIterFiltered, PreorderIterFilteredMut, PreorderIterMut
-    }
+    tree_iterators::{self, *},
 };
 use super::cursors::{Cursor, CursorMut};
 
@@ -280,9 +278,9 @@ impl<T> BinaryTree<T> {
         }
     }
 
-    tree_iterators::impl_iters!(pub, inorder);
-    tree_iterators::impl_iters!(pub, preorder);
-    tree_iterators::impl_iters!(pub, postorder);
+    tree_iterators::impl_iters!(pub, inorder, BinaryTreeNode<T>);
+    tree_iterators::impl_iters!(pub, preorder, BinaryTreeNode<T>);
+    tree_iterators::impl_iters!(pub, postorder, BinaryTreeNode<T>);
 }
 
 impl<T> Debug for BinaryTreeNode<T>
@@ -324,7 +322,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, BinaryTreeCursorMut};
+    use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
     
     #[test]
     fn test_cursors() {
