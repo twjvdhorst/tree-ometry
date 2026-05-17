@@ -120,6 +120,14 @@ impl<K, V, C> CartesianTree<K, V, C> {
         &self.0
     }
 
+    pub fn map_values<U, F>(self, f: F) -> CartesianTree<K, U, C>
+    where 
+        F: Fn(V) -> U,
+    {
+        let f = |node: CartesianTreeNode<K, V>| CartesianTreeNode { key: node.key, value: f(node.value) };
+        CartesianTree(self.0.map(f), PhantomData)
+    }
+
     tree_iterators::impl_iters!(pub, inorder, CartesianTreeNode<K, V>);
     tree_iterators::impl_iters!(pub, preorder, CartesianTreeNode<K, V>);
     tree_iterators::impl_iters!(pub, postorder, CartesianTreeNode<K, V>);

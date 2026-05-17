@@ -1,5 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
-
 use derive_more::Debug;
 
 use super::RedBlackNode;
@@ -34,10 +32,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
         let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(Borrow::borrow),
-            parent: parent.map(Borrow::borrow),
-            left: left.map(Borrow::borrow),
-            right: right.map(Borrow::borrow),
+            node: node.map(AsRef::as_ref),
+            parent: parent.map(AsRef::as_ref),
+            left: left.map(AsRef::as_ref),
+            right: right.map(AsRef::as_ref),
         }
     }
 }
@@ -82,7 +80,7 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     where Self: 'c;
 
     fn node(&self) -> Option<&'t Self::Node> {
-       self.0.node().map(Borrow::borrow)
+       self.0.node().map(AsRef::as_ref)
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -94,15 +92,15 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     }
 
     fn peek_up(&self) -> Option<&'t Self::Node> {
-        self.0.peek_up().map(Borrow::borrow)
+        self.0.peek_up().map(AsRef::as_ref)
     }
 
     fn peek_left(&self) -> Option<&'t Self::Node> {
-        self.0.peek_left().map(Borrow::borrow)
+        self.0.peek_left().map(AsRef::as_ref)
     }
 
     fn peek_right(&self) -> Option<&'t Self::Node> {
-        self.0.peek_right().map(Borrow::borrow)
+        self.0.peek_right().map(AsRef::as_ref)
     }
 }
 
@@ -128,20 +126,20 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
         let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(Borrow::borrow),
-            parent: parent.map(Borrow::borrow),
-            left: left.map(Borrow::borrow),
-            right: right.map(Borrow::borrow),
+            node: node.map(AsRef::as_ref),
+            parent: parent.map(AsRef::as_ref),
+            left: left.map(AsRef::as_ref),
+            right: right.map(AsRef::as_ref),
         }
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
         let semigroup_rb_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
         NeighborhoodMut {
-            node: node.map(BorrowMut::borrow_mut),
-            parent: parent.map(BorrowMut::borrow_mut),
-            left: left.map(BorrowMut::borrow_mut),
-            right: right.map(BorrowMut::borrow_mut),
+            node: node.map(AsMut::as_mut),
+            parent: parent.map(AsMut::as_mut),
+            left: left.map(AsMut::as_mut),
+            right: right.map(AsMut::as_mut),
         }
     }
 
@@ -158,7 +156,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(BorrowMut::borrow_mut))
+        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(AsMut::as_mut))
     }
 }
 
@@ -194,11 +192,11 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
     where Self: 'c;
 
     fn node(&self) -> Option<&Self::Node> {
-        self.0.node().map(Borrow::borrow)
+        self.0.node().map(AsRef::as_ref)
     }
 
     fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.node_mut().map(BorrowMut::borrow_mut)
+        self.0.node_mut().map(AsMut::as_mut)
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -210,26 +208,26 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
     }
 
     fn peek_up(&self) -> Option<&Self::Node> {
-        self.0.peek_up().map(Borrow::borrow)
+        self.0.peek_up().map(AsRef::as_ref)
     }
 
     fn peek_left(&self) -> Option<&Self::Node> {
-        self.0.peek_left().map(Borrow::borrow)
+        self.0.peek_left().map(AsRef::as_ref)
     }
 
     fn peek_right(&self) -> Option<&Self::Node> {
-        self.0.peek_right().map(Borrow::borrow)
+        self.0.peek_right().map(AsRef::as_ref)
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_up_mut().map(BorrowMut::borrow_mut)
+        self.0.peek_up_mut().map(AsMut::as_mut)
     }
 
     fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_left_mut().map(BorrowMut::borrow_mut)
+        self.0.peek_left_mut().map(AsMut::as_mut)
     }
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_right_mut().map(BorrowMut::borrow_mut)
+        self.0.peek_right_mut().map(AsMut::as_mut)
     }
 }

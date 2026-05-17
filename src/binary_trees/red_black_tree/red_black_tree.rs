@@ -1,14 +1,16 @@
+use paste::paste;
 use ref_cast::RefCast;
 use std::{borrow::Borrow, fmt::{Debug, Display}};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
 use crate::binary_trees::{
-    traits, 
     semigroup_rb_tree::{
         SemigroupRbNode, 
         SemigroupRbTree
-    }
+    },
+    traits,
+    tree_iterators::{self, *},
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -103,12 +105,23 @@ impl<K, V> RedBlackTree<K, V> {
     }
 
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
-        self.0.root().map(Borrow::borrow)
+        self.0.root().map(AsRef::as_ref)
     }
 
     pub(super) fn inner(&self) -> &SemigroupRbTree<K, V, ()> {
         &self.0
     }
+
+    pub fn map_values<U, F>(self, f: F) -> RedBlackTree<K, U>
+    where 
+        F: Fn(V) -> U,
+    {
+        RedBlackTree(self.0.map_values(f))
+    }
+
+    tree_iterators::impl_iters!(pub, inorder, RedBlackNode<K, V>);
+    tree_iterators::impl_iters!(pub, preorder, RedBlackNode<K, V>);
+    tree_iterators::impl_iters!(pub, postorder, RedBlackNode<K, V>);
 }
 
 impl<K, V> RedBlackTree<K, V>

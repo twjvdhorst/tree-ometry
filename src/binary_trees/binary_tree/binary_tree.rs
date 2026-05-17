@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::{collections::HashMap, fmt::{Debug, Display}};
 use paste::paste;
 
 use slotmap::{Key, SlotMap, new_key_type};
@@ -275,6 +275,52 @@ impl<T> BinaryTree<T> {
             true
         } else {
             false
+        }
+    }
+
+    pub fn map<U, F>(self, f: F) -> BinaryTree<U>
+    where 
+        F: Fn(T) -> U,
+    {
+        let old_root_id = self.root_id;
+        if old_root_id.is_null() {
+            return BinaryTree::new();
+        }
+
+        let mut new_nodes = SlotMap::with_capacity_and_key(self.nodes.len());
+        let mut keys_map = HashMap::new();
+
+        // First map the function over the nodes, and move the nodes to a new map.
+        // The keys stored in nodes are incorrect; fix these afterwards.
+        for (key, node) in self.nodes.into_iter() {
+            let new_node = BinaryTreeNode {
+                data: f(node.data),
+                parent_id: node.parent_id,
+                left_id: node.left_id,
+                right_id: node.right_id,
+            };
+            let new_key = new_nodes.insert(new_node);
+            keys_map.insert(key, new_key);
+        }
+
+        // Fix the keys.
+        for node in new_nodes.values_mut() {
+            if !node.parent_id.is_null() {
+                node.parent_id = keys_map[&node.parent_id];
+            }
+
+            if !node.left_id.is_null() {
+                node.left_id = keys_map[&node.left_id];
+            }
+
+            if !node.right_id.is_null() {
+                node.right_id = keys_map[&node.right_id];
+            }
+        }
+
+        BinaryTree {
+            root_id: keys_map[&old_root_id],
+            nodes: new_nodes,
         }
     }
 
