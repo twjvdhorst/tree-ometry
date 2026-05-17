@@ -44,17 +44,11 @@ impl<K, V> RedBlackNode<K, V> {
 }
 
 #[derive(Clone)]
-pub struct RedBlackTree<K, V>(SemigroupRbTree<K, V, ()>);
+pub struct RedBlackTree<K, V>(pub(super) SemigroupRbTree<K, V, ()>);
 
 impl<K, V> Default for RedBlackTree<K, V> {
     fn default() -> Self {
         Self(SemigroupRbTree::default())
-    }
-}
-
-impl<K, V> From<SemigroupRbTree<K, V, ()>> for RedBlackTree<K, V> {
-    fn from(value: SemigroupRbTree<K, V, ()>) -> Self {
-        Self(value)
     }
 }
 

@@ -1,8 +1,22 @@
-use serde::{Serialize, Deserialize, de::Error};
+use std::{cmp::Ordering, marker::PhantomData};
 
-use super::Comparer;
-use crate::binary_trees::binary_tree::{self, BinaryTree};
-use crate::binary_trees::cartesian_tree::{CartesianTree, CartesianTreeNode};
+use serde::{Serialize, Deserialize, de::Error};
+use thiserror::Error;
+
+use super::{CartesianTree, CartesianTreeNode, Comparer};
+use crate::binary_trees::{
+    binary_tree::{
+        self,
+        BinaryTree,
+    },
+    traits::{
+        BinaryTree as BinaryTreeTrait,
+        binary_tree_cursor::{
+            BinaryTreeCursor, 
+            PeekingCursor,
+        },
+    },
+};
 
 impl<K, V, C> Serialize for CartesianTree<K, V, C>
 where 
@@ -28,7 +42,70 @@ where
         D: serde::Deserializer<'de>
     {
         let tree = BinaryTree::from(SerializationTree::deserialize(deserializer)?);
-        Self::try_from(tree).map_err(D::Error::custom)
+        if !is_heap::<_, _, C>(&tree) {
+            Err(CartesianTreeError::HeapError(C::name())).map_err(D::Error::custom)?;
+        }
+
+        Ok(Self(tree, PhantomData))
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum CartesianTreeError {
+    #[error("tree is not a {0} heap")]
+    HeapError(String),
+}
+
+fn is_heap<K, V, C>(tree: &BinaryTree<CartesianTreeNode<K, V>>) -> bool
+where 
+    K: Ord,
+    C: Comparer,
+{
+    fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianTreeNode<K, V>>) -> bool
+    where
+        K: Ord,
+        C: Comparer,
+    {
+        let Some(node) = cursor.node() else { return true; };
+        if let Some(left) = cursor.peek_left() {
+            if C::compare(node.data().key(), left.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut left_cursor = cursor.spawn_cursor();
+            left_cursor.move_left();
+            if !is_heap_recursive::<_, _, C>(left_cursor) {
+                return false;
+            };
+        }
+        if let Some(right) = cursor.peek_right() {
+            if C::compare(node.data().key(), right.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut right_cursor = cursor.spawn_cursor();
+            right_cursor.move_right();
+            if !is_heap_recursive::<_, _, C>(right_cursor) {
+                return false;
+            };
+        }
+        true
+    }
+        
+    is_heap_recursive::<_, _, C>(tree.cursor())
+}
+
+impl<K, V, C> TryFrom<BinaryTree<CartesianTreeNode<K, V>>> for CartesianTree<K, V, C>
+where
+    K: Ord,
+    C: Comparer,
+{
+    type Error = CartesianTreeError;
+
+    fn try_from(value: BinaryTree<CartesianTreeNode<K, V>>) -> Result<Self, Self::Error> {
+        if !is_heap::<_, _, C>(&value) {
+            Err(CartesianTreeError::HeapError(C::name()))
+        } else {
+            Ok(Self(value, PhantomData))
+        }
     }
 }
 

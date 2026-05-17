@@ -288,7 +288,7 @@ impl<T> BinaryTree<T> {
         }
 
         let mut new_nodes = SlotMap::with_capacity_and_key(self.nodes.len());
-        let mut keys_map = HashMap::new();
+        let mut keys_map = HashMap::with_capacity(self.nodes.len());
 
         // First map the function over the nodes, and move the nodes to a new map.
         // The keys stored in nodes are incorrect; fix these afterwards.

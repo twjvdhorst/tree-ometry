@@ -1,5 +1,6 @@
 mod red_black_tree;
 mod cursors;
+mod conversions;
 #[cfg(feature = "serde")]
 pub mod serialization;
 
