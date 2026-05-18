@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use serde::{Serialize, Deserialize, de::Error};
 
 use super::Comparer;
@@ -82,7 +84,7 @@ pub struct SerializationTree<K, V>(pub Option<SerializationNode<K, V>>);
 
 impl<'t, K, V> SerializationTree<&'t K, &'t V> {
     pub fn new<C>(tree: &'t CartesianTree<K, V, C>) -> Self {
-        Self::from(binary_tree::serialization::SerializationTree::new(tree.inner()))
+        Self::from(binary_tree::serialization::SerializationTree::new(tree.borrow()))
     }
 }
 

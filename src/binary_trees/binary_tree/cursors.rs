@@ -278,7 +278,7 @@ impl<'t, T> CursorMut<'t, T> {
         let old_root_id = self.tree.root_id();
         let new_root_id = self.tree.new_node(data);
         self.tree.set_root_id(new_root_id);
-        self.tree.add_edge(new_root_id, old_root_id, side);
+        self.tree.add_edge_unchecked(new_root_id, old_root_id, side);
         self.node_id = new_root_id;
     }
 
@@ -292,7 +292,7 @@ impl<'t, T> CursorMut<'t, T> {
 
         let curr_id = self.node_id;
         let new_id = self.tree.new_node(data);
-        self.tree.add_edge(new_id, curr_id, side);
+        self.tree.add_edge_unchecked(new_id, curr_id, side);
         Ok(())
     }
 
@@ -306,7 +306,7 @@ impl<'t, T> CursorMut<'t, T> {
 
         let curr_id = self.node_id;
         let new_id = self.tree.new_node(data);
-        self.tree.add_edge(curr_id, new_id, side);
+        self.tree.add_edge_unchecked(curr_id, new_id, side);
         Ok(())
     }
 
@@ -321,9 +321,9 @@ impl<'t, T> CursorMut<'t, T> {
 
         if !parent_id.is_null() {
             self.tree.remove_edge(parent_id, curr_id);
-            self.tree.add_edge(parent_id, new_id, side);
+            self.tree.add_edge_unchecked(parent_id, new_id, side);
         }
-        self.tree.add_edge(new_id, curr_id, side);
+        self.tree.add_edge_unchecked(new_id, curr_id, side);
         Ok(())
     }
 
@@ -338,9 +338,9 @@ impl<'t, T> CursorMut<'t, T> {
 
         if !child_id.is_null() {
             self.tree.remove_edge(curr_id, child_id);
-            self.tree.add_edge(new_id, child_id, side);
+            self.tree.add_edge_unchecked(new_id, child_id, side);
         }
-        self.tree.add_edge(curr_id, new_id, side);
+        self.tree.add_edge_unchecked(curr_id, new_id, side);
         Ok(())
     }
 
@@ -378,11 +378,8 @@ impl<'t, T> CursorMut<'t, T> {
 
     /// Swaps the left child of the cursor's node with the right child.
     pub fn swap_children(&mut self) -> Result<(), CursorError> {
-        let Some(node) = self.node_mut() else { return Err(CursorError::NullError); };
-        let left_id = node.left_id();
-        let right_id = node.right_id();
-        node.set_left_id(right_id);
-        node.set_right_id(left_id);
+        let node = self.node_mut().ok_or(CursorError::NullError)?;
+        node.swap_children();
         Ok(())
     }
 
@@ -402,7 +399,7 @@ impl<'t, T> CursorMut<'t, T> {
                 self.tree.remove_edge(self.node_id, left_id);
                 if let Some(side_of_parent) = side_of_parent {
                     self.tree.remove_edge(parent_id, self.node_id);
-                    self.tree.add_edge(parent_id, left_id, side_of_parent);
+                    self.tree.add_edge_unchecked(parent_id, left_id, side_of_parent);
                 } else {
                     // Removed node was root.
                     self.tree.set_root_id(left_id);
@@ -415,7 +412,7 @@ impl<'t, T> CursorMut<'t, T> {
                 self.tree.remove_edge(self.node_id, right_id);
                 if let Some(side_of_parent) = side_of_parent {
                     self.tree.remove_edge(parent_id, self.node_id);
-                    self.tree.add_edge(parent_id, right_id, side_of_parent);
+                    self.tree.add_edge_unchecked(parent_id, right_id, side_of_parent);
                 } else {
                     // Removed node was root.
                     self.tree.set_root_id(right_id);
@@ -426,68 +423,64 @@ impl<'t, T> CursorMut<'t, T> {
             _ => None,
         }
     }
-    
+
     /// Performs a left rotation around the node pointed at by the cursor.
     /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_left(&mut self) -> Result<(), CursorError> {
-        // Gather ids of the relevant nodes.
-        // Right child must exist for a right rotation to work.
+        let Neighborhood { node, right, .. } = self.peek_neighborhood();
+        let node = node.ok_or(CursorError::RotateLeftError)?;
+        let right = right.ok_or(CursorError::RotateLeftError)?;
+
         let node_id = self.node_id;
-        let node = self.node().ok_or(CursorError::RotateLeftError)?;
-
         let right_id = node.right_id();
-        let right_node = self.tree.node(right_id).ok_or(CursorError::RotateLeftError)?;
-
         let parent_id = node.parent_id();
-        let rotating_id = right_node.left_id();
+        let rotating_id = right.left_id();
 
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, right_id);
 
         self.tree.remove_edge(right_id, rotating_id);
-        self.tree.add_edge(node_id, rotating_id, Side::Right);
+        self.tree.add_edge_unchecked(node_id, rotating_id, Side::Right);
 
         if let Some(parent) = self.tree.node(parent_id) {
             let side = parent.side_of(node_id).unwrap();
             self.tree.remove_edge(parent_id, node_id);
-            self.tree.add_edge(parent_id, right_id, side);
+            self.tree.add_edge_unchecked(parent_id, right_id, side);
         } else {
             self.tree.set_root_id(right_id);
         }
 
-        self.tree.add_edge(right_id, node_id, Side::Left);
+        self.tree.add_edge_unchecked(right_id, node_id, Side::Left);
         Ok(())
     }
-
+    
     /// Performs a right rotation around the node pointed at by the cursor.
     /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_right(&mut self) -> Result<(), CursorError> {
-        // Gather ids of the relevant nodes.
-        // Left child must exist for a right rotation to work.
+        let Neighborhood { node, left, .. } = self.peek_neighborhood();
+        let node = node.ok_or(CursorError::RotateLeftError)?;
+        let left = left.ok_or(CursorError::RotateLeftError)?;
+
         let node_id = self.node_id;
-        let node = self.node().ok_or(CursorError::RotateRightError)?;
-
         let left_id = node.left_id();
-        let left_node = self.tree.node(left_id).ok_or(CursorError::RotateRightError)?;
-
         let parent_id = node.parent_id();
-        let rotating_id = left_node.right_id();
+        let rotating_id = left.right_id();
 
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, left_id);
 
         self.tree.remove_edge(left_id, rotating_id);
-        self.tree.add_edge(node_id, rotating_id, Side::Left);
+        self.tree.add_edge_unchecked(node_id, rotating_id, Side::Left);
 
         if let Some(parent) = self.tree.node(parent_id) {
             let side = parent.side_of(node_id).unwrap();
             self.tree.remove_edge(parent_id, node_id);
-            self.tree.add_edge(parent_id, left_id, side);
+            self.tree.add_edge_unchecked(parent_id, left_id, side);
         } else {
             self.tree.set_root_id(left_id);
         }
-        
-        self.tree.add_edge(left_id, node_id, Side::Right);
+
+        self.tree.add_edge_unchecked(left_id, node_id, Side::Right);
         Ok(())
     }
 }

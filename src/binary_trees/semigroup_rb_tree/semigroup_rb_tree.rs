@@ -23,7 +23,7 @@ use crate::binary_trees::{
         BinaryTree, 
         BinaryTreeNode,
     }, 
-    red_black_tree::RedBlackNode, 
+    red_black_tree::{RedBlackNode, RedBlackTree}, 
     semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
     traits::{
         self,
@@ -281,6 +281,36 @@ where
     }
 }
 
+impl<K, V> Borrow<RedBlackTree<K, V>> for SemigroupRbTree<K, V, ()> {
+    fn borrow(&self) -> &RedBlackTree<K, V> {
+        RedBlackTree::ref_cast(self)
+    }
+}
+
+impl<K, V> BorrowMut<RedBlackTree<K, V>> for SemigroupRbTree<K, V, ()> {
+    fn borrow_mut(&mut self) -> &mut RedBlackTree<K, V> {
+        RedBlackTree::ref_cast_mut(self)
+    }
+}
+
+impl<K, V, S> Borrow<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S> {
+    fn borrow(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
+        &self.0
+    }
+}
+
+impl<K, V, S> BorrowMut<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S> {
+    fn borrow_mut(&mut self) -> &mut BinaryTree<SemigroupRbNode<K, V, S>> {
+        &mut self.0
+    }
+}
+
+impl<K, V, S> From<SemigroupRbTree<K, V, S>> for BinaryTree<SemigroupRbNode<K, V, S>> {
+    fn from(value: SemigroupRbTree<K, V, S>) -> Self {
+        value.0
+    }
+}
+
 impl<K, V, S> Extend<(K, V)> for SemigroupRbTree<K, V, S>
 where 
     K: Ord,
@@ -335,10 +365,6 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
 
     fn root_mut(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
         self.0.root_mut().map(BinaryTreeNode::data_mut)
-    }
-
-    pub(super) fn inner(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
-        &self.0
     }
     
     tree_iterators::impl_iters!(pub, inorder, SemigroupRbNode<K, V, S>);

@@ -1,14 +1,13 @@
 use ref_cast::RefCast;
-use std::{borrow::Borrow, fmt::{Debug, Display}};
+use std::{borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
 use crate::binary_trees::{
-    traits, 
-    semigroup_rb_tree::{
+    binary_tree::BinaryTree, semigroup_rb_tree::{
         SemigroupRbNode, 
         SemigroupRbTree
-    }
+    }, traits
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -41,7 +40,8 @@ impl<K, V> RedBlackNode<K, V> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, RefCast)]
+#[repr(transparent)]
 pub struct RedBlackTree<K, V>(SemigroupRbTree<K, V, ()>);
 
 impl<K, V> Default for RedBlackTree<K, V> {
@@ -53,6 +53,24 @@ impl<K, V> Default for RedBlackTree<K, V> {
 impl<K, V> From<SemigroupRbTree<K, V, ()>> for RedBlackTree<K, V> {
     fn from(value: SemigroupRbTree<K, V, ()>) -> Self {
         Self(value)
+    }
+}
+
+impl<K, V> Borrow<BinaryTree<RedBlackNode<K, V>>> for RedBlackTree<K, V> {
+    fn borrow(&self) -> &BinaryTree<RedBlackNode<K, V>> {
+        let tree = self.0.borrow();
+    }
+}
+
+impl<K, V> BorrowMut<BinaryTree<RedBlackNode<K, V>>> for RedBlackTree<K, V> {
+    fn borrow_mut(&mut self) -> &mut BinaryTree<RedBlackNode<K, V>> {
+        self.0.borrow_mut()
+    }
+}
+
+impl<K, V> From<RedBlackTree<K, V>> for BinaryTree<RedBlackNode<K, V>> {
+    fn from(value: RedBlackTree<K, V>) -> Self {
+        value.0
     }
 }
 
@@ -104,10 +122,6 @@ impl<K, V> RedBlackTree<K, V> {
 
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
         self.0.root().map(Borrow::borrow)
-    }
-
-    pub(super) fn inner(&self) -> &SemigroupRbTree<K, V, ()> {
-        &self.0
     }
 }
 

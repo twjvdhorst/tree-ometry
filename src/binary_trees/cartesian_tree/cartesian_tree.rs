@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::{borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}};
 use paste::paste;
 
 use std::marker::PhantomData;
@@ -38,15 +38,15 @@ pub struct Min;
 pub struct Max;
 
 pub(super) trait Comparer {
-    fn name() -> String;
+    fn name() -> &'static str;
 
     fn compare<T>(left: &T, right: &T) -> Ordering
     where T: Ord;
 }
 
 impl Comparer for super::Min {
-    fn name() -> String {
-        String::from("min")
+    fn name() -> &'static str {
+        "min"
     }
 
     fn compare<T>(left: &T, right: &T) -> Ordering
@@ -57,8 +57,8 @@ impl Comparer for super::Min {
 }
 
 impl Comparer for super::Max {
-    fn name() -> String {
-        String::from("max")
+    fn name() -> &'static str {
+        "max"
     }
 
     fn compare<T>(left: &T, right: &T) -> Ordering
@@ -114,10 +114,6 @@ impl<K, V, C> Default for CartesianTree<K, V, C> {
 impl<K, V, C> CartesianTree<K, V, C> {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub(super) fn inner(&self) -> &BinaryTree<CartesianTreeNode<K, V>> {
-        &self.0
     }
 
     tree_iterators::impl_iters!(pub, inorder, CartesianTreeNode<K, V>);
@@ -200,10 +196,28 @@ where
 
     fn try_from(value: BinaryTree<CartesianTreeNode<K, V>>) -> Result<Self, Self::Error> {
         if !is_heap::<_, _, C>(&value) {
-            Err(CartesianTreeError::HeapError(C::name()))
+            Err(CartesianTreeError::HeapError(String::from(C::name())))
         } else {
             Ok(Self(value, PhantomData))
         }
+    }
+}
+
+impl<K, V, C> Borrow<BinaryTree<CartesianTreeNode<K, V>>> for CartesianTree<K, V, C> {
+    fn borrow(&self) -> &BinaryTree<CartesianTreeNode<K, V>> {
+        &self.0
+    }
+}
+
+impl<K, V, C> BorrowMut<BinaryTree<CartesianTreeNode<K, V>>> for CartesianTree<K, V, C> {
+    fn borrow_mut(&mut self) -> &mut BinaryTree<CartesianTreeNode<K, V>> {
+        &mut self.0
+    }
+}
+
+impl<K, V, C> From<CartesianTree<K, V, C>> for BinaryTree<CartesianTreeNode<K, V>> {
+    fn from(value: CartesianTree<K, V, C>) -> Self {
+        value.0
     }
 }
 
@@ -281,7 +295,7 @@ mod tests {
         let tree = sequence.clone()
             .into_iter()
             .collect::<CartesianTree<_, _, Max>>();
-        assert!(is_heap::<_, _, Max>(tree.inner()));
+        assert!(is_heap::<_, _, Max>(tree.borrow()));
         
         // Assert the sequence is preserved.
         let mut tree_sequence = Vec::new();

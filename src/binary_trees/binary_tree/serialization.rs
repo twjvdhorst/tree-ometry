@@ -63,7 +63,7 @@ impl<T> From<SerializationTree<T>> for BinaryTree<T> {
         fn from_recursive<T>(tree: &mut BinaryTree<T>, node: SerializationNode<T>, parent_id: NodeId, side: Side) {
             let SerializationNode { data, left, right } = node;
             let new_id = tree.new_node(data);
-            tree.add_edge(parent_id, new_id, side);
+            tree.add_edge_unchecked(parent_id, new_id, side);
             if let Some(left) = left {
                 from_recursive(tree, *left, new_id, Side::Left);
             }

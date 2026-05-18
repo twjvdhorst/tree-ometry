@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use serde::{Serialize, Deserialize, de::Error};
 
 use crate::binary_trees::binary_tree::{self, BinaryTree};
@@ -86,7 +88,7 @@ pub struct SerializationTree<K, V, S>(pub Option<SerializationNode<K, V, S>>);
 
 impl<'t, K, V, S> SerializationTree<&'t K, &'t V, &'t S> {
     pub fn new(tree: &'t SemigroupRbTree<K, V, S>) -> Self {
-        Self::from(binary_tree::serialization::SerializationTree::new(tree.inner()))
+        Self::from(binary_tree::serialization::SerializationTree::new(tree.borrow()))
     }
 }
 
