@@ -50,6 +50,49 @@ where
     }
 }
 
+#[derive(Error, Debug)]
+pub enum CartesianTreeError {
+    #[error("tree is not a {0} heap")]
+    HeapError(String),
+}
+
+fn is_heap<K, V, C>(tree: &BinaryTree<CartesianTreeNode<K, V>>) -> bool
+where 
+    K: Ord,
+    C: Comparer,
+{
+    fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianTreeNode<K, V>>) -> bool
+    where
+        K: Ord,
+        C: Comparer,
+    {
+        let Some(node) = cursor.node() else { return true; };
+        if let Some(left) = cursor.peek_left() {
+            if C::compare(node.data().key(), left.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut left_cursor = cursor.spawn_cursor();
+            left_cursor.move_left();
+            if !is_heap_recursive::<_, _, C>(left_cursor) {
+                return false;
+            };
+        }
+        if let Some(right) = cursor.peek_right() {
+            if C::compare(node.data().key(), right.data().key()) == Ordering::Greater {
+                return false;
+            }
+            let mut right_cursor = cursor.spawn_cursor();
+            right_cursor.move_right();
+            if !is_heap_recursive::<_, _, C>(right_cursor) {
+                return false;
+            };
+        }
+        true
+    }
+        
+    is_heap_recursive::<_, _, C>(tree.cursor())
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct SerializationNode<K, V> {
     key: K,
