@@ -1,10 +1,22 @@
-use std::borrow::Borrow;
+use std::{cmp::Ordering, marker::PhantomData};
 
 use serde::{Serialize, Deserialize, de::Error};
+use thiserror::Error;
 
-use super::Comparer;
-use crate::binary_trees::binary_tree::{self, BinaryTree};
-use crate::binary_trees::cartesian_tree::{CartesianTree, CartesianTreeNode};
+use super::{CartesianTree, CartesianTreeNode, Comparer};
+use crate::binary_trees::{
+    binary_tree::{
+        self,
+        BinaryTree,
+    },
+    traits::{
+        BinaryTree as BinaryTreeTrait,
+        binary_tree_cursor::{
+            BinaryTreeCursor, 
+            PeekingCursor,
+        },
+    },
+};
 
 impl<K, V, C> Serialize for CartesianTree<K, V, C>
 where 
@@ -30,7 +42,11 @@ where
         D: serde::Deserializer<'de>
     {
         let tree = BinaryTree::from(SerializationTree::deserialize(deserializer)?);
-        Self::try_from(tree).map_err(D::Error::custom)
+        if !is_heap::<_, _, C>(&tree) {
+            Err(CartesianTreeError::HeapError(String::from(C::name()))).map_err(D::Error::custom)?;
+        }
+
+        Ok(Self(tree, PhantomData))
     }
 }
 
@@ -84,7 +100,7 @@ pub struct SerializationTree<K, V>(pub Option<SerializationNode<K, V>>);
 
 impl<'t, K, V> SerializationTree<&'t K, &'t V> {
     pub fn new<C>(tree: &'t CartesianTree<K, V, C>) -> Self {
-        Self::from(binary_tree::serialization::SerializationTree::new(tree.borrow()))
+        Self::from(binary_tree::serialization::SerializationTree::new(tree.inner()))
     }
 }
 

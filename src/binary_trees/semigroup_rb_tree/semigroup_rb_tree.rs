@@ -1,9 +1,6 @@
 use paste::paste;
 use std::{
-    borrow::{
-        Borrow, 
-        BorrowMut,
-    }, 
+    borrow::Borrow, 
     cmp::Ordering, 
     fmt::{
         Debug, 
@@ -11,19 +8,15 @@ use std::{
     },
 };
 
-use ref_cast::RefCast;
 #[cfg(feature = "serde")]
 use serde::Serialize;
-use thiserror::Error;
 
 use crate::binary_trees::{
     Side, 
     binary_tree::{
-        self,
         BinaryTree, 
         BinaryTreeNode,
-    }, 
-    red_black_tree::{RedBlackNode, RedBlackTree}, 
+    },
     semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
     traits::{
         self,
@@ -76,18 +69,6 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
     }
 }
 
-impl<K, V> Borrow<RedBlackNode<K, V>> for SemigroupRbNode<K, V, ()> {
-    fn borrow(&self) -> &RedBlackNode<K, V> {
-        RedBlackNode::ref_cast(self)
-    }
-}
-
-impl<K, V> BorrowMut<RedBlackNode<K, V>> for SemigroupRbNode<K, V, ()> {
-    fn borrow_mut(&mut self) -> &mut RedBlackNode<K, V> {
-        RedBlackNode::ref_cast_mut(self)
-    }
-}
-
 impl<K, V, S> SemigroupRbNode<K, V, S> {
     pub fn key(&self) -> &K {
         &self.key
@@ -113,11 +94,11 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         (self.key, self.value)
     }
 
-    fn is_red(&self) -> bool {
+    pub(super) fn is_red(&self) -> bool {
         self.color == Color::Red
     }
 
-    fn is_black(&self) -> bool {
+    pub(super) fn is_black(&self) -> bool {
         self.color == Color::Black
     }
 
@@ -131,183 +112,11 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
 }
 
 #[derive(Clone)]
-pub struct SemigroupRbTree<K, V, S>(BinaryTree<SemigroupRbNode<K, V, S>>);
+pub struct SemigroupRbTree<K, V, S>(pub(super) BinaryTree<SemigroupRbNode<K, V, S>>);
 
 impl<K, V, S> Default for SemigroupRbTree<K, V, S> {
     fn default() -> Self {
         Self(BinaryTree::default())
-    }
-}
-
-#[derive(Error, Debug)]
-pub enum SemigroupRbTreeError {
-    #[error("tree is not a binary search tree")]
-    BinarySearchTreeError,
-    #[error("tree is not a red-black tree")]
-    RedBlackTreeError,
-    #[error("semigroup values are incorrect")]
-    SemigroupError,
-}
-
-fn is_binary_search_tree<K, V, S>(tree: &BinaryTree<SemigroupRbNode<K, V, S>>) -> bool
-where 
-    K: Ord,
-{
-    fn is_binary_search_tree_recursive<'t, K, V, S>(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> (bool, Option<(&'t K, &'t K)>)
-    where
-        K: Ord,
-    {
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, None); };
-        let mut left_cursor = cursor;
-        let mut right_cursor = cursor.clone();
-        left_cursor.move_left();
-        right_cursor.move_right();
-        let (is_left_bst, left_range) = is_binary_search_tree_recursive(left_cursor);
-        let (is_right_bst, right_range) = is_binary_search_tree_recursive(right_cursor);
-
-        if !is_left_bst || !is_right_bst {
-            return (false, None);
-        }
-
-        if let Some((_, max_left)) = left_range && max_left > node.key() {
-            return (false, None);
-        }
-
-        if let Some((min_right, _)) = right_range && min_right < node.key() {
-            return (false, None);
-        }
-
-        (true, Some((
-            left_range.map_or(node.key(), |(min, _)| min),
-            right_range.map_or(node.key(), |(_, max)| max)
-        )))
-    }
-    
-    is_binary_search_tree_recursive(tree.cursor()).0
-}
-
-fn is_red_black_tree<K, V, S>(tree: &BinaryTree<SemigroupRbNode<K, V, S>>) -> bool
-where 
-    K: Ord,
-{
-    /// Determines whether the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree.
-    fn is_red_black_tree_recursive<K, V, S>(cursor: binary_tree::Cursor<'_, SemigroupRbNode<K, V, S>>) -> (bool, Option<usize>)
-    where
-        K: Ord,
-    {
-        // Leaves are black.
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, Some(1)); };
-
-        // No red-red edge.
-        let left = cursor.peek_left().map(BinaryTreeNode::data);
-        let right = cursor.peek_right().map(BinaryTreeNode::data);
-        if node.color == Color::Red &&
-            (left.map(SemigroupRbNode::color) == Some(Color::Red) || right.map(SemigroupRbNode::color) == Some(Color::Red))
-        {
-            return (false, None);
-        }
-
-        // Check validity of subtrees.
-        let mut left_cursor = cursor;
-        let mut right_cursor = cursor.clone();
-        left_cursor.move_left();
-        right_cursor.move_right();
-        let (is_left_rb, num_black_left) = is_red_black_tree_recursive(left_cursor);
-        let (is_right_rb, num_black_right) = is_red_black_tree_recursive(right_cursor);
-        if !is_left_rb || !is_right_rb || !(num_black_left == num_black_right) {
-            return (false, None);
-        }
-
-        // Return number of black nodes on any root-to-leaf path.
-        if node.color == Color::Red {
-            (true, num_black_left)
-        } else {
-            (true, Some(1 + num_black_left.unwrap_or(0)))
-        }
-    }
-    
-    let cursor = tree.cursor();
-    if let Some(node) = cursor.node().map(BinaryTreeNode::data) && node.color != Color::Black {
-        return false;
-    }
-
-    is_red_black_tree_recursive(cursor).0
-}
-
-fn check_semigroup_values<K, V, S>(tree: &BinaryTree<SemigroupRbNode<K, V, S>>) -> bool
-where 
-    S: TreeSemigroup<K> + PartialEq,
-{
-    fn check_semigroup_values_recursive<K, V, S>(cursor: binary_tree::Cursor<'_, SemigroupRbNode<K, V, S>>) -> bool
-    where 
-        S: TreeSemigroup<K> + PartialEq,
-    {
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return true; };
-        let binary_tree::Neighborhood { left, right, .. } = cursor.peek_neighborhood();
-        let left = left.map(BinaryTreeNode::data);
-        let right = right.map(BinaryTreeNode::data);
-        let semigroup_value = S::op(node.key(), left.map(SemigroupRbNode::semigroup_value), right.map(SemigroupRbNode::semigroup_value));
-        if node.semigroup_value != semigroup_value {
-            return false;
-        }
-            
-        let mut left_cursor = cursor;
-        let mut right_cursor = cursor.spawn_cursor();
-        left_cursor.move_left();
-        right_cursor.move_right();
-        check_semigroup_values_recursive(left_cursor) && check_semigroup_values_recursive(right_cursor)
-    }
-
-    check_semigroup_values_recursive(tree.cursor())
-}
-
-impl<K, V, S> TryFrom<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S>
-where
-    K: Ord,
-    S: TreeSemigroup<K> + PartialEq,
-{
-    type Error = SemigroupRbTreeError;
-
-    fn try_from(value: BinaryTree<SemigroupRbNode<K, V, S>>) -> Result<Self, Self::Error> {
-        if !is_binary_search_tree(&value) {
-            Err(SemigroupRbTreeError::BinarySearchTreeError)
-        } else if !is_red_black_tree(&value) {
-            Err(SemigroupRbTreeError::RedBlackTreeError)
-        } else if !check_semigroup_values(&value) {
-            Err(SemigroupRbTreeError::SemigroupError)
-        } else {
-            Ok(Self(value))
-        }
-    }
-}
-
-impl<K, V> Borrow<RedBlackTree<K, V>> for SemigroupRbTree<K, V, ()> {
-    fn borrow(&self) -> &RedBlackTree<K, V> {
-        RedBlackTree::ref_cast(self)
-    }
-}
-
-impl<K, V> BorrowMut<RedBlackTree<K, V>> for SemigroupRbTree<K, V, ()> {
-    fn borrow_mut(&mut self) -> &mut RedBlackTree<K, V> {
-        RedBlackTree::ref_cast_mut(self)
-    }
-}
-
-impl<K, V, S> Borrow<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S> {
-    fn borrow(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
-        &self.0
-    }
-}
-
-impl<K, V, S> BorrowMut<BinaryTree<SemigroupRbNode<K, V, S>>> for SemigroupRbTree<K, V, S> {
-    fn borrow_mut(&mut self) -> &mut BinaryTree<SemigroupRbNode<K, V, S>> {
-        &mut self.0
-    }
-}
-
-impl<K, V, S> From<SemigroupRbTree<K, V, S>> for BinaryTree<SemigroupRbNode<K, V, S>> {
-    fn from(value: SemigroupRbTree<K, V, S>) -> Self {
-        value.0
     }
 }
 
@@ -365,6 +174,23 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
 
     fn root_mut(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
         self.0.root_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    pub(super) fn inner(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
+        &self.0
+    }
+
+    pub fn map_values<U, F>(self, f: F) -> SemigroupRbTree<K, U, S>
+    where 
+        F: Fn(V) -> U,
+    {
+        let f = |node: SemigroupRbNode<K, V, S>| SemigroupRbNode {
+            key: node.key, 
+            value: f(node.value), 
+            semigroup_value: node.semigroup_value,
+            color: node.color,
+        };
+        SemigroupRbTree(self.0.map(f))
     }
     
     tree_iterators::impl_iters!(pub, inorder, SemigroupRbNode<K, V, S>);
@@ -526,9 +352,8 @@ where
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
-            if let Neighborhood { left, right, .. } = cursor.peek_neighborhood()
-                && left.map_or(true, SemigroupRbNode::is_black) && right.map_or(true, SemigroupRbNode::is_black)
-            {
+            let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
+            if left.map_or(true, SemigroupRbNode::is_black) && right.map_or(true, SemigroupRbNode::is_black) {
                 // Case 2.
                 cursor.set_color(Color::Red);
                 cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to x.p

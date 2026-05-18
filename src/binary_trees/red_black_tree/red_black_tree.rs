@@ -1,13 +1,16 @@
+use paste::paste;
 use ref_cast::RefCast;
 use std::{borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
 use crate::binary_trees::{
-    binary_tree::BinaryTree, semigroup_rb_tree::{
+    semigroup_rb_tree::{
         SemigroupRbNode, 
         SemigroupRbTree
-    }, traits
+    },
+    traits,
+    tree_iterators::{self, *},
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -42,35 +45,11 @@ impl<K, V> RedBlackNode<K, V> {
 
 #[derive(Clone, RefCast)]
 #[repr(transparent)]
-pub struct RedBlackTree<K, V>(SemigroupRbTree<K, V, ()>);
+pub struct RedBlackTree<K, V>(pub(super) SemigroupRbTree<K, V, ()>);
 
 impl<K, V> Default for RedBlackTree<K, V> {
     fn default() -> Self {
         Self(SemigroupRbTree::default())
-    }
-}
-
-impl<K, V> From<SemigroupRbTree<K, V, ()>> for RedBlackTree<K, V> {
-    fn from(value: SemigroupRbTree<K, V, ()>) -> Self {
-        Self(value)
-    }
-}
-
-impl<K, V> Borrow<BinaryTree<RedBlackNode<K, V>>> for RedBlackTree<K, V> {
-    fn borrow(&self) -> &BinaryTree<RedBlackNode<K, V>> {
-        let tree = self.0.borrow();
-    }
-}
-
-impl<K, V> BorrowMut<BinaryTree<RedBlackNode<K, V>>> for RedBlackTree<K, V> {
-    fn borrow_mut(&mut self) -> &mut BinaryTree<RedBlackNode<K, V>> {
-        self.0.borrow_mut()
-    }
-}
-
-impl<K, V> From<RedBlackTree<K, V>> for BinaryTree<RedBlackNode<K, V>> {
-    fn from(value: RedBlackTree<K, V>) -> Self {
-        value.0
     }
 }
 
@@ -121,8 +100,23 @@ impl<K, V> RedBlackTree<K, V> {
     }
 
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
-        self.0.root().map(Borrow::borrow)
+        self.0.root().map(AsRef::as_ref)
     }
+
+    pub(super) fn inner(&self) -> &SemigroupRbTree<K, V, ()> {
+        &self.0
+    }
+
+    pub fn map_values<U, F>(self, f: F) -> RedBlackTree<K, U>
+    where 
+        F: Fn(V) -> U,
+    {
+        RedBlackTree(self.0.map_values(f))
+    }
+
+    tree_iterators::impl_iters!(pub, inorder, RedBlackNode<K, V>);
+    tree_iterators::impl_iters!(pub, preorder, RedBlackNode<K, V>);
+    tree_iterators::impl_iters!(pub, postorder, RedBlackNode<K, V>);
 }
 
 impl<K, V> RedBlackTree<K, V>

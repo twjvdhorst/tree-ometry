@@ -1,6 +1,7 @@
 mod semigroup_rb_tree;
 mod tree_semigroup;
 mod cursors;
+mod conversions;
 #[cfg(feature = "serde")]
 pub mod serialization;
 
