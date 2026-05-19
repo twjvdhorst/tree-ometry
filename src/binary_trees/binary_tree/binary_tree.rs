@@ -1,5 +1,4 @@
 use std::{collections::HashMap, fmt::{Debug, Display}};
-use paste::paste;
 
 use slotmap::{Key, SlotMap, new_key_type};
 #[cfg(feature = "serde")]
@@ -14,7 +13,6 @@ use crate::binary_trees::{
             BinaryTreeMut,
         },
     },
-    tree_iterators::{self, *},
 };
 use super::cursors::{Cursor, CursorMut};
 
@@ -341,10 +339,6 @@ impl<T> BinaryTree<T> {
             nodes: new_nodes,
         }
     }
-
-    tree_iterators::impl_iters!(pub, inorder, T);
-    tree_iterators::impl_iters!(pub, preorder, T);
-    tree_iterators::impl_iters!(pub, postorder, T);
 }
 
 impl<T> Debug for BinaryTreeNode<T>
