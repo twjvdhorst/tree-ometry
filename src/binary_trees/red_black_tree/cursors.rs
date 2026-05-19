@@ -5,18 +5,13 @@ use crate::binary_trees::{
     Side, 
     semigroup_rb_tree, 
     traits::binary_tree_cursor::{
+        Neighborhood,
+        NeighborhoodMut,
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
     }
 };
-
-pub struct Neighborhood<'c, K, V> {
-    pub node: Option<&'c RedBlackNode<K, V>>,
-    pub parent: Option<&'c RedBlackNode<K, V>>,
-    pub left: Option<&'c RedBlackNode<K, V>>,
-    pub right: Option<&'c RedBlackNode<K, V>>,
-}
 
 /// A cursor over a RedBlackTree.
 /// A Cursor can freely walk through the tree.
@@ -27,16 +22,6 @@ pub struct Cursor<'t, K, V>(semigroup_rb_tree::Cursor<'t, K, V, ()>);
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: semigroup_rb_tree::Cursor<'t, K, V, ()>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
-        let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node.map(AsRef::as_ref),
-            parent: parent.map(AsRef::as_ref),
-            left: left.map(AsRef::as_ref),
-            right: right.map(AsRef::as_ref),
-        }
     }
 }
 
@@ -100,13 +85,16 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     fn peek_right(&self) -> Option<&'t Self::Item> {
         self.0.peek_right().map(AsRef::as_ref)
     }
-}
 
-pub struct NeighborhoodMut<'c, K, V> {
-    pub node: Option<&'c mut RedBlackNode<K, V>>,
-    pub parent: Option<&'c mut RedBlackNode<K, V>>,
-    pub left: Option<&'c mut RedBlackNode<K, V>>,
-    pub right: Option<&'c mut RedBlackNode<K, V>>,
+    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
+        let Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            node: node.map(AsRef::as_ref),
+            parent: parent.map(AsRef::as_ref),
+            left: left.map(AsRef::as_ref),
+            right: right.map(AsRef::as_ref),
+        }
+    }
 }
 
 /// A cursor over a RedBlackTree with editing operations.
@@ -119,26 +107,6 @@ pub struct CursorMut<'t, K, V>(semigroup_rb_tree::CursorMut<'t, K, V, ()>);
 impl<'t, K, V> CursorMut<'t, K, V> {
     pub(super) fn new(cursor: semigroup_rb_tree::CursorMut<'t, K, V, ()>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let semigroup_rb_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node.map(AsRef::as_ref),
-            parent: parent.map(AsRef::as_ref),
-            left: left.map(AsRef::as_ref),
-            right: right.map(AsRef::as_ref),
-        }
-    }
-
-    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
-        let semigroup_rb_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
-        NeighborhoodMut {
-            node: node.map(AsMut::as_mut),
-            parent: parent.map(AsMut::as_mut),
-            left: left.map(AsMut::as_mut),
-            right: right.map(AsMut::as_mut),
-        }
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
@@ -215,6 +183,26 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
 
     fn peek_right(&self) -> Option<&Self::Item> {
         self.0.peek_right().map(AsRef::as_ref)
+    }
+
+    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item> {
+        let Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
+        Neighborhood {
+            node: node.map(AsRef::as_ref),
+            parent: parent.map(AsRef::as_ref),
+            left: left.map(AsRef::as_ref),
+            right: right.map(AsRef::as_ref),
+        }
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item> {
+        let NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
+        NeighborhoodMut {
+            node: node.map(AsMut::as_mut),
+            parent: parent.map(AsMut::as_mut),
+            left: left.map(AsMut::as_mut),
+            right: right.map(AsMut::as_mut),
+        }
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {

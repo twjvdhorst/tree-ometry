@@ -5,18 +5,13 @@ use crate::binary_trees::{
         self, 
         BinaryTreeNode,
     }, cartesian_tree::CartesianTreeNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
+        Neighborhood,
+        NeighborhoodMut,
         BinaryTreeCursor,
         PeekingCursor, 
         PeekingCursorMut,
     }
 };
-
-pub struct Neighborhood<'c, K, V> {
-    pub node: Option<&'c CartesianTreeNode<K, V>>,
-    pub parent: Option<&'c CartesianTreeNode<K, V>>,
-    pub left: Option<&'c CartesianTreeNode<K, V>>,
-    pub right: Option<&'c CartesianTreeNode<K, V>>,
-}
 
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
@@ -27,16 +22,6 @@ pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, CartesianTreeNode<K, V>>);
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, CartesianTreeNode<K, V>>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
-        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
     }
 }
 
@@ -100,13 +85,10 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     fn peek_right(&self) -> Option<&'t Self::Item> {
         self.0.peek_right()
     }
-}
 
-pub struct NeighborhoodMut<'c, K, V> {
-    pub node: Option<&'c mut CartesianTreeNode<K, V>>,
-    pub parent: Option<&'c mut CartesianTreeNode<K, V>>,
-    pub left: Option<&'c mut CartesianTreeNode<K, V>>,
-    pub right: Option<&'c mut CartesianTreeNode<K, V>>,
+    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
+        self.0.peek_neighborhood()
+    }
 }
 
 /// A cursor over a SemigroupRbTree with editing operations.
@@ -119,26 +101,6 @@ pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, CartesianTreeNode<K, V
 impl<'t, K, V> CursorMut<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, CartesianTreeNode<K, V>>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
-        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
-    }
-
-    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
-        let binary_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
-        NeighborhoodMut {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
@@ -229,6 +191,10 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
         self.0.peek_right()
     }
 
+    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item> {
+        self.0.peek_neighborhood()
+    }
+
     fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
         self.0.peek_up_mut()
     }
@@ -239,5 +205,9 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
         self.0.peek_right_mut()
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item> {
+        self.0.peek_neighborhood_mut()
     }
 }

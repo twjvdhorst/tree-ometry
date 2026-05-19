@@ -6,16 +6,13 @@ use crate::binary_trees::{
     Side,
     cursor_errors::CursorError,
     traits::binary_tree_cursor::{
-        BinaryTreeCursor, PeekingCursor, PeekingCursorMut
+        Neighborhood,
+        NeighborhoodMut,
+        BinaryTreeCursor,
+        PeekingCursor,
+        PeekingCursorMut,
     },
 };
-
-pub struct Neighborhood<'c, T> {
-    pub node: Option<&'c T>,
-    pub parent: Option<&'c T>,
-    pub left: Option<&'c T>,
-    pub right: Option<&'c T>,
-}
 
 /// A cursor over a BinaryTree.
 /// A Cursor can freely walk through the tree.
@@ -36,15 +33,6 @@ impl<'t, T> Cursor<'t, T> {
 
     fn node(&self) -> Option<&'t BinaryTreeNode<T>> {
         self.tree.node(self.node_id)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'t, T> {
-        Neighborhood {
-            node: self.get(),
-            parent: self.peek_up(),
-            left: self.peek_left(),
-            right: self.peek_right()
-        }
     }
 }
 
@@ -123,13 +111,15 @@ impl<'t, T> PeekingCursor<'t> for Cursor<'t, T> {
     fn peek_right(&self) -> Option<&'t Self::Item> {
         self.tree.right(self.node_id).map(BinaryTreeNode::data)
     }
-}
 
-pub struct NeighborhoodMut<'c, T> {
-    pub node: Option<&'c mut T>,
-    pub parent: Option<&'c mut T>,
-    pub left: Option<&'c mut T>,
-    pub right: Option<&'c mut T>,
+    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
+        Neighborhood {
+            node: self.get(),
+            parent: self.peek_up(),
+            left: self.peek_left(),
+            right: self.peek_right()
+        }
+    }
 }
 
 /// A cursor over a BinaryTree with editing operations.
@@ -156,110 +146,6 @@ impl<'t, T> CursorMut<'t, T> {
 
     fn node_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.tree.node_mut(self.node_id)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
-        Neighborhood {
-            node: self.get(),
-            parent: self.peek_up(),
-            left: self.peek_left(),
-            right: self.peek_right()
-        }
-    }
-
-    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, T> {
-        if self.get().is_none() {
-            return NeighborhoodMut {
-                node: None,
-                parent: None,
-                left: None,
-                right: None,
-            };
-        }
-
-        // Safety: the cursor points to a node, so the following ids exist (though are possibly null).
-        let parent_id = self.tree.parent_id(self.node_id).unwrap();
-        let left_id = self.tree.left_id(self.node_id).unwrap();
-        let right_id = self.tree.right_id(self.node_id).unwrap();
-        match (parent_id, left_id, right_id) {
-            (parent_id, left_id, right_id) 
-                if !parent_id.is_null() && !left_id.is_null() && !right_id.is_null() => 
-            {
-                let [node, parent, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id, right_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: Some(parent.data_mut()),
-                    left: Some(left.data_mut()),
-                    right: Some(right.data_mut()),
-                }
-            },
-            (_, left_id, right_id) 
-                if !left_id.is_null() && !right_id.is_null() => 
-            {
-                let [node, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id, right_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: None,
-                    left: Some(left.data_mut()),
-                    right: Some(right.data_mut()),
-                }
-            },
-            (parent_id, _, right_id) 
-                if !parent_id.is_null() && !right_id.is_null() => 
-            {
-                let [node, parent, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, right_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: Some(parent.data_mut()),
-                    left: None,
-                    right: Some(right.data_mut()),
-                }
-            },
-            (parent_id, left_id, _) 
-                if !parent_id.is_null() && !left_id.is_null() => 
-            {
-                let [node, parent, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: Some(parent.data_mut()),
-                    left: Some(left.data_mut()),
-                    right: None,
-                }
-            },
-            (parent_id, _, _) if !parent_id.is_null() => {
-                let [node, parent] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: Some(parent.data_mut()),
-                    left: None,
-                    right: None,
-                }
-            },
-            (_, left_id, _) if !left_id.is_null() => {
-                let [node, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: None,
-                    left: Some(left.data_mut()),
-                    right: None,
-                }
-            },
-            (_, _, right_id) if !right_id.is_null() => {
-                let [node, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, right_id]) };
-                NeighborhoodMut {
-                    node: Some(node.data_mut()),
-                    parent: None,
-                    left: None,
-                    right: Some(right.data_mut()),
-                }
-            },
-            _ => NeighborhoodMut { 
-                    node: self.get_mut(),
-                    parent: None, 
-                    left: None, 
-                    right: None 
-                },
-        }
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
@@ -577,6 +463,15 @@ impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
         self.tree.right(self.node_id).map(BinaryTreeNode::data)
     }
 
+    fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
+        Neighborhood {
+            node: self.get(),
+            parent: self.peek_up(),
+            left: self.peek_left(),
+            right: self.peek_right()
+        }
+    }
+
     fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
         self.tree.parent_mut(self.node_id).map(BinaryTreeNode::data_mut)
     }
@@ -587,5 +482,100 @@ impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
         self.tree.right_mut(self.node_id).map(BinaryTreeNode::data_mut)
+    }
+    
+    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, T> {
+        if self.get().is_none() {
+            return NeighborhoodMut {
+                node: None,
+                parent: None,
+                left: None,
+                right: None,
+            };
+        }
+
+        // Safety: the cursor points to a node, so the following ids exist (though are possibly null).
+        let parent_id = self.tree.parent_id(self.node_id).unwrap();
+        let left_id = self.tree.left_id(self.node_id).unwrap();
+        let right_id = self.tree.right_id(self.node_id).unwrap();
+        match (parent_id, left_id, right_id) {
+            (parent_id, left_id, right_id) 
+                if !parent_id.is_null() && !left_id.is_null() && !right_id.is_null() => 
+            {
+                let [node, parent, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id, right_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: Some(left.data_mut()),
+                    right: Some(right.data_mut()),
+                }
+            },
+            (_, left_id, right_id) 
+                if !left_id.is_null() && !right_id.is_null() => 
+            {
+                let [node, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id, right_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: None,
+                    left: Some(left.data_mut()),
+                    right: Some(right.data_mut()),
+                }
+            },
+            (parent_id, _, right_id) 
+                if !parent_id.is_null() && !right_id.is_null() => 
+            {
+                let [node, parent, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, right_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: None,
+                    right: Some(right.data_mut()),
+                }
+            },
+            (parent_id, left_id, _) 
+                if !parent_id.is_null() && !left_id.is_null() => 
+            {
+                let [node, parent, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: Some(left.data_mut()),
+                    right: None,
+                }
+            },
+            (parent_id, _, _) if !parent_id.is_null() => {
+                let [node, parent] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: None,
+                    right: None,
+                }
+            },
+            (_, left_id, _) if !left_id.is_null() => {
+                let [node, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: None,
+                    left: Some(left.data_mut()),
+                    right: None,
+                }
+            },
+            (_, _, right_id) if !right_id.is_null() => {
+                let [node, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, right_id]) };
+                NeighborhoodMut {
+                    node: Some(node.data_mut()),
+                    parent: None,
+                    left: None,
+                    right: Some(right.data_mut()),
+                }
+            },
+            _ => NeighborhoodMut { 
+                    node: self.get_mut(),
+                    parent: None, 
+                    left: None, 
+                    right: None 
+                },
+        }
     }
 }

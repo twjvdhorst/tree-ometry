@@ -10,18 +10,13 @@ use crate::binary_trees::{
     cursor_errors::CursorError, 
     semigroup_rb_tree::TreeSemigroup, 
     traits::binary_tree_cursor::{
+        Neighborhood,
+        NeighborhoodMut,
         BinaryTreeCursor,
         PeekingCursor, 
         PeekingCursorMut,
     }
 };
-
-pub struct Neighborhood<'c, K, V, S> {
-    pub node: Option<&'c SemigroupRbNode<K, V, S>>,
-    pub parent: Option<&'c SemigroupRbNode<K, V, S>>,
-    pub left: Option<&'c SemigroupRbNode<K, V, S>>,
-    pub right: Option<&'c SemigroupRbNode<K, V, S>>,
-}
 
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
@@ -32,16 +27,6 @@ pub struct Cursor<'t, K, V, S>(binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>
 impl<'t, K, V, S> Cursor<'t, K, V, S> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V, S> {
-        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
     }
 }
 
@@ -105,13 +90,10 @@ impl<'t, K, V, S> PeekingCursor<'t> for Cursor<'t, K, V, S> {
     fn peek_right(&self) -> Option<&'t Self::Item> {
         self.0.peek_right()
     }
-}
 
-pub struct NeighborhoodMut<'c, K, V, S> {
-    pub node: Option<&'c mut SemigroupRbNode<K, V, S>>,
-    pub parent: Option<&'c mut SemigroupRbNode<K, V, S>>,
-    pub left: Option<&'c mut SemigroupRbNode<K, V, S>>,
-    pub right: Option<&'c mut SemigroupRbNode<K, V, S>>,
+    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
+        self.0.peek_neighborhood()
+    }
 }
 
 /// A cursor over a SemigroupRbTree with editing operations.
@@ -124,26 +106,6 @@ pub struct CursorMut<'t, K, V, S>(binary_tree::CursorMut<'t, SemigroupRbNode<K, 
 impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V, S> {
-        let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
-    }
-
-    pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V, S> {
-        let binary_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
-        NeighborhoodMut {
-            node: node,
-            parent: parent,
-            left: left,
-            right: right,
-        }
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
@@ -301,6 +263,14 @@ impl<'t, K, V, S> PeekingCursorMut for CursorMut<'t, K, V, S> {
 
     fn peek_right(&self) -> Option<&Self::Item> {
         self.0.peek_right()
+    }
+
+    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item> {
+        self.0.peek_neighborhood()
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item> {
+        self.0.peek_neighborhood_mut()
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {

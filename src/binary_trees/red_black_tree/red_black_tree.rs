@@ -1,6 +1,6 @@
 use paste::paste;
 use ref_cast::RefCast;
-use std::{borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}};
+use std::{borrow::Borrow, fmt::{Debug, Display}};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 

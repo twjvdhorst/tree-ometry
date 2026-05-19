@@ -15,6 +15,7 @@ use crate::binary_trees::{
     traits::{
         binary_tree::BinaryTree as BinaryTreeTrait, 
         binary_tree_cursor::{
+            Neighborhood,
             BinaryTreeCursor, 
             PeekingCursor
         }
@@ -169,7 +170,7 @@ where
         S: TreeSemigroup<K> + PartialEq,
     {
         let Some(node) = cursor.get() else { return true; };
-        let binary_tree::Neighborhood { left, right, .. } = cursor.peek_neighborhood();
+        let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
         let semigroup_value = S::op(node.key(), left.map(SemigroupRbNode::semigroup_value), right.map(SemigroupRbNode::semigroup_value));
         if *node.semigroup_value() != semigroup_value {
             return false;

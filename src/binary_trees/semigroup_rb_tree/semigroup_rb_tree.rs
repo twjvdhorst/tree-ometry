@@ -17,7 +17,7 @@ use crate::binary_trees::{
         BinaryTree, 
         BinaryTreeNode,
     },
-    semigroup_rb_tree::{Neighborhood, TreeSemigroup}, 
+    semigroup_rb_tree::TreeSemigroup, 
     traits::{
         self,
         binary_tree::{
@@ -25,6 +25,7 @@ use crate::binary_trees::{
             BinaryTreeMut
         }, 
         binary_tree_cursor::{
+            Neighborhood,
             BinaryTreeCursor, 
             PeekingCursor,
             PeekingCursorMut,

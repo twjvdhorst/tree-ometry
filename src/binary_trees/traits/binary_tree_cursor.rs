@@ -1,5 +1,19 @@
 use crate::binary_trees::Side;
 
+pub struct Neighborhood<'c, T> {
+    pub node: Option<&'c T>,
+    pub parent: Option<&'c T>,
+    pub left: Option<&'c T>,
+    pub right: Option<&'c T>,
+}
+
+pub struct NeighborhoodMut<'c, T> {
+    pub node: Option<&'c mut T>,
+    pub parent: Option<&'c mut T>,
+    pub left: Option<&'c mut T>,
+    pub right: Option<&'c mut T>,
+}
+
 pub trait BinaryTreeCursor {
     /// Advances the cursor to the parent node, returning the side of the parent node that the cursor previously pointed to.
     /// If the parent node does not exit, None is returned and the cursor is not moved.
@@ -57,6 +71,8 @@ pub trait PeekingCursor<'t>: BinaryTreeCursor {
             Side::Right => self.peek_right(),
         }
     }
+
+    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item>;
 }
 
 pub trait PeekingCursorMut: BinaryTreeCursor {
@@ -89,4 +105,7 @@ pub trait PeekingCursorMut: BinaryTreeCursor {
             Side::Right => self.peek_right_mut(),
         }
     }
+
+    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item>;
+    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item>;
 }
