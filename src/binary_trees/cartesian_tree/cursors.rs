@@ -1,10 +1,9 @@
 use derive_more::Debug;
 
 use crate::binary_trees::{
-    Side, binary_tree::{
-        self, 
-        BinaryTreeNode,
-    }, cartesian_tree::CartesianTreeNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
+    Side,
+    binary_tree,
+    cartesian_tree::CartesianTreeNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
         Neighborhood,
         NeighborhoodMut,
         BinaryTreeCursor,
@@ -116,7 +115,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(BinaryTreeNode::data_mut))
+        self.0.spawn_and_peek_mut(cursors_fn)
     }
 
     pub(super) fn re_root_tree(&mut self, root: CartesianTreeNode<K, V>, side: Side) {

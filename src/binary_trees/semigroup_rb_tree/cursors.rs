@@ -3,10 +3,7 @@ use derive_more::Debug;
 use super::{Color, SemigroupRbNode};
 use crate::binary_trees::{
     Side, 
-    binary_tree::{
-        self, 
-        BinaryTreeNode
-    }, 
+    binary_tree, 
     cursor_errors::CursorError, 
     semigroup_rb_tree::TreeSemigroup, 
     traits::binary_tree_cursor::{
@@ -121,7 +118,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(BinaryTreeNode::data_mut))
+        self.0.spawn_and_peek_mut(cursors_fn)
     }
 
     pub(super) fn set_color(&mut self, color: Color) {

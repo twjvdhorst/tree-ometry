@@ -22,7 +22,7 @@ new_key_type! { pub(super) struct NodeId; }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct BinaryTreeNode<T> {
+pub(crate) struct BinaryTreeNode<T> {
     data: T,
     #[cfg_attr(feature = "serde", serde(skip))]
     parent_id: NodeId,
@@ -42,15 +42,15 @@ impl<T> BinaryTreeNode<T> {
         }
     }
 
-    pub fn data(&self) -> &T {
+    pub(crate) fn data(&self) -> &T {
         &self.data
     }
 
-    pub fn data_mut(&mut self) -> &mut T {
+    pub(crate) fn data_mut(&mut self) -> &mut T {
         &mut self.data
     }
 
-    pub fn into_data(self) -> T {
+    fn into_data(self) -> T {
         self.data
     }
 
@@ -186,11 +186,11 @@ impl<T> BinaryTree<T> {
         self.root_id.is_null()
     }
 
-    pub fn root(&self) -> Option<&BinaryTreeNode<T>> {
+    pub(crate) fn root(&self) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(self.root_id)
     }
 
-    pub fn root_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
+    pub(crate) fn root_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(self.root_id)
     }
 

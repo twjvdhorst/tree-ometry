@@ -151,14 +151,14 @@ impl<'t, T> CursorMut<'t, T> {
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut BinaryTreeNode<T>; N]>
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut T; N]>
     where
         F: FnOnce(&mut [Cursor<'_, T>; N]),
     {
         let mut cursors = [self.spawn_cursor(); N];
         cursors_fn(&mut cursors);
         let ids = cursors.map(|cursor| cursor.node_id);
-        self.tree.get_disjoint_nodes_mut(ids)
+        Some(self.tree.get_disjoint_nodes_mut(ids)?.map(BinaryTreeNode::data_mut))
     }
 
     /// Creates a new root node, if the tree is empty.
