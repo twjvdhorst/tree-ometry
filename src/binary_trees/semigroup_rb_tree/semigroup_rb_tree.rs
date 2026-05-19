@@ -25,10 +25,7 @@ use crate::binary_trees::{
             BinaryTreeMut
         }, 
         binary_tree_cursor::{
-            Neighborhood,
-            BinaryTreeCursor, 
-            PeekingCursor,
-            PeekingCursorMut,
+            BinaryTreeCursor, Neighborhood, NeighborhoodMut, PeekingCursor, PeekingCursorMut
         },
     },
     tree_iterators::{self, *},
@@ -194,6 +191,43 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
         SemigroupRbTree(self.0.map(f))
     }
     
+    pub fn change_semigroup<SNew>(self) -> SemigroupRbTree<K, V, SNew>
+    where 
+        SNew: TreeSemigroup<K>,
+    {
+        // Make new tree with temporary semigroup values of type SNew.
+        let mut tree = SemigroupRbTree(self.0.map(|node| {
+            let temp_semigroup_value = SNew::op(&node.key, None, None);
+            SemigroupRbNode {
+                key: node.key, 
+                value: node.value, 
+                semigroup_value: temp_semigroup_value,
+                color: node.color,
+            }
+        }));
+
+        // Update semigroup values through a postorder traversal of the tree.
+        let mut cursor = tree.cursor_mut();
+        while cursor.try_move_left() {}
+        
+        while let NeighborhoodMut { node: Some(node), left, right, .. } = cursor.peek_neighborhood_mut() {
+            node.semigroup_value = SNew::op(
+                &node.key, 
+                left.as_deref().map(SemigroupRbNode::semigroup_value), 
+                right.as_deref().map(SemigroupRbNode::semigroup_value),
+            );
+            
+            // Move to next node in postorder order.
+            if cursor.move_up() == Some(Side::Left) {
+                if cursor.try_move_right() {
+                    while cursor.try_move_left() {}
+                }
+            }
+        }
+
+        tree
+    }
+
     tree_iterators::impl_iters!(pub, inorder, SemigroupRbNode<K, V, S>);
     tree_iterators::impl_iters!(pub, preorder, SemigroupRbNode<K, V, S>);
     tree_iterators::impl_iters!(pub, postorder, SemigroupRbNode<K, V, S>);
