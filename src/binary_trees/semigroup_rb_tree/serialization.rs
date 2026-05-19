@@ -4,8 +4,7 @@ use thiserror::Error;
 use crate::binary_trees::{
     binary_tree::{
         self, 
-        BinaryTree, 
-        BinaryTreeNode
+        BinaryTree,
     },
     semigroup_rb_tree::{
         Color,
@@ -82,7 +81,7 @@ where
     where
         K: Ord,
     {
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, None); };
+        let Some(node) = cursor.get() else { return (true, None); };
         let mut left_cursor = cursor;
         let mut right_cursor = cursor.clone();
         left_cursor.move_left();
@@ -121,11 +120,11 @@ where
         K: Ord,
     {
         // Leaves are black.
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return (true, Some(1)); };
+        let Some(node) = cursor.get() else { return (true, Some(1)); };
 
         // No red-red edge.
-        let left = cursor.peek_left().map(BinaryTreeNode::data);
-        let right = cursor.peek_right().map(BinaryTreeNode::data);
+        let left = cursor.peek_left();
+        let right = cursor.peek_right();
         if node.is_red() &&
             (left.map_or(false, SemigroupRbNode::is_red) || right.map_or(false, SemigroupRbNode::is_red))
         {
@@ -154,7 +153,7 @@ where
     let cursor = tree.cursor();
 
     // Root must be black.
-    if let Some(node) = cursor.node().map(BinaryTreeNode::data) && !node.is_black() {
+    if let Some(node) = cursor.get() && !node.is_black() {
         return false;
     }
 
@@ -169,10 +168,8 @@ where
     where 
         S: TreeSemigroup<K> + PartialEq,
     {
-        let Some(node) = cursor.node().map(BinaryTreeNode::data) else { return true; };
+        let Some(node) = cursor.get() else { return true; };
         let binary_tree::Neighborhood { left, right, .. } = cursor.peek_neighborhood();
-        let left = left.map(BinaryTreeNode::data);
-        let right = right.map(BinaryTreeNode::data);
         let semigroup_value = S::op(node.key(), left.map(SemigroupRbNode::semigroup_value), right.map(SemigroupRbNode::semigroup_value));
         if *node.semigroup_value() != semigroup_value {
             return false;

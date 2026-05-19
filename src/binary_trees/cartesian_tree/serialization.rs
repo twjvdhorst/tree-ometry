@@ -66,9 +66,9 @@ where
         K: Ord,
         C: Comparer,
     {
-        let Some(node) = cursor.node() else { return true; };
+        let Some(node) = cursor.get() else { return true; };
         if let Some(left) = cursor.peek_left() {
-            if C::compare(node.data().key(), left.data().key()) == Ordering::Greater {
+            if C::compare(node.key(), left.key()) == Ordering::Greater {
                 return false;
             }
             let mut left_cursor = cursor.spawn_cursor();
@@ -78,7 +78,7 @@ where
             };
         }
         if let Some(right) = cursor.peek_right() {
-            if C::compare(node.data().key(), right.data().key()) == Ordering::Greater {
+            if C::compare(node.key(), right.key()) == Ordering::Greater {
                 return false;
             }
             let mut right_cursor = cursor.spawn_cursor();

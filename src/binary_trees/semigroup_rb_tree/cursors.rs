@@ -37,10 +37,10 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V, S> {
         let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(BinaryTreeNode::data),
-            parent: parent.map(BinaryTreeNode::data),
-            left: left.map(BinaryTreeNode::data),
-            right: right.map(BinaryTreeNode::data),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 }
@@ -80,15 +80,13 @@ impl<'t, K, V, S> BinaryTreeCursor for Cursor<'t, K, V, S> {
 }
 
 impl<'t, K, V, S> PeekingCursor<'t> for Cursor<'t, K, V, S> {
-    type Node = SemigroupRbNode<K, V, S>;
-    type SpawnedCursor<'c> = Cursor<'c, K, V, S>
-    where Self: 'c;
+    type Item = SemigroupRbNode<K, V, S>;
 
-    fn node(&self) -> Option<&'t Self::Node> {
-        self.0.node().map(BinaryTreeNode::data)
+    fn get(&self) -> Option<&'t Self::Item> {
+        self.0.get()
     }
 
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+    fn spawn_cursor(&self) -> Self {
         self.clone()
     }
 
@@ -96,16 +94,16 @@ impl<'t, K, V, S> PeekingCursor<'t> for Cursor<'t, K, V, S> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&'t Self::Node> {
-        self.0.peek_up().map(BinaryTreeNode::data)
+    fn peek_up(&self) -> Option<&'t Self::Item> {
+        self.0.peek_up()
     }
 
-    fn peek_left(&self) -> Option<&'t Self::Node> {
-        self.0.peek_left().map(BinaryTreeNode::data)
+    fn peek_left(&self) -> Option<&'t Self::Item> {
+        self.0.peek_left()
     }
 
-    fn peek_right(&self) -> Option<&'t Self::Node> {
-        self.0.peek_right().map(BinaryTreeNode::data)
+    fn peek_right(&self) -> Option<&'t Self::Item> {
+        self.0.peek_right()
     }
 }
 
@@ -131,20 +129,20 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V, S> {
         let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(BinaryTreeNode::data),
-            parent: parent.map(BinaryTreeNode::data),
-            left: left.map(BinaryTreeNode::data),
-            right: right.map(BinaryTreeNode::data),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V, S> {
         let binary_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
         NeighborhoodMut {
-            node: node.map(BinaryTreeNode::data_mut),
-            parent: parent.map(BinaryTreeNode::data_mut),
-            left: left.map(BinaryTreeNode::data_mut),
-            right: right.map(BinaryTreeNode::data_mut),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 
@@ -165,7 +163,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     }
 
     pub(super) fn set_color(&mut self, color: Color) {
-        if let Some(node) = self.node_mut() {
+        if let Some(node) = self.get_mut() {
             node.set_color(color);
         }
     }
@@ -186,7 +184,7 @@ where
 {
     pub(super) fn recompute_semigroup_value(&mut self) {
         let new_semigroup_value = {
-            let Some(node) = self.node() else { return; };
+            let Some(node) = self.get() else { return; };
             let Neighborhood { left, right, .. } = self.peek_neighborhood();
             S::op(
                 node.key(),
@@ -194,7 +192,7 @@ where
                 right.map(SemigroupRbNode::semigroup_value),
             )
         };
-        self.node_mut().unwrap().set_semigroup_value(new_semigroup_value);
+        self.get_mut().unwrap().set_semigroup_value(new_semigroup_value);
     }
 
     pub(super) fn move_up_and_recompute_semigroup_value(&mut self) -> Option<Side> {
@@ -273,16 +271,16 @@ impl<'t, K, V, S> BinaryTreeCursor for CursorMut<'t, K, V, S> {
 }
 
 impl<'t, K, V, S> PeekingCursorMut for CursorMut<'t, K, V, S> {
-    type Node = SemigroupRbNode<K, V, S>;
+    type Item = SemigroupRbNode<K, V, S>;
     type SpawnedCursor<'c> = Cursor<'c, K, V, S>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node> {
-        self.0.node().map(BinaryTreeNode::data)
+    fn get(&self) -> Option<&Self::Item> {
+        self.0.get()
     }
 
-    fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.node_mut().map(BinaryTreeNode::data_mut)
+    fn get_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.get_mut()
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -293,27 +291,27 @@ impl<'t, K, V, S> PeekingCursorMut for CursorMut<'t, K, V, S> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.0.peek_up().map(BinaryTreeNode::data)
+    fn peek_up(&self) -> Option<&Self::Item> {
+        self.0.peek_up()
     }
 
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.0.peek_left().map(BinaryTreeNode::data)
+    fn peek_left(&self) -> Option<&Self::Item> {
+        self.0.peek_left()
     }
 
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.0.peek_right().map(BinaryTreeNode::data)
+    fn peek_right(&self) -> Option<&Self::Item> {
+        self.0.peek_right()
     }
 
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_up_mut().map(BinaryTreeNode::data_mut)
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_up_mut()
     }
 
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_left_mut().map(BinaryTreeNode::data_mut)
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_left_mut()
     }
 
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_right_mut().map(BinaryTreeNode::data_mut)
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_right_mut()
     }
 }

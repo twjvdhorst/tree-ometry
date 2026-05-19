@@ -53,7 +53,7 @@ where
             return false;
         }
 
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
+        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
             self.cursor.move_up();
             false
         } else {
@@ -66,7 +66,7 @@ where
             return false;
         }
 
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
+        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
             self.cursor.move_up();
             false
         } else {
@@ -115,15 +115,15 @@ where
         if self.first_iteration {
             // In the first iteration, simply report the root node pointed at by the cursor.
             self.first_iteration = false;
-            let node = self.cursor.node()?;
+            let node = self.cursor.get()?;
             if (self.subtree_filter)(node) {
-                self.cursor.node()
+                self.cursor.get()
             } else {
                 None
             }
         } else {
             self.move_cursor_to_next_node();
-            self.cursor.node()
+            self.cursor.get()
         }
     }
 }
@@ -168,7 +168,7 @@ where
             return false;
         }
 
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
+        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
             self.cursor.move_up();
             false
         } else {
@@ -181,7 +181,7 @@ where
             return false;
         }
 
-        if !(self.subtree_filter)(self.cursor.node().unwrap()) {
+        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
             self.cursor.move_up();
             false
         } else {
@@ -238,7 +238,7 @@ where
         if self.first_iteration {
             // In the first iteration, simply report the root node pointed at by the cursor.
             self.first_iteration = false;
-            let node = self.cursor.node_mut()?;
+            let node = self.cursor.get_mut()?;
             if (self.subtree_filter)(node) {
                 Some(node)
             } else {
@@ -246,7 +246,7 @@ where
             }
         } else {
             self.move_cursor_to_next_node();
-            self.cursor.node_mut()
+            self.cursor.get_mut()
         }
     }
 }
@@ -271,7 +271,7 @@ mod tests {
     {
         let mut cursor = tree.cursor();
         let mut path = Vec::new();
-        while let Some(node) = cursor.node() {
+        while let Some(node) = cursor.get() {
             match K::cmp(key, node.key()) {
                 Ordering::Less => {
                     path.push(Side::Left);

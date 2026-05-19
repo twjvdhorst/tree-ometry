@@ -1,17 +1,17 @@
 use std::fmt::{self, Debug, Display};
 
-use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
+use crate::binary_trees::traits::binary_tree_cursor::{PeekingCursor, PeekingCursorMut};
 
 pub trait BinaryTree {
     type Node;
-    type Cursor<'c>: PeekingCursor<'c, Node = Self::Node>
+    type Cursor<'c>: PeekingCursor<'c, Item = Self::Node>
     where Self: 'c;
     
     fn cursor(&self) -> Self::Cursor<'_>;
 }
 
 pub trait BinaryTreeMut: BinaryTree {
-    type CursorMut<'c>: PeekingCursorMut<Node = Self::Node>
+    type CursorMut<'c>: PeekingCursorMut<Item = Self::Node>
     where Self: 'c;
 
     fn cursor_mut(&mut self) -> Self::CursorMut<'_>;
@@ -27,7 +27,7 @@ macro_rules! fmt_binary_tree {
             fn recursive_fmt<'t, C>(cursor: C, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
             where
                 C: PeekingCursor<'t> + 't,
-                C::Node: $fmt_trait,
+                C::Item: $fmt_trait,
             {
                 write!(f, "{prefix}")?;
                 if is_left {
@@ -35,7 +35,7 @@ macro_rules! fmt_binary_tree {
                 } else {
                     write!(f, "└──")?;
                 };
-                if let Some(node) = cursor.node() {
+                if let Some(node) = cursor.get() {
                     node.fmt(f)?;
                     writeln!(f, "")?;
                     let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };

@@ -49,7 +49,7 @@ where
     }
 
     fn is_cursor_in_valid_node(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
+        self.cursor.get().map_or(false, &self.subtree_filter)
     }
 
     fn move_cursor_to_successor_in_subtree(&mut self) {
@@ -94,10 +94,10 @@ where
             if !self.is_cursor_in_valid_node() {
                 self.cursor.move_up();
             }
-            self.cursor.node()
+            self.cursor.get()
         } else {
             self.move_cursor_to_next_node();
-            self.cursor.node()
+            self.cursor.get()
         }
     }
 }
@@ -138,7 +138,7 @@ where
     }
 
     fn is_cursor_in_valid_node(&self) -> bool {
-        self.cursor.node().map_or(false, &self.subtree_filter)
+        self.cursor.get().map_or(false, &self.subtree_filter)
     }
 
     fn move_cursor_to_successor_in_subtree(&mut self) {
@@ -191,10 +191,10 @@ where
             if !self.is_cursor_in_valid_node() {
                 self.cursor.move_up();
             }
-            self.cursor.node_mut()
+            self.cursor.get_mut()
         } else {
             self.move_cursor_to_next_node();
-            self.cursor.node_mut()
+            self.cursor.get_mut()
         }
     }
 }
@@ -219,7 +219,7 @@ mod tests {
     {
         let mut cursor = tree.cursor();
         let mut path = Vec::new();
-        while let Some(node) = cursor.node() {
+        while let Some(node) = cursor.get() {
             match K::cmp(key, node.key()) {
                 Ordering::Less => {
                     path.push(Side::Left);

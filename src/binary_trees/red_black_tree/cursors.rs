@@ -75,15 +75,13 @@ impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
-    type Node = RedBlackNode<K, V>;
-    type SpawnedCursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
+    type Item = RedBlackNode<K, V>;
 
-    fn node(&self) -> Option<&'t Self::Node> {
-       self.0.node().map(AsRef::as_ref)
+    fn get(&self) -> Option<&'t Self::Item> {
+       self.0.get().map(AsRef::as_ref)
     }
 
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+    fn spawn_cursor(&self) -> Self {
         self.clone()
     }
 
@@ -91,15 +89,15 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&'t Self::Node> {
+    fn peek_up(&self) -> Option<&'t Self::Item> {
         self.0.peek_up().map(AsRef::as_ref)
     }
 
-    fn peek_left(&self) -> Option<&'t Self::Node> {
+    fn peek_left(&self) -> Option<&'t Self::Item> {
         self.0.peek_left().map(AsRef::as_ref)
     }
 
-    fn peek_right(&self) -> Option<&'t Self::Node> {
+    fn peek_right(&self) -> Option<&'t Self::Item> {
         self.0.peek_right().map(AsRef::as_ref)
     }
 }
@@ -187,16 +185,16 @@ impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
-    type Node = RedBlackNode<K, V>;
+    type Item = RedBlackNode<K, V>;
     type SpawnedCursor<'c> = Cursor<'c, K, V>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node> {
-        self.0.node().map(AsRef::as_ref)
+    fn get(&self) -> Option<&Self::Item> {
+        self.0.get().map(AsRef::as_ref)
     }
 
-    fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.node_mut().map(AsMut::as_mut)
+    fn get_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.get_mut().map(AsMut::as_mut)
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -207,27 +205,27 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&Self::Node> {
+    fn peek_up(&self) -> Option<&Self::Item> {
         self.0.peek_up().map(AsRef::as_ref)
     }
 
-    fn peek_left(&self) -> Option<&Self::Node> {
+    fn peek_left(&self) -> Option<&Self::Item> {
         self.0.peek_left().map(AsRef::as_ref)
     }
 
-    fn peek_right(&self) -> Option<&Self::Node> {
+    fn peek_right(&self) -> Option<&Self::Item> {
         self.0.peek_right().map(AsRef::as_ref)
     }
 
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
         self.0.peek_up_mut().map(AsMut::as_mut)
     }
 
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
         self.0.peek_left_mut().map(AsMut::as_mut)
     }
 
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
         self.0.peek_right_mut().map(AsMut::as_mut)
     }
 }

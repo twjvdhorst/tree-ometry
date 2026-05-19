@@ -216,7 +216,7 @@ where
     /// Moves the cursor to the direct predecessor or successor of the value being inserted.
     /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
     fn find_node_to_insert_at(cursor: &mut CursorMut<'_, K, V, S>, key: &K) -> Option<Side> {
-        while let Some(node) = cursor.node_mut() {
+        while let Some(node) = cursor.get_mut() {
             match K::cmp(&key, &node.key) {
                 Ordering::Less => {
                     if !cursor.try_move_left() {
@@ -292,7 +292,7 @@ where
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
         let Some(side) = Self::find_node_to_insert_at(&mut cursor, &key) else {
             // Cursor was moved to the node containing the key.
-            let old_value = std::mem::replace(cursor.node_mut().unwrap().value_mut(), value);
+            let old_value = std::mem::replace(cursor.get_mut().unwrap().value_mut(), value);
             return Some(old_value);
         };
 
@@ -324,7 +324,7 @@ where
         Q: Ord + ?Sized,
     {
         let mut cursor = self.cursor_mut();
-        while let Some(node) = cursor.node() {
+        while let Some(node) = cursor.get() {
             match Q::cmp(key, node.key.borrow()) {
                 Ordering::Less => cursor.move_left(),
                 Ordering::Greater => cursor.move_right(),
@@ -342,7 +342,7 @@ where
 
     fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V, S>, mut side: Side) {
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.node().is_some() && cursor.peek_side(side).map_or(true, SemigroupRbNode::is_black) {
+        while cursor.get().is_some() && cursor.peek_side(side).map_or(true, SemigroupRbNode::is_black) {
             let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
             if sibling.is_red() {
                 // Case 1.
@@ -414,7 +414,7 @@ where
         }
 
         // The to-be-removed node has at most one child.
-        let key_color = cursor.node().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let key_color = cursor.get().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
         let data = match cursor.peek_neighborhood() {
             Neighborhood { left: None, right: None, .. } => {
                 let Some(side) = cursor.side_of_parent() else {
@@ -507,7 +507,7 @@ mod tests {
         where
             K: Clone + Ord,
         {
-            let Some(node) = cursor.node() else { return None; };
+            let Some(node) = cursor.get() else { return None; };
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
             let left_result = if left_cursor.try_move_left() {
@@ -543,7 +543,7 @@ mod tests {
             K: Clone + Ord,
         {
             // Tree is non-empty.
-            let node = cursor.node().unwrap();
+            let node = cursor.get().unwrap();
 
             // Assert no consecutive red nodes.
             if node.color == Color::Red {
@@ -573,7 +573,7 @@ mod tests {
         }
 
         let cursor = tree.cursor();
-        if let Some(node) = cursor.node() {
+        if let Some(node) = cursor.get() {
             assert_eq!(node.color, Color::Black);
             assert_binary_search_tree(tree);
             assert_valid_tree_recursive(cursor);
@@ -647,7 +647,7 @@ mod tests {
         where 
             S: TreeSemigroup<K> + Debug + PartialEq,
         {
-            let Some(node) = cursor.node() else { return; };
+            let Some(node) = cursor.get() else { return; };
             let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
             assert_eq!(
                 *node.semigroup_value(),
@@ -675,7 +675,7 @@ mod tests {
             S1: TreeSemigroup<K> + Debug + PartialEq,
             S2: TreeSemigroup<K> + Debug + PartialEq,
         {
-            let Some(node) = cursor.node() else { return; };
+            let Some(node) = cursor.get() else { return; };
             let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
             let semigroup_1 = &node.semigroup_value().0;
             let semigroup_2 = &node.semigroup_value().1;

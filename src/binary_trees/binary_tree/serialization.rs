@@ -1,8 +1,7 @@
 use serde::{Serialize, Deserialize};
 
-use crate::binary_trees::{Side, binary_tree::NodeId};
-
-use super::{BinaryTreeNode, BinaryTree};
+use crate::binary_trees::{Side, binary_tree::{Cursor, NodeId}, traits::{BinaryTree as BinaryTreeTrait, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}}};
+use super::BinaryTree;
 
 impl<T> Serialize for BinaryTree<T>
 where 
@@ -24,24 +23,19 @@ pub struct SerializationNode<T> {
 }
 
 impl<'t, T> SerializationNode<&'t T> {
-    fn new(tree: &'t BinaryTree<T>, node: &'t BinaryTreeNode<T>) -> Self {
-        let left = if let Some(left) = tree.left_child(node) {
-            Some(Box::new(Self::new(tree, left)))
-        } else {
-            None
-        };
+    fn new(cursor: Cursor<'t, T>) -> Option<Self> {
+        let data = cursor.get()?;
 
-        let right = if let Some(right) = tree.right_child(node) {
-            Some(Box::new(Self::new(tree, right)))
-        } else {
-            None
-        };
+        let mut left_cursor = cursor.spawn_cursor();
+        let mut right_cursor = cursor.spawn_cursor();
+        left_cursor.move_left();
+        right_cursor.move_right();
 
-        Self {
-            data: node.data(),
-            left,
-            right,
-        }
+        Some(Self {
+            data,
+            left: Self::new(left_cursor).map(Box::new),
+            right: Self::new(right_cursor).map(Box::new),
+        })
     }
 }
 
@@ -50,11 +44,7 @@ pub struct SerializationTree<T>(pub Option<SerializationNode<T>>);
 
 impl<'t, T> SerializationTree<&'t T> {
     pub fn new(tree: &'t BinaryTree<T>) -> Self {
-        if let Some(root) = tree.root() {
-            Self(Some(SerializationNode::new(tree, root)))
-        } else {
-            return Self(None);
-        }
+        Self(SerializationNode::new(tree.cursor()))
     }
 }
 

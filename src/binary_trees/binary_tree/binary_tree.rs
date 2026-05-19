@@ -144,7 +144,7 @@ impl<T> Default for BinaryTree<T> {
 }
 
 impl<T> BinaryTreeTrait for BinaryTree<T> {
-    type Node = BinaryTreeNode<T>;
+    type Node = T;
     type Cursor<'c> = Cursor<'c, T>
     where Self: 'c;
 
@@ -222,28 +222,47 @@ impl<T> BinaryTree<T> {
         unsafe { self.nodes.get_disjoint_unchecked_mut(node_ids) }
     }
 
-    pub fn parent(&self, node: &BinaryTreeNode<T>) -> Option<&BinaryTreeNode<T>> {
-        self.nodes.get(node.parent_id)
-    }
-    
-    pub fn parent_mut(&mut self, node: &BinaryTreeNode<T>) -> Option<&mut BinaryTreeNode<T>> {
-        self.nodes.get_mut(node.parent_id)
+    pub(super) fn parent_id(&self, node_id: NodeId) -> Option<NodeId> {
+        self.node(node_id).map(|node| node.parent_id)
     }
 
-    pub fn left_child(&self, node: &BinaryTreeNode<T>) -> Option<&BinaryTreeNode<T>> {
-        self.nodes.get(node.left_id)
+    pub(super) fn left_id(&self, node_id: NodeId) -> Option<NodeId> {
+        self.node(node_id).map(|node| node.left_id)
     }
 
-    pub fn left_child_mut(&mut self, node: &BinaryTreeNode<T>) -> Option<&mut BinaryTreeNode<T>> {
-        self.nodes.get_mut(node.left_id)
+    pub(super) fn right_id(&self, node_id: NodeId) -> Option<NodeId> {
+        self.node(node_id).map(|node| node.right_id)
     }
 
-    pub fn right_child(&self, node: &BinaryTreeNode<T>) -> Option<&BinaryTreeNode<T>> {
-        self.nodes.get(node.right_id)
+    pub(super) fn child_id(&self, node_id: NodeId, side: Side) -> Option<NodeId> {
+        match side {
+            Side::Left => self.left_id(node_id),
+            Side::Right => self.right_id(node_id),
+        }
     }
 
-    pub fn right_child_mut(&mut self, node: &BinaryTreeNode<T>) -> Option<&mut BinaryTreeNode<T>> {
-        self.nodes.get_mut(node.right_id)
+    pub(super) fn parent(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
+        self.parent_id(node_id).and_then(|parent_id| self.node(parent_id))
+    }
+
+    pub(super) fn left(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
+        self.left_id(node_id).and_then(|left_id| self.node(left_id))
+    }
+
+    pub(super) fn right(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
+        self.right_id(node_id).and_then(|right_id| self.node(right_id))
+    }
+
+    pub(super) fn parent_mut(&mut self, node_id: NodeId) -> Option<&mut BinaryTreeNode<T>> {
+        self.parent_id(node_id).and_then(|parent_id| self.node_mut(parent_id))
+    }
+
+    pub(super) fn left_mut(&mut self, node_id: NodeId) -> Option<&mut BinaryTreeNode<T>> {
+        self.left_id(node_id).and_then(|left_id| self.node_mut(left_id))
+    }
+
+    pub(super) fn right_mut(&mut self, node_id: NodeId) -> Option<&mut BinaryTreeNode<T>> {
+        self.right_id(node_id).and_then(|right_id| self.node_mut(right_id))
     }
     
     pub(super) fn remove_node(&mut self, node_id: NodeId) -> Option<T> {
@@ -323,9 +342,9 @@ impl<T> BinaryTree<T> {
         }
     }
 
-    tree_iterators::impl_iters!(pub, inorder, BinaryTreeNode<T>);
-    tree_iterators::impl_iters!(pub, preorder, BinaryTreeNode<T>);
-    tree_iterators::impl_iters!(pub, postorder, BinaryTreeNode<T>);
+    tree_iterators::impl_iters!(pub, inorder, T);
+    tree_iterators::impl_iters!(pub, preorder, T);
+    tree_iterators::impl_iters!(pub, postorder, T);
 }
 
 impl<T> Debug for BinaryTreeNode<T>
@@ -384,27 +403,27 @@ mod tests {
 
         // Check creation of tree went correctly.
         let mut cursor = tree.cursor();
-        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&1));
-        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&2));
-        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
+        assert_eq!(cursor.get(), Some(&1));
+        assert_eq!(cursor.peek_left(), Some(&2));
+        assert_eq!(cursor.peek_right(), Some(&5));
         cursor.move_left();
-        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
-        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&4));
+        assert_eq!(cursor.peek_left(), Some(&3));
+        assert_eq!(cursor.peek_right(), Some(&4));
         cursor.move_up();
         cursor.move_right();
-        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&5));
+        assert_eq!(cursor.get(), Some(&5));
 
         // Test rotations.
         let mut cursor = tree.cursor_mut();
         cursor.rotate_right().unwrap();
         cursor.move_up();
 
-        assert_eq!(cursor.node().map(BinaryTreeNode::data), Some(&2));
-        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&3));
-        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&1));
+        assert_eq!(cursor.get(), Some(&2));
+        assert_eq!(cursor.peek_left(), Some(&3));
+        assert_eq!(cursor.peek_right(), Some(&1));
         cursor.move_right();
-        assert_eq!(cursor.peek_left().map(BinaryTreeNode::data), Some(&4));
-        assert_eq!(cursor.peek_right().map(BinaryTreeNode::data), Some(&5));
+        assert_eq!(cursor.peek_left(), Some(&4));
+        assert_eq!(cursor.peek_right(), Some(&5));
     }
 }
 

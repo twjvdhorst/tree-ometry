@@ -32,10 +32,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'t, K, V> {
         let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(BinaryTreeNode::data),
-            parent: parent.map(BinaryTreeNode::data),
-            left: left.map(BinaryTreeNode::data),
-            right: right.map(BinaryTreeNode::data),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 }
@@ -75,15 +75,13 @@ impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
-    type Node = CartesianTreeNode<K, V>;
-    type SpawnedCursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
+    type Item = CartesianTreeNode<K, V>;
 
-    fn node(&self) -> Option<&'t Self::Node> {
-        self.0.node().map(BinaryTreeNode::data)
+    fn get(&self) -> Option<&'t Self::Item> {
+        self.0.get()
     }
 
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+    fn spawn_cursor(&self) -> Self {
         self.clone()
     }
 
@@ -91,16 +89,16 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&'t Self::Node> {
-        self.0.peek_up().map(BinaryTreeNode::data)
+    fn peek_up(&self) -> Option<&'t Self::Item> {
+        self.0.peek_up()
     }
 
-    fn peek_left(&self) -> Option<&'t Self::Node> {
-        self.0.peek_left().map(BinaryTreeNode::data)
+    fn peek_left(&self) -> Option<&'t Self::Item> {
+        self.0.peek_left()
     }
 
-    fn peek_right(&self) -> Option<&'t Self::Node> {
-        self.0.peek_right().map(BinaryTreeNode::data)
+    fn peek_right(&self) -> Option<&'t Self::Item> {
+        self.0.peek_right()
     }
 }
 
@@ -126,20 +124,20 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, K, V> {
         let binary_tree::Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
         Neighborhood {
-            node: node.map(BinaryTreeNode::data),
-            parent: parent.map(BinaryTreeNode::data),
-            left: left.map(BinaryTreeNode::data),
-            right: right.map(BinaryTreeNode::data),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, K, V> {
         let binary_tree::NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
         NeighborhoodMut {
-            node: node.map(BinaryTreeNode::data_mut),
-            parent: parent.map(BinaryTreeNode::data_mut),
-            left: left.map(BinaryTreeNode::data_mut),
-            right: right.map(BinaryTreeNode::data_mut),
+            node: node,
+            parent: parent,
+            left: left,
+            right: right,
         }
     }
 
@@ -199,16 +197,16 @@ impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
-    type Node = CartesianTreeNode<K, V>;
+    type Item = CartesianTreeNode<K, V>;
     type SpawnedCursor<'c> = Cursor<'c, K, V>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node> {
-        self.0.node().map(BinaryTreeNode::data)
+    fn get(&self) -> Option<&Self::Item> {
+        self.0.get()
     }
 
-    fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.node_mut().map(BinaryTreeNode::data_mut)
+    fn get_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.get_mut()
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -219,27 +217,27 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.0.peek_up().map(BinaryTreeNode::data)
+    fn peek_up(&self) -> Option<&Self::Item> {
+        self.0.peek_up()
     }
 
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.0.peek_left().map(BinaryTreeNode::data)
+    fn peek_left(&self) -> Option<&Self::Item> {
+        self.0.peek_left()
     }
 
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.0.peek_right().map(BinaryTreeNode::data)
+    fn peek_right(&self) -> Option<&Self::Item> {
+        self.0.peek_right()
     }
 
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_up_mut().map(BinaryTreeNode::data_mut)
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_up_mut()
     }
 
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_left_mut().map(BinaryTreeNode::data_mut)
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_left_mut()
     }
 
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.0.peek_right_mut().map(BinaryTreeNode::data_mut)
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
+        self.0.peek_right_mut()
     }
 }

@@ -41,19 +41,17 @@ pub trait BinaryTreeCursor {
 }
 
 pub trait PeekingCursor<'t>: BinaryTreeCursor {
-    type Node;
-    type SpawnedCursor<'c>: PeekingCursor<'c, Node = Self::Node>
-    where Self: 'c;
+    type Item;
 
-    fn node(&self) -> Option<&'t Self::Node>;
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_>;
+    fn get(&self) -> Option<&'t Self::Item>;
+    fn spawn_cursor(&self) -> Self;
 
     fn side_of_parent(&self) -> Option<Side>;
 
-    fn peek_up(&self) -> Option<&'t Self::Node>;
-    fn peek_left(&self) -> Option<&'t Self::Node>;
-    fn peek_right(&self) -> Option<&'t Self::Node>;
-    fn peek_side(&self, side: Side) -> Option<&'t Self::Node> {
+    fn peek_up(&self) -> Option<&'t Self::Item>;
+    fn peek_left(&self) -> Option<&'t Self::Item>;
+    fn peek_right(&self) -> Option<&'t Self::Item>;
+    fn peek_side(&self, side: Side) -> Option<&'t Self::Item> {
         match side {
             Side::Left => self.peek_left(),
             Side::Right => self.peek_right(),
@@ -62,30 +60,30 @@ pub trait PeekingCursor<'t>: BinaryTreeCursor {
 }
 
 pub trait PeekingCursorMut: BinaryTreeCursor {
-    type Node;
-    type SpawnedCursor<'c>: PeekingCursor<'c, Node = Self::Node>
+    type Item;
+    type SpawnedCursor<'c>: PeekingCursor<'c, Item = Self::Item>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node>;
-    fn node_mut(&mut self) -> Option<&mut Self::Node>;
+    fn get(&self) -> Option<&Self::Item>;
+    fn get_mut(&mut self) -> Option<&mut Self::Item>;
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_>;
 
     fn side_of_parent(&self) -> Option<Side>;
 
-    fn peek_up(&self) -> Option<&Self::Node>;
-    fn peek_left(&self) -> Option<&Self::Node>;
-    fn peek_right(&self) -> Option<&Self::Node>;
-    fn peek_side(&self, side: Side) -> Option<&Self::Node> {
+    fn peek_up(&self) -> Option<&Self::Item>;
+    fn peek_left(&self) -> Option<&Self::Item>;
+    fn peek_right(&self) -> Option<&Self::Item>;
+    fn peek_side(&self, side: Side) -> Option<&Self::Item> {
         match side {
             Side::Left => self.peek_left(),
             Side::Right => self.peek_right(),
         }
     }
 
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node>;
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node>;
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node>;
-    fn peek_side_mut(&mut self, side: Side) -> Option<&mut Self::Node> {
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Item>;
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Item>;
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Item>;
+    fn peek_side_mut(&mut self, side: Side) -> Option<&mut Self::Item> {
         match side {
             Side::Left => self.peek_left_mut(),
             Side::Right => self.peek_right_mut(),

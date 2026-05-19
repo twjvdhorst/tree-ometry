@@ -11,10 +11,10 @@ use crate::binary_trees::{
 };
 
 pub struct Neighborhood<'c, T> {
-    pub node: Option<&'c BinaryTreeNode<T>>,
-    pub parent: Option<&'c BinaryTreeNode<T>>,
-    pub left: Option<&'c BinaryTreeNode<T>>,
-    pub right: Option<&'c BinaryTreeNode<T>>,
+    pub node: Option<&'c T>,
+    pub parent: Option<&'c T>,
+    pub left: Option<&'c T>,
+    pub right: Option<&'c T>,
 }
 
 /// A cursor over a BinaryTree.
@@ -34,9 +34,13 @@ impl<'t, T> Cursor<'t, T> {
         }
     }
 
+    fn node(&self) -> Option<&'t BinaryTreeNode<T>> {
+        self.tree.node(self.node_id)
+    }
+
     pub fn peek_neighborhood(&self) -> Neighborhood<'t, T> {
         Neighborhood {
-            node: self.node(),
+            node: self.get(),
             parent: self.peek_up(),
             left: self.peek_left(),
             right: self.peek_right()
@@ -55,15 +59,15 @@ impl<'t, T> Copy for Cursor<'t, T> {}
 impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
     fn try_move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
-        let parent_id = self.node()?.parent_id();
+        let parent_id = self.tree.parent_id(self.node_id)?;
         if !parent_id.is_null() {
             self.node_id = parent_id;
-            self.node()?.side_of(node_id)
+            self.tree.node(parent_id)?.side_of(node_id)
         } else { None }
     }
     
     fn try_move_left(&mut self) -> bool {
-        let left_id = self.node().map(BinaryTreeNode::left_id);
+        let left_id = self.tree.left_id(self.node_id);
         if let Some(left_id) = left_id && !left_id.is_null() {
             self.node_id = left_id;
             true
@@ -71,7 +75,7 @@ impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
     }
     
     fn try_move_right(&mut self) -> bool {
-        let right_id = self.node().map(BinaryTreeNode::right_id);
+        let right_id = self.tree.right_id(self.node_id);
         if let Some(right_id) = right_id && !right_id.is_null() {
             self.node_id = right_id;
             true
@@ -80,54 +84,52 @@ impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
 
     fn move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::parent_id);
+        self.node_id = self.tree.parent_id(node_id).unwrap_or(NodeId::null());
         self.node().and_then(|parent| parent.side_of(node_id))
     }
 
     fn move_left(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::left_id);
+        self.node_id = self.tree.left_id(self.node_id).unwrap_or(NodeId::null());
     }
 
     fn move_right(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::right_id);
+        self.node_id = self.tree.right_id(self.node_id).unwrap_or(NodeId::null());
     }
 }
 
 impl<'t, T> PeekingCursor<'t> for Cursor<'t, T> {
-    type Node = BinaryTreeNode<T>;
-    type SpawnedCursor<'c> = Cursor<'c, T>
-    where Self: 'c;
+    type Item = T;
 
-    fn node(&self) -> Option<&'t Self::Node> {
-        self.tree.node(self.node_id)
+    fn get(&self) -> Option<&'t Self::Item> {
+        self.node().map(BinaryTreeNode::data)
     }
 
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
+    fn spawn_cursor(&self) -> Self {
         self.clone()
     }
 
     fn side_of_parent(&self) -> Option<Side> {
-        self.peek_up()?.side_of(self.node_id)
+        self.tree.parent(self.node_id)?.side_of(self.node_id)
     }
 
-    fn peek_up(&self) -> Option<&'t Self::Node> {
-        self.tree.parent(self.node()?)
+    fn peek_up(&self) -> Option<&'t Self::Item> {
+        self.tree.parent(self.node_id).map(BinaryTreeNode::data)
     }
 
-    fn peek_left(&self) -> Option<&'t Self::Node> {
-        self.tree.left_child(self.node()?)
+    fn peek_left(&self) -> Option<&'t Self::Item> {
+        self.tree.left(self.node_id).map(BinaryTreeNode::data)
     }
 
-    fn peek_right(&self) -> Option<&'t Self::Node> {
-        self.tree.right_child(self.node()?)
+    fn peek_right(&self) -> Option<&'t Self::Item> {
+        self.tree.right(self.node_id).map(BinaryTreeNode::data)
     }
 }
 
 pub struct NeighborhoodMut<'c, T> {
-    pub node: Option<&'c mut BinaryTreeNode<T>>,
-    pub parent: Option<&'c mut BinaryTreeNode<T>>,
-    pub left: Option<&'c mut BinaryTreeNode<T>>,
-    pub right: Option<&'c mut BinaryTreeNode<T>>,
+    pub node: Option<&'c mut T>,
+    pub parent: Option<&'c mut T>,
+    pub left: Option<&'c mut T>,
+    pub right: Option<&'c mut T>,
 }
 
 /// A cursor over a BinaryTree with editing operations.
@@ -148,9 +150,17 @@ impl<'t, T> CursorMut<'t, T> {
         }
     }
 
+    fn node(&self) -> Option<&BinaryTreeNode<T>> {
+        self.tree.node(self.node_id)
+    }
+
+    fn node_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
+        self.tree.node_mut(self.node_id)
+    }
+
     pub fn peek_neighborhood(&self) -> Neighborhood<'_, T> {
         Neighborhood {
-            node: self.node(),
+            node: self.get(),
             parent: self.peek_up(),
             left: self.peek_left(),
             right: self.peek_right()
@@ -158,25 +168,29 @@ impl<'t, T> CursorMut<'t, T> {
     }
 
     pub fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, T> {
-        let Some(node) = self.node() else {
+        if self.get().is_none() {
             return NeighborhoodMut {
                 node: None,
                 parent: None,
                 left: None,
                 right: None,
             };
-        };
+        }
 
-        match (node.parent_id(), node.left_id(), node.right_id()) {
+        // Safety: the cursor points to a node, so the following ids exist (though are possibly null).
+        let parent_id = self.tree.parent_id(self.node_id).unwrap();
+        let left_id = self.tree.left_id(self.node_id).unwrap();
+        let right_id = self.tree.right_id(self.node_id).unwrap();
+        match (parent_id, left_id, right_id) {
             (parent_id, left_id, right_id) 
                 if !parent_id.is_null() && !left_id.is_null() && !right_id.is_null() => 
             {
                 let [node, parent, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id, right_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
-                    parent: Some(parent),
-                    left: Some(left),
-                    right: Some(right),
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: Some(left.data_mut()),
+                    right: Some(right.data_mut()),
                 }
             },
             (_, left_id, right_id) 
@@ -184,10 +198,10 @@ impl<'t, T> CursorMut<'t, T> {
             {
                 let [node, left, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id, right_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
+                    node: Some(node.data_mut()),
                     parent: None,
-                    left: Some(left),
-                    right: Some(right),
+                    left: Some(left.data_mut()),
+                    right: Some(right.data_mut()),
                 }
             },
             (parent_id, _, right_id) 
@@ -195,10 +209,10 @@ impl<'t, T> CursorMut<'t, T> {
             {
                 let [node, parent, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, right_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
-                    parent: Some(parent),
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
                     left: None,
-                    right: Some(right),
+                    right: Some(right.data_mut()),
                 }
             },
             (parent_id, left_id, _) 
@@ -206,17 +220,17 @@ impl<'t, T> CursorMut<'t, T> {
             {
                 let [node, parent, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id, left_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
-                    parent: Some(parent),
-                    left: Some(left),
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
+                    left: Some(left.data_mut()),
                     right: None,
                 }
             },
             (parent_id, _, _) if !parent_id.is_null() => {
                 let [node, parent] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, parent_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
-                    parent: Some(parent),
+                    node: Some(node.data_mut()),
+                    parent: Some(parent.data_mut()),
                     left: None,
                     right: None,
                 }
@@ -224,23 +238,23 @@ impl<'t, T> CursorMut<'t, T> {
             (_, left_id, _) if !left_id.is_null() => {
                 let [node, left] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, left_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
+                    node: Some(node.data_mut()),
                     parent: None,
-                    left: Some(left),
+                    left: Some(left.data_mut()),
                     right: None,
                 }
             },
             (_, _, right_id) if !right_id.is_null() => {
                 let [node, right] = unsafe { self.tree.get_disjoint_nodes_unchecked_mut([self.node_id, right_id]) };
                 NeighborhoodMut {
-                    node: Some(node),
+                    node: Some(node.data_mut()),
                     parent: None,
                     left: None,
-                    right: Some(right),
+                    right: Some(right.data_mut()),
                 }
             },
             _ => NeighborhoodMut { 
-                    node: self.node_mut(),
+                    node: self.get_mut(),
                     parent: None, 
                     left: None, 
                     right: None 
@@ -284,7 +298,7 @@ impl<'t, T> CursorMut<'t, T> {
 
     /// Creates a new node and attaches the current node as a child to the new node.
     pub fn attach_parent(&mut self, data: T, side: Side) -> Result<(), CursorError> {
-        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+        let node = self.node().ok_or(CursorError::NullError)?;
 
         if node.has_parent() {
             return Err(CursorError::AttachParentError);
@@ -298,7 +312,7 @@ impl<'t, T> CursorMut<'t, T> {
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     pub fn attach_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
-        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+        let node = self.node().ok_or(CursorError::NullError)?;
 
         if node.has_child(side) {
             return Err(CursorError::AttachChildError(side));
@@ -313,7 +327,7 @@ impl<'t, T> CursorMut<'t, T> {
     /// Creates a new node and attaches the current node as a child to the new node.
     /// If the cursor already had a parent, the new node is "inserted" onto the edge.
     pub fn attach_or_insert_parent(&mut self, data: T, side: Side) -> Result<(), CursorError> {
-        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+        let node = self.node().ok_or(CursorError::NullError)?;
 
         let curr_id = self.node_id;
         let parent_id = node.parent_id();
@@ -330,7 +344,7 @@ impl<'t, T> CursorMut<'t, T> {
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     /// If the cursor already had a child on the assigned side, the new node is "inserted" onto the edge.
     pub fn attach_or_insert_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
-        let Some(node) = self.node() else { return Err(CursorError::NullError); };
+        let node = self.node().ok_or(CursorError::NullError)?;
 
         let curr_id = self.node_id;
         let child_id = node.child_id(side);
@@ -350,8 +364,8 @@ impl<'t, T> CursorMut<'t, T> {
     /// Returns the detached node.
     pub fn detach_child(&mut self, side: Side) -> Option<T> {
         let node_id = self.node_id;
-        let child_id = self.node()?.child_id(side);
-        let child_node = self.peek_side(side)?;
+        let child_id = self.tree.child_id(self.node_id, side)?;
+        let child_node = self.tree.node(child_id)?;
         if !child_node.has_left() && !child_node.has_right() {
             self.tree.remove_edge(node_id, child_id);
             self.tree.remove_node(child_id)
@@ -427,14 +441,16 @@ impl<'t, T> CursorMut<'t, T> {
     /// Performs a left rotation around the node pointed at by the cursor.
     /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_left(&mut self) -> Result<(), CursorError> {
-        let Neighborhood { node, right, .. } = self.peek_neighborhood();
-        let node = node.ok_or(CursorError::RotateLeftError)?;
-        let right = right.ok_or(CursorError::RotateLeftError)?;
-
+        // Gather ids of the relevant nodes.
+        // Right child must exist for a right rotation to work.
         let node_id = self.node_id;
+        let node = self.node().ok_or(CursorError::RotateLeftError)?;
+
         let right_id = node.right_id();
+        let right_node = self.tree.node(right_id).ok_or(CursorError::RotateLeftError)?;
+
         let parent_id = node.parent_id();
-        let rotating_id = right.left_id();
+        let rotating_id = right_node.left_id();
 
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, right_id);
@@ -457,14 +473,16 @@ impl<'t, T> CursorMut<'t, T> {
     /// Performs a right rotation around the node pointed at by the cursor.
     /// The cursor keeps pointing to the same node, which moves during rotation.
     pub fn rotate_right(&mut self) -> Result<(), CursorError> {
-        let Neighborhood { node, left, .. } = self.peek_neighborhood();
-        let node = node.ok_or(CursorError::RotateLeftError)?;
-        let left = left.ok_or(CursorError::RotateLeftError)?;
-
+        // Gather ids of the relevant nodes.
+        // Left child must exist for a right rotation to work.
         let node_id = self.node_id;
+        let node = self.node().ok_or(CursorError::RotateRightError)?;
+
         let left_id = node.left_id();
+        let left_node = self.tree.node(left_id).ok_or(CursorError::RotateRightError)?;
+
         let parent_id = node.parent_id();
-        let rotating_id = left.right_id();
+        let rotating_id = left_node.right_id();
 
         // Perform the rotation by adding and removing edges.
         self.tree.remove_edge(node_id, left_id);
@@ -479,7 +497,7 @@ impl<'t, T> CursorMut<'t, T> {
         } else {
             self.tree.set_root_id(left_id);
         }
-
+        
         self.tree.add_edge_unchecked(left_id, node_id, Side::Right);
         Ok(())
     }
@@ -488,15 +506,15 @@ impl<'t, T> CursorMut<'t, T> {
 impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
     fn try_move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
-        let parent_id = self.node()?.parent_id();
+        let parent_id = self.tree.parent_id(self.node_id)?;
         if !parent_id.is_null() {
             self.node_id = parent_id;
-            self.node()?.side_of(node_id)
+            self.tree.node(parent_id)?.side_of(node_id)
         } else { None }
     }
     
     fn try_move_left(&mut self) -> bool {
-        let left_id = self.node().map(BinaryTreeNode::left_id);
+        let left_id = self.tree.left_id(self.node_id);
         if let Some(left_id) = left_id && !left_id.is_null() {
             self.node_id = left_id;
             true
@@ -504,7 +522,7 @@ impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
     }
     
     fn try_move_right(&mut self) -> bool {
-        let right_id = self.node().map(BinaryTreeNode::right_id);
+        let right_id = self.tree.right_id(self.node_id);
         if let Some(right_id) = right_id && !right_id.is_null() {
             self.node_id = right_id;
             true
@@ -513,30 +531,30 @@ impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
 
     fn move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::parent_id);
+        self.node_id = self.tree.parent_id(node_id).unwrap_or(NodeId::null());
         self.node().and_then(|parent| parent.side_of(node_id))
     }
 
     fn move_left(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::left_id);
+        self.node_id = self.tree.left_id(self.node_id).unwrap_or(NodeId::null());
     }
 
     fn move_right(&mut self) {
-        self.node_id = self.node().map_or(NodeId::null(), BinaryTreeNode::right_id);
+        self.node_id = self.tree.right_id(self.node_id).unwrap_or(NodeId::null());
     }
 }
 
 impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
-    type Node = BinaryTreeNode<T>;
+    type Item = T;
     type SpawnedCursor<'c> = Cursor<'c, T>
     where Self: 'c;
 
-    fn node(&self) -> Option<&Self::Node> {
-        self.tree.node(self.node_id)
+    fn get(&self) -> Option<&Self::Item> {
+        self.node().map(BinaryTreeNode::data)
     }
 
-    fn node_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node_id)
+    fn get_mut(&mut self) -> Option<&mut Self::Item> {
+        self.node_mut().map(BinaryTreeNode::data_mut)
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -544,30 +562,30 @@ impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
     }
 
     fn side_of_parent(&self) -> Option<Side> {
-        self.peek_up()?.side_of(self.node_id)
+        self.tree.parent(self.node_id)?.side_of(self.node_id)
     }
 
-    fn peek_up(&self) -> Option<&Self::Node> {
-        self.tree.parent(self.node()?)
+    fn peek_up(&self) -> Option<&Self::Item> {
+        self.tree.parent(self.node_id).map(BinaryTreeNode::data)
     }
 
-    fn peek_left(&self) -> Option<&Self::Node> {
-        self.tree.left_child(self.node()?)
+    fn peek_left(&self) -> Option<&Self::Item> {
+        self.tree.left(self.node_id).map(BinaryTreeNode::data)
     }
 
-    fn peek_right(&self) -> Option<&Self::Node> {
-        self.tree.right_child(self.node()?)
+    fn peek_right(&self) -> Option<&Self::Item> {
+        self.tree.right(self.node_id).map(BinaryTreeNode::data)
     }
 
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.parent_id())
+    fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
+        self.tree.parent_mut(self.node_id).map(BinaryTreeNode::data_mut)
     }
 
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.left_id())
+    fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
+        self.tree.left_mut(self.node_id).map(BinaryTreeNode::data_mut)
     }
 
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Node> {
-        self.tree.node_mut(self.node()?.right_id())
+    fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
+        self.tree.right_mut(self.node_id).map(BinaryTreeNode::data_mut)
     }
 }

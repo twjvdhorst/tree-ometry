@@ -131,12 +131,12 @@ where
         let mut cursor = tree.cursor_mut();
         for (key, value) in iter {
             // Find the node that becomes the parent of the new node.
-            while let Some(node) = cursor.node() && C::compare(node.key(), &key) == Ordering::Greater {
+            while let Some(node) = cursor.get() && C::compare(node.key(), &key) == Ordering::Greater {
                 cursor.move_up();
             }
 
             let new_node = CartesianTreeNode { key, value };
-            if cursor.node().is_none() {
+            if cursor.get().is_none() {
                 cursor.re_root_tree(new_node, Side::Left);
             } else {
                 cursor.attach_or_insert_child(new_node, Side::Right).unwrap();
@@ -239,9 +239,9 @@ mod tests {
             K: Ord,
             C: Comparer,
         {
-            let Some(node) = cursor.node() else { return true; };
+            let Some(node) = cursor.get() else { return true; };
             if let Some(left) = cursor.peek_left() {
-                if C::compare(node.data().key(), left.data().key()) == Ordering::Greater {
+                if C::compare(node.key(), left.key()) == Ordering::Greater {
                     return false;
                 }
                 let mut left_cursor = cursor.spawn_cursor();
@@ -251,7 +251,7 @@ mod tests {
                 };
             }
             if let Some(right) = cursor.peek_right() {
-                if C::compare(node.data().key(), right.data().key()) == Ordering::Greater {
+                if C::compare(node.key(), right.key()) == Ordering::Greater {
                     return false;
                 }
                 let mut right_cursor = cursor.spawn_cursor();
