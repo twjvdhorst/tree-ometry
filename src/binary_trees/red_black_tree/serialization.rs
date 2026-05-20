@@ -7,15 +7,13 @@ use crate::binary_trees::{
         BinaryTree,
     }, red_black_tree::{
         Color,
-        RedBlackNode, RedBlackTree,
+        RedBlackNode,
+        RedBlackTree,
     },
-    traits::{
-        binary_tree::BinaryTree as BinaryTreeTrait, 
-        binary_tree_cursor::{
-            BinaryTreeCursor,
-            PeekingCursor,
-        }
-    }
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+    },
 };
 
 impl<K, V> Serialize for RedBlackTree<K, V>

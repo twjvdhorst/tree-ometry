@@ -8,15 +8,11 @@ use crate::binary_trees::{
         CursorMut,
         NodeId,
     },
-    traits::{
-        BinaryTree as BinaryTreeTrait,
-        BinaryTreeMut, 
-        binary_tree_cursor::{
-            BinaryTreeCursor,
-            PeekingCursor,
-            PeekingCursorMut,
-        },
-    }
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
 };
 
 impl<T> BinaryTree<T> {

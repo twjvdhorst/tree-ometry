@@ -1,6 +1,16 @@
 use serde::{Serialize, Deserialize};
 
-use crate::binary_trees::{Side, binary_tree::{Cursor, NodeId}, traits::{BinaryTree as BinaryTreeTrait, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}}};
+use crate::binary_trees::{
+    Side, 
+    binary_tree::{
+        Cursor, 
+        NodeId,
+    },
+    binary_tree_cursor::{
+        BinaryTreeCursor, 
+        PeekingCursor,
+    },
+};
 use super::BinaryTree;
 
 impl<T> Serialize for BinaryTree<T>

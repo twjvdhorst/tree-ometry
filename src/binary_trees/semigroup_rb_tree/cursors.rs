@@ -6,7 +6,7 @@ use crate::binary_trees::{
     binary_tree, 
     cursor_errors::CursorError, 
     semigroup_rb_tree::TreeSemigroup, 
-    traits::binary_tree_cursor::{
+    binary_tree_cursor::{
         Neighborhood,
         NeighborhoodMut,
         BinaryTreeCursor,

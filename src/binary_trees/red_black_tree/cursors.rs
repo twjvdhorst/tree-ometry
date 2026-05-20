@@ -2,9 +2,17 @@ use derive_more::Debug;
 
 use super::Color;
 use crate::binary_trees::{
-    Side, binary_tree, cursor_errors::CursorError, red_black_tree::RedBlackNode, traits::binary_tree_cursor::{
-        BinaryTreeCursor, Neighborhood, NeighborhoodMut, PeekingCursor, PeekingCursorMut
-    }
+    Side,
+    binary_tree,
+    cursor_errors::CursorError,
+    red_black_tree::RedBlackNode,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        Neighborhood,
+        NeighborhoodMut,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
 };
 
 /// A cursor over a RedBlackTree.

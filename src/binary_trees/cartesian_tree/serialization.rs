@@ -9,12 +9,9 @@ use crate::binary_trees::{
         self,
         BinaryTree,
     },
-    traits::{
-        BinaryTree as BinaryTreeTrait,
-        binary_tree_cursor::{
-            BinaryTreeCursor, 
-            PeekingCursor,
-        },
+    binary_tree_cursor::{
+        BinaryTreeCursor, 
+        PeekingCursor,
     },
 };
 

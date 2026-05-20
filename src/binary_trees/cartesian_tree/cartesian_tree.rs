@@ -7,13 +7,9 @@ use crate::binary_trees::cartesian_tree::IntoInorderIter;
 use crate::binary_trees::{
     Side, 
     binary_tree::BinaryTree, 
-    traits::{
-        self,
-        BinaryTreeMut, 
-        binary_tree_cursor::{
-            BinaryTreeCursor,
-            PeekingCursorMut,
-        },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursorMut,
     },
 };
 use super::{cursors::{Cursor, CursorMut}};
@@ -114,6 +110,14 @@ impl<K, V, C> CartesianTree<K, V, C> {
         let f = |node: CartesianNode<K, V>| CartesianNode { key: node.key, value: f(node.value) };
         CartesianTree(self.0.map(f), PhantomData)
     }
+
+    pub fn cursor(&self) -> Cursor<'_, K, V> {
+        Cursor::new(self.0.cursor())
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V> {
+        CursorMut::new(self.0.cursor_mut())
+    }
 }
 
 impl<K, V, C> FromIterator<(K, V)> for CartesianTree<K, V, C>
@@ -154,25 +158,6 @@ impl<K, V, C> IntoIterator for CartesianTree<K, V, C> {
     }
 }
 
-impl<K, V, C> traits::BinaryTree for CartesianTree<K, V, C> {
-    type Node = CartesianNode<K, V>;
-    type Cursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
-
-    fn cursor(&self) -> Self::Cursor<'_> {
-        Cursor::new(self.0.cursor())
-    }
-}
-
-impl<K, V, C> traits::BinaryTreeMut for CartesianTree<K, V, C> {
-    type CursorMut<'c> = CursorMut<'c, K, V>
-    where Self: 'c;
-
-    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
-        CursorMut::new(self.0.cursor_mut())
-    }
-}
-
 impl<K, V> Debug for CartesianNode<K, V>
 where 
     K: Debug,
@@ -189,7 +174,7 @@ where
     V: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_debug_binary_tree(self, f)
+        self.0.fmt(f)
     }
 }
 
@@ -209,7 +194,7 @@ where
     V: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_display_binary_tree(self, f)
+        self.0.fmt(f)
     }
 }
 
@@ -221,12 +206,9 @@ mod tests {
             self,
             BinaryTree,
         },
-        traits::{
-            BinaryTree as BinaryTreeTrait,
-            binary_tree_cursor::{
-                BinaryTreeCursor, 
-                PeekingCursor,
-            },
+        binary_tree_cursor::{
+            BinaryTreeCursor, 
+            PeekingCursor,
         },
     };
 

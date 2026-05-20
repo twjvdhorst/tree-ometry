@@ -11,19 +11,18 @@ use std::{
 use serde::Serialize;
 
 use crate::binary_trees::{
-    Side, binary_tree::{
+    Side,
+    binary_tree::{
         BinaryTree,
         BinaryTreeNode,
-    }, red_black_tree::IntoInorderIter, traits::{
-        self,
-        binary_tree::{
-            BinaryTree as BinaryTreeTrait, 
-            BinaryTreeMut
-        }, 
-        binary_tree_cursor::{
-            BinaryTreeCursor, Neighborhood, PeekingCursor, PeekingCursorMut
-        },
-    }
+    },
+    red_black_tree::IntoInorderIter,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        Neighborhood,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
 };
 use super::{Color, cursors::{Cursor, CursorMut}};
 
@@ -117,25 +116,6 @@ impl<K, V> IntoIterator for RedBlackTree<K, V> {
     }
 }
 
-impl<K, V> BinaryTreeTrait for RedBlackTree<K, V> {
-    type Node = RedBlackNode<K, V>;
-    type Cursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
-
-    fn cursor(&self) -> Self::Cursor<'_> {
-        Cursor::new(self.0.cursor())
-    }
-}
-
-impl<K, V> BinaryTreeMut for RedBlackTree<K, V> {
-    type CursorMut<'c> = CursorMut<'c, K, V>
-    where Self: 'c;
-    
-    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
-        CursorMut::new(self.0.cursor_mut())
-    }
-}
-
 impl<K, V> RedBlackTree<K, V> {
     pub fn new() -> Self {
         Self::default()
@@ -163,6 +143,14 @@ impl<K, V> RedBlackTree<K, V> {
             color: node.color,
         };
         RedBlackTree(self.0.map(f))
+    }
+    
+    pub fn cursor(&self) -> Cursor<'_, K, V> {
+        Cursor::new(self.0.cursor())
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V> {
+        CursorMut::new(self.0.cursor_mut())
     }
 }
 
@@ -415,7 +403,7 @@ where
     V: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_debug_binary_tree(self, f)
+        self.0.fmt(f)
     }
 }
 
@@ -435,6 +423,6 @@ where
     V: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_display_binary_tree(self, f)
+        self.0.fmt(f)
     }
 }

@@ -1,19 +1,21 @@
-use std::{collections::HashMap, fmt::{Debug, Display}};
+use std::{collections::HashMap, fmt::{self, Debug, Display}};
 
 use slotmap::{Key, SlotMap, new_key_type};
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
-    Side, binary_tree::IntoInorderIter, traits::{
-        self,
-        binary_tree::{
-            BinaryTree as BinaryTreeTrait, 
-            BinaryTreeMut,
-        },
-    }
+    Side, 
+    binary_tree::IntoInorderIter,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+    },
 };
-use super::cursors::{Cursor, CursorMut};
+use super::cursors::{
+    Cursor,
+    CursorMut,
+};
 
 new_key_type! { pub(super) struct NodeId; }
 
@@ -137,25 +139,6 @@ impl<T> Default for BinaryTree<T> {
             nodes: SlotMap::with_key(),
             root_id: NodeId::null(),
         }
-    }
-}
-
-impl<T> BinaryTreeTrait for BinaryTree<T> {
-    type Node = T;
-    type Cursor<'c> = Cursor<'c, T>
-    where Self: 'c;
-
-    fn cursor(&self) -> Self::Cursor<'_> {
-        Cursor::new(self, self.root_id)
-    }
-}
-
-impl<T> BinaryTreeMut for BinaryTree<T> {
-    type CursorMut<'c> = CursorMut<'c, T>
-    where Self: 'c;
-    
-    fn cursor_mut(&mut self) -> Self::CursorMut<'_> {
-        CursorMut::new(self, self.root_id)
     }
 }
 
@@ -338,6 +321,14 @@ impl<T> BinaryTree<T> {
             nodes: new_nodes,
         }
     }
+    
+    pub fn cursor(&self) -> Cursor<'_, T> {
+        Cursor::new(self, self.root_id)
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, T> {
+        CursorMut::new(self, self.root_id)
+    }
 }
 
 impl<T> IntoIterator for BinaryTree<T> {
@@ -353,7 +344,7 @@ impl<T> Debug for BinaryTreeNode<T>
 where 
     T: Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.data.fmt(f)
     }
 }
@@ -362,8 +353,37 @@ impl<T> Debug for BinaryTree<T>
 where 
     T: Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_debug_binary_tree(self, f)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<'t, T>(cursor: Cursor<'t, T>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            T: Debug,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(node) = cursor.get() {
+                node.fmt(f)?;
+                writeln!(f, "")?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                let mut left_cursor = cursor.spawn_cursor();
+                let mut right_cursor = cursor.spawn_cursor();
+                if left_cursor.try_move_left() {
+                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
+                }
+                if right_cursor.try_move_right() {
+                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+            
+        write!(f, "\n")?;
+        recursive_fmt(self.cursor(), f, "", false)
     }
 }
 
@@ -371,7 +391,7 @@ impl<T> Display for BinaryTreeNode<T>
 where 
     T: Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.data.fmt(f)
     }
 }
@@ -380,15 +400,44 @@ impl<T> Display for BinaryTree<T>
 where 
     T: Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        traits::binary_tree::fmt_display_binary_tree(self, f)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn recursive_fmt<'t, T>(cursor: Cursor<'t, T>, f: &mut fmt::Formatter, prefix: &str, is_left: bool) -> fmt::Result
+        where
+            T: Display,
+        {
+            write!(f, "{prefix}")?;
+            if is_left {
+                write!(f, "├──")?;
+            } else {
+                write!(f, "└──")?;
+            };
+            if let Some(node) = cursor.get() {
+                node.fmt(f)?;
+                writeln!(f, "")?;
+                let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
+                let mut left_cursor = cursor.spawn_cursor();
+                let mut right_cursor = cursor.spawn_cursor();
+                if left_cursor.try_move_left() {
+                    recursive_fmt(left_cursor, f, &new_prefix, true)?;
+                }
+                if right_cursor.try_move_right() {
+                    recursive_fmt(right_cursor, f, &new_prefix, false)?;
+                }
+                Ok(())
+            } else {
+                write!(f, "L\n")
+            }
+        }
+            
+        write!(f, "\n")?;
+        recursive_fmt(self.cursor(), f, "", false)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::traits::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
+    use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
     
     #[test]
     fn test_cursors() {

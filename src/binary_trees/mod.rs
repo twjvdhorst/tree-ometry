@@ -1,13 +1,12 @@
 use std::fmt::Display;
 
 pub mod binary_tree;
+pub mod binary_tree_cursor;
 pub mod cursor_errors;
 
 pub mod cartesian_tree;
 pub mod red_black_tree;
 pub mod semigroup_rb_tree;
-
-pub mod traits;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {

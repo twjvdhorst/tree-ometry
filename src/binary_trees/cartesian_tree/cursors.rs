@@ -3,13 +3,15 @@ use derive_more::Debug;
 use crate::binary_trees::{
     Side,
     binary_tree,
-    cartesian_tree::CartesianNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
+    cartesian_tree::CartesianNode,
+    cursor_errors::CursorError, 
+    binary_tree_cursor::{
         Neighborhood,
         NeighborhoodMut,
         BinaryTreeCursor,
         PeekingCursor, 
         PeekingCursorMut,
-    }
+    },
 };
 
 /// A cursor over a SemigroupRbTree.
