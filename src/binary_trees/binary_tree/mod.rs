@@ -1,5 +1,5 @@
-mod binary_tree;
-mod cursors;
+pub mod binary_tree;
+pub mod cursors;
 pub mod inorder_iterators;
 pub mod preorder_iterators;
 pub mod postorder_iterators;
