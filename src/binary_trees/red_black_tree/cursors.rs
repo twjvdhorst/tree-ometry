@@ -1,15 +1,9 @@
 use derive_more::Debug;
 
-use super::RedBlackNode;
+use super::Color;
 use crate::binary_trees::{
-    Side, 
-    semigroup_rb_tree, 
-    traits::binary_tree_cursor::{
-        Neighborhood,
-        NeighborhoodMut,
-        BinaryTreeCursor,
-        PeekingCursor,
-        PeekingCursorMut,
+    Side, binary_tree, cursor_errors::CursorError, red_black_tree::RedBlackNode, traits::binary_tree_cursor::{
+        BinaryTreeCursor, Neighborhood, NeighborhoodMut, PeekingCursor, PeekingCursorMut
     }
 };
 
@@ -17,10 +11,10 @@ use crate::binary_trees::{
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'t, K, V>(semigroup_rb_tree::Cursor<'t, K, V, ()>);
+pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, RedBlackNode<K, V>>);
 
 impl<'t, K, V> Cursor<'t, K, V> {
-    pub(super) fn new(cursor: semigroup_rb_tree::Cursor<'t, K, V, ()>) -> Self {
+    pub(super) fn new(cursor: binary_tree::Cursor<'t, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
     }
 }
@@ -63,7 +57,7 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     type Item = RedBlackNode<K, V>;
 
     fn get(&self) -> Option<&'t Self::Item> {
-       self.0.get().map(AsRef::as_ref)
+        self.0.get()
     }
 
     fn spawn_cursor(&self) -> Self {
@@ -75,25 +69,19 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
     }
 
     fn peek_up(&self) -> Option<&'t Self::Item> {
-        self.0.peek_up().map(AsRef::as_ref)
+        self.0.peek_up()
     }
 
     fn peek_left(&self) -> Option<&'t Self::Item> {
-        self.0.peek_left().map(AsRef::as_ref)
+        self.0.peek_left()
     }
 
     fn peek_right(&self) -> Option<&'t Self::Item> {
-        self.0.peek_right().map(AsRef::as_ref)
+        self.0.peek_right()
     }
 
     fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
-        let Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node.map(AsRef::as_ref),
-            parent: parent.map(AsRef::as_ref),
-            left: left.map(AsRef::as_ref),
-            right: right.map(AsRef::as_ref),
-        }
+        self.0.peek_neighborhood()
     }
 }
 
@@ -102,10 +90,10 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
-pub struct CursorMut<'t, K, V>(semigroup_rb_tree::CursorMut<'t, K, V, ()>);
+pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, RedBlackNode<K, V>>);
 
 impl<'t, K, V> CursorMut<'t, K, V> {
-    pub(super) fn new(cursor: semigroup_rb_tree::CursorMut<'t, K, V, ()>) -> Self {
+    pub(super) fn new(cursor: binary_tree::CursorMut<'t, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
     }
 
@@ -116,13 +104,51 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
-        // "Upgrade" cursors_fn to one that works on semigroup_rb_tree::Cursor.
-        let cursors_fn = |cursors: &mut [semigroup_rb_tree::Cursor<'_, K, V, ()>; N]| {
+        // "Downgrade" cursors_fn to one that works on binary_tree::Cursor.
+        let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, RedBlackNode<K, V>>; N]| {
             let mut rb_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn).map(|nodes| nodes.map(AsMut::as_mut))
+        self.0.spawn_and_peek_mut(cursors_fn)
+    }
+
+    pub(super) fn set_color(&mut self, color: Color) {
+        if let Some(node) = self.get_mut() {
+            node.set_color(color);
+        }
+    }
+
+    /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
+    /// Replaces the node by its child, after which the cursor points to this child.
+    /// Does nothing if the node has zero or two children.
+    /// Returns the removed node.
+    pub(super) fn transplant_child(&mut self) -> Option<(K, V)> {
+        // No need to fix semigroup values for the cursor node, as the subtree of the child is unchanged.
+        self.0.transplant_child().map(RedBlackNode::into_data)
+    }
+}
+
+impl<'t, K, V> CursorMut<'t, K, V> {
+    /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
+    pub(super) fn attach_child(&mut self, node: RedBlackNode<K, V>, side: Side) -> Result<(), CursorError> {
+        self.0.attach_child(node, side)
+    }
+
+    /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
+    /// Does nothing if the cursor does not point to a leaf.
+    /// Returns the detached node.
+    pub(super) fn detach_node(&mut self) -> Option<(K, V)> {
+        self.0.detach_node().map(RedBlackNode::into_data)
+    }
+
+    /// Performs a tree rotation.
+    /// The cursor keeps pointing to the node it originally pointed to.
+    pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
+        match side {
+            Side::Left => self.0.rotate_left(),
+            Side::Right => self.0.rotate_right(),
+        }
     }
 }
 
@@ -158,11 +184,11 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
     where Self: 'c;
 
     fn get(&self) -> Option<&Self::Item> {
-        self.0.get().map(AsRef::as_ref)
+        self.0.get()
     }
 
     fn get_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.get_mut().map(AsMut::as_mut)
+        self.0.get_mut()
     }
 
     fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
@@ -174,46 +200,34 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
     }
 
     fn peek_up(&self) -> Option<&Self::Item> {
-        self.0.peek_up().map(AsRef::as_ref)
+        self.0.peek_up()
     }
 
     fn peek_left(&self) -> Option<&Self::Item> {
-        self.0.peek_left().map(AsRef::as_ref)
+        self.0.peek_left()
     }
 
     fn peek_right(&self) -> Option<&Self::Item> {
-        self.0.peek_right().map(AsRef::as_ref)
+        self.0.peek_right()
     }
 
     fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item> {
-        let Neighborhood { node, parent, left, right } = self.0.peek_neighborhood();
-        Neighborhood {
-            node: node.map(AsRef::as_ref),
-            parent: parent.map(AsRef::as_ref),
-            left: left.map(AsRef::as_ref),
-            right: right.map(AsRef::as_ref),
-        }
+        self.0.peek_neighborhood()
     }
 
     fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item> {
-        let NeighborhoodMut { node, parent, left, right } = self.0.peek_neighborhood_mut();
-        NeighborhoodMut {
-            node: node.map(AsMut::as_mut),
-            parent: parent.map(AsMut::as_mut),
-            left: left.map(AsMut::as_mut),
-            right: right.map(AsMut::as_mut),
-        }
+        self.0.peek_neighborhood_mut()
     }
 
     fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_up_mut().map(AsMut::as_mut)
+        self.0.peek_up_mut()
     }
 
     fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_left_mut().map(AsMut::as_mut)
+        self.0.peek_left_mut()
     }
 
     fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_right_mut().map(AsMut::as_mut)
+        self.0.peek_right_mut()
     }
 }
