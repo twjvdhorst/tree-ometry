@@ -5,14 +5,13 @@ use slotmap::{Key, SlotMap, new_key_type};
 use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
-    Side, 
-    traits::{
+    Side, binary_tree::IntoInorderIter, traits::{
         self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
             BinaryTreeMut,
         },
-    },
+    }
 };
 use super::cursors::{Cursor, CursorMut};
 
@@ -338,6 +337,15 @@ impl<T> BinaryTree<T> {
             root_id: keys_map[&old_root_id],
             nodes: new_nodes,
         }
+    }
+}
+
+impl<T> IntoIterator for BinaryTree<T> {
+    type Item = T;
+    type IntoIter = IntoInorderIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 

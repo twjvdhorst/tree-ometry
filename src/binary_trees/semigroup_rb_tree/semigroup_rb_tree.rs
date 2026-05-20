@@ -16,7 +16,7 @@ use crate::binary_trees::{
         BinaryTree,
         BinaryTreeNode,
     }, 
-    semigroup_rb_tree::TreeSemigroup, 
+    semigroup_rb_tree::{IntoInorderIter, TreeSemigroup}, 
     traits::{
         self,
         binary_tree::{
@@ -137,6 +137,15 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<K, V, S> IntoIterator for SemigroupRbTree<K, V, S> {
+    type Item = SemigroupRbNode<K, V, S>;
+    type IntoIter = IntoInorderIter<K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 

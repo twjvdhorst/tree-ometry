@@ -11,24 +11,19 @@ use std::{
 use serde::Serialize;
 
 use crate::binary_trees::{
-    Side, 
-    binary_tree::{
+    Side, binary_tree::{
         BinaryTree,
         BinaryTreeNode,
-    }, 
-    traits::{
+    }, red_black_tree::IntoInorderIter, traits::{
         self,
         binary_tree::{
             BinaryTree as BinaryTreeTrait, 
             BinaryTreeMut
         }, 
         binary_tree_cursor::{
-            Neighborhood,
-            BinaryTreeCursor,
-            PeekingCursor,
-            PeekingCursorMut,
+            BinaryTreeCursor, Neighborhood, PeekingCursor, PeekingCursorMut
         },
-    },
+    }
 };
 use super::{Color, cursors::{Cursor, CursorMut}};
 
@@ -110,6 +105,15 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<K, V> IntoIterator for RedBlackTree<K, V> {
+    type Item = RedBlackNode<K, V>;
+    type IntoIter = IntoInorderIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 
