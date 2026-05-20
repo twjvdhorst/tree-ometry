@@ -25,6 +25,18 @@ where
     }
 }
 
+impl<'de, T> Deserialize<'de> for BinaryTree<T>
+where 
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>
+    {
+        Ok(Self::from(SerializationTree::deserialize(deserializer)?))
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct SerializationNode<T> {
     pub data: T,

@@ -1,10 +1,10 @@
-pub mod binary_tree;
-pub mod cursors;
-pub mod inorder_iterators;
-pub mod preorder_iterators;
-pub mod postorder_iterators;
+mod binary_tree;
+mod cursors;
+mod inorder_iterators;
+mod preorder_iterators;
+mod postorder_iterators;
 #[cfg(feature = "serde")]
-pub mod serialization;
+pub(crate) mod serialization;
 
 pub use binary_tree::*;
 pub use cursors::*;

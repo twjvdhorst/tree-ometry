@@ -1,8 +1,8 @@
-pub mod cartesian_tree;
-pub mod cursors;
-pub mod iterators;
+mod cartesian_tree;
+mod cursors;
+mod iterators;
 #[cfg(feature = "serde")]
-pub mod serialization;
+mod serialization;
 
 pub use cartesian_tree::*;
 pub use cursors::*;

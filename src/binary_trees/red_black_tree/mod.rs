@@ -2,7 +2,7 @@ mod red_black_tree;
 mod cursors;
 mod iterators;
 #[cfg(feature = "serde")]
-pub mod serialization;
+mod serialization;
 
 pub use red_black_tree::*;
 pub use cursors::*;

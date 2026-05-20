@@ -3,7 +3,7 @@ mod tree_semigroup;
 mod cursors;
 mod iterators;
 #[cfg(feature = "serde")]
-pub mod serialization;
+mod serialization;
 
 pub use semigroup_rb_tree::*;
 pub use tree_semigroup::*;

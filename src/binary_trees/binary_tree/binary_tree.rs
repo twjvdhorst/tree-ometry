@@ -1,8 +1,6 @@
 use std::{collections::HashMap, fmt::{self, Debug, Display}};
 
 use slotmap::{Key, SlotMap, new_key_type};
-#[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
 
 use crate::binary_trees::{
     Side, 
@@ -20,14 +18,10 @@ use super::cursors::{
 new_key_type! { pub(super) struct NodeId; }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub(crate) struct BinaryTreeNode<T> {
     data: T,
-    #[cfg_attr(feature = "serde", serde(skip))]
     parent_id: NodeId,
-    #[cfg_attr(feature = "serde", serde(skip))]
     left_id: NodeId,
-    #[cfg_attr(feature = "serde", serde(skip))]
     right_id: NodeId,
 }
 
@@ -127,7 +121,6 @@ impl<T> BinaryTreeNode<T> {
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "serde", derive(Deserialize), serde(from = "super::serialization::SerializationTree<T>"))]
 pub struct BinaryTree<T> {
     nodes: SlotMap<NodeId, BinaryTreeNode<T>>,
     root_id: NodeId,
