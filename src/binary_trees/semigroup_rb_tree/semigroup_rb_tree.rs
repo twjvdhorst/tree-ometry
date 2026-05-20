@@ -14,9 +14,12 @@ use serde::Serialize;
 use crate::binary_trees::{
     Side, 
     binary_tree::{
-        BinaryTree, 
-        BinaryTreeNode,
-    },
+        BinaryTree,
+        BinaryTreeNode, 
+        IntoInorderIter, 
+        IntoPostorderIter, 
+        IntoPreorderIter
+    }, 
     semigroup_rb_tree::TreeSemigroup, 
     traits::{
         self,
@@ -227,10 +230,25 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
 
         tree
     }
+}
 
+impl<K, V, S> SemigroupRbTree<K, V, S> {
     tree_iterators::impl_iters!(pub, inorder, SemigroupRbNode<K, V, S>);
+
+    pub fn into_inorder_iter(self) -> IntoInorderIter<SemigroupRbNode<K, V, S>> {
+        self.0.into_inorder_iter()
+    }
+
     tree_iterators::impl_iters!(pub, preorder, SemigroupRbNode<K, V, S>);
+
+    pub fn into_preorder_iter(self) -> IntoPreorderIter<SemigroupRbNode<K, V, S>> {
+        self.0.into_preorder_iter()
+    }
     tree_iterators::impl_iters!(pub, postorder, SemigroupRbNode<K, V, S>);
+
+    pub fn into_postorder_iter(self) -> IntoPostorderIter<SemigroupRbNode<K, V, S>> {
+        self.0.into_postorder_iter()
+    }
 }
 
 impl<K, V, S> SemigroupRbTree<K, V, S>

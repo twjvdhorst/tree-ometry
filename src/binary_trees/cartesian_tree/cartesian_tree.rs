@@ -6,8 +6,12 @@ use std::cmp::Ordering;
 
 use crate::binary_trees::{
     Side, 
-    binary_tree::BinaryTree,
-    tree_iterators::{self, *},
+    binary_tree::{
+        BinaryTree, 
+        IntoInorderIter, 
+        IntoPostorderIter, 
+        IntoPreorderIter
+    }, 
     traits::{
         self,
         BinaryTreeMut, 
@@ -15,7 +19,7 @@ use crate::binary_trees::{
             BinaryTreeCursor,
             PeekingCursorMut,
         },
-    },
+    }, tree_iterators::{self, *}
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -115,10 +119,25 @@ impl<K, V, C> CartesianTree<K, V, C> {
         let f = |node: CartesianTreeNode<K, V>| CartesianTreeNode { key: node.key, value: f(node.value) };
         CartesianTree(self.0.map(f), PhantomData)
     }
+}
 
+impl<K, V, C> CartesianTree<K, V, C> {
     tree_iterators::impl_iters!(pub, inorder, CartesianTreeNode<K, V>);
+
+    pub fn into_inorder_iter(self) -> IntoInorderIter<CartesianTreeNode<K, V>> {
+        self.0.into_inorder_iter()
+    }
+
     tree_iterators::impl_iters!(pub, preorder, CartesianTreeNode<K, V>);
+
+    pub fn into_preorder_iter(self) -> IntoPreorderIter<CartesianTreeNode<K, V>> {
+        self.0.into_preorder_iter()
+    }
     tree_iterators::impl_iters!(pub, postorder, CartesianTreeNode<K, V>);
+
+    pub fn into_postorder_iter(self) -> IntoPostorderIter<CartesianTreeNode<K, V>> {
+        self.0.into_postorder_iter()
+    }
 }
 
 impl<K, V, C> FromIterator<(K, V)> for CartesianTree<K, V, C>
