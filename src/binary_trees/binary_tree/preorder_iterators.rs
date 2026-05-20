@@ -1,5 +1,4 @@
 use lending_iterator::prelude::*;
-use slotmap::Key;
 
 use crate::binary_trees::{
     Side, 
@@ -47,14 +46,12 @@ impl<T> BinaryTree<T> {
         IntoPreorderIter::new(self)
     }
 
-    /*
-    pub fn into_preorder_iter_filtered<P>(&self, subtree_filter: P) -> IntoPreorderIterFiltered<T, P>
+    pub fn into_preorder_iter_filtered<P>(self, subtree_filter: P) -> IntoPreorderIterFiltered<T, P>
     where 
         P: Fn(&T) -> bool,
     {
         IntoPreorderIterFiltered::new(self, subtree_filter)
     }
-    */
 }
 
 pub struct PreorderIter<'t, T>(PreorderIterFiltered<'t, T, fn(&T) -> bool>);
@@ -269,23 +266,42 @@ where
     }
 }
 
-pub struct IntoPreorderIter<T> {
+pub struct IntoPreorderIter<T>(IntoPreorderIterFiltered<T, fn(&T) -> bool>);
+
+pub struct IntoPreorderIterFiltered<T, P> {
     tree: BinaryTree<T>,
+    subtree_filter: P,
     stack: Vec<NodeId>,
 }
 
 impl<T> IntoPreorderIter<T> {
     fn new(tree: BinaryTree<T>) -> Self {
+        Self(IntoPreorderIterFiltered::new(tree, |_| true))
+    }
+}
+
+impl<T, P> IntoPreorderIterFiltered<T, P> 
+where 
+    P: Fn(&T) -> bool,
+{
+    fn new(tree: BinaryTree<T>, subtree_filter: P) -> Self {
         let id = tree.root_id();
         let mut stack = Vec::new();
-        if !id.is_null() {
+        if tree.node(id).map(|node| subtree_filter(node.data())).unwrap_or(false) {
             stack.push(id);
         }
 
         Self {
             tree,
+            subtree_filter,
             stack,
         }
+    }
+
+    fn is_id_valid(&self, id: NodeId) -> bool {
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
     }
 }
 
@@ -293,12 +309,23 @@ impl<T> Iterator for IntoPreorderIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<T, P> Iterator for IntoPreorderIterFiltered<T, P>
+where 
+    P: Fn(&T) -> bool,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
         // Get id of the to-be-reported element, and expand stack.
         let next_id = self.stack.pop()?;
-        if let Some(right_id) = self.tree.right_id(next_id) {
+        if let Some(right_id) = self.tree.right_id(next_id) && self.is_id_valid(right_id) {
             self.stack.push(right_id);
         }
-        if let Some(left_id) = self.tree.left_id(next_id) {
+        if let Some(left_id) = self.tree.left_id(next_id) && self.is_id_valid(left_id) {
             self.stack.push(left_id);
         }
         self.tree.remove_node(next_id)

@@ -47,14 +47,12 @@ impl<T> BinaryTree<T> {
         IntoPostorderIter::new(self)
     }
 
-    /*
-    pub fn into_postorder_iter_filtered<P>(&self, subtree_filter: P) -> IntoPostorderIterFiltered<T, P>
+    pub fn into_postorder_iter_filtered<P>(self, subtree_filter: P) -> IntoPostorderIterFiltered<T, P>
     where 
         P: Fn(&T) -> bool,
     {
         IntoPostorderIterFiltered::new(self, subtree_filter)
     }
-    */
 }
 
 pub struct PostorderIter<'t, T>(PostorderIterFiltered<'t, T, fn(&T) -> bool>);
@@ -217,25 +215,44 @@ where
     }
 }
 
-pub struct IntoPostorderIter<T> {
+pub struct IntoPostorderIter<T>(IntoPostorderIterFiltered<T, fn(&T) -> bool>);
+
+pub struct IntoPostorderIterFiltered<T, P> {
     tree: BinaryTree<T>,
+    subtree_filter: P,
     stack: Vec<NodeId>,
 }
 
 impl<T> IntoPostorderIter<T> {
     fn new(tree: BinaryTree<T>) -> Self {
-        // Move the "cursor" to the first node in the postorder order.
+        Self(IntoPostorderIterFiltered::new(tree, |_| true))
+    }
+}
+
+impl<T, P> IntoPostorderIterFiltered<T, P> 
+where 
+    P: Fn(&T) -> bool,
+{
+    fn new(tree: BinaryTree<T>, subtree_filter: P) -> Self {
+        // Move the "cursor" to the first node in the inorder order.
         let mut id = tree.root_id();
         let mut stack = Vec::new();
-        while !id.is_null() {
+        while tree.node(id).map(|node| subtree_filter(node.data())).unwrap_or(false) {
             stack.push(id);
             id = tree.left_id(id).unwrap_or(NodeId::null());
         }
 
         Self {
             tree,
+            subtree_filter,
             stack,
         }
+    }
+
+    fn is_id_valid(&self, id: NodeId) -> bool {
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
     }
 }
 
@@ -243,11 +260,22 @@ impl<T> Iterator for IntoPostorderIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+impl<T, P> Iterator for IntoPostorderIterFiltered<T, P>
+where 
+    P: Fn(&T) -> bool,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
         // Expand the stack first, then report the element.
         let id = self.stack.last()?;
-        if let Some(right_id) = self.tree.right_id(*id) {
+        if let Some(right_id) = self.tree.right_id(*id) && self.is_id_valid(right_id) {
             self.stack.push(right_id);
-            while let Some(left_id) = self.tree.left_id(*self.stack.last().unwrap()) {
+            while let Some(left_id) = self.tree.left_id(*self.stack.last().unwrap()) && self.is_id_valid(left_id) {
                 self.stack.push(left_id);
             }
         }
@@ -255,4 +283,3 @@ impl<T> Iterator for IntoPostorderIter<T> {
         self.tree.remove_node(next_id)
     }
 }
-
