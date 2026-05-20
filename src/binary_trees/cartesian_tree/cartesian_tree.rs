@@ -60,12 +60,12 @@ impl Comparer for super::Max {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct CartesianTreeNode<K, V> {
+pub struct CartesianNode<K, V> {
     key: K,
     value: V,
 }
 
-impl<K, V> CartesianTreeNode<K, V> {
+impl<K, V> CartesianNode<K, V> {
     pub fn new(key: K, value: V) -> Self {
         Self {
             key,
@@ -87,7 +87,7 @@ impl<K, V> CartesianTreeNode<K, V> {
 }
 
 #[derive(Clone)]
-pub struct CartesianTree<K, V, C>(pub(super) BinaryTree<CartesianTreeNode<K, V>>, pub(super) PhantomData<C>);
+pub struct CartesianTree<K, V, C>(pub(super) BinaryTree<CartesianNode<K, V>>, pub(super) PhantomData<C>);
 pub type MinCartesianTree<K, V> = CartesianTree<K, V, Min>;
 pub type MaxCartesianTree<K, V> = CartesianTree<K, V, Max>;
 
@@ -102,7 +102,7 @@ impl<K, V, C> CartesianTree<K, V, C> {
         Self::default()
     }
 
-    pub(super) fn inner(&self) -> &BinaryTree<CartesianTreeNode<K, V>> {
+    pub(super) fn inner(&self) -> &BinaryTree<CartesianNode<K, V>> {
         &self.0
     }
 
@@ -110,7 +110,7 @@ impl<K, V, C> CartesianTree<K, V, C> {
     where 
         F: Fn(V) -> U,
     {
-        let f = |node: CartesianTreeNode<K, V>| CartesianTreeNode { key: node.key, value: f(node.value) };
+        let f = |node: CartesianNode<K, V>| CartesianNode { key: node.key, value: f(node.value) };
         CartesianTree(self.0.map(f), PhantomData)
     }
 }
@@ -129,7 +129,7 @@ where
                 cursor.move_up();
             }
 
-            let new_node = CartesianTreeNode { key, value };
+            let new_node = CartesianNode { key, value };
             if cursor.get().is_none() {
                 cursor.re_root_tree(new_node, Side::Left);
             } else {
@@ -145,7 +145,7 @@ where
 }
 
 impl<K, V, C> traits::BinaryTree for CartesianTree<K, V, C> {
-    type Node = CartesianTreeNode<K, V>;
+    type Node = CartesianNode<K, V>;
     type Cursor<'c> = Cursor<'c, K, V>
     where Self: 'c;
 
@@ -163,7 +163,7 @@ impl<K, V, C> traits::BinaryTreeMut for CartesianTree<K, V, C> {
     }
 }
 
-impl<K, V> Debug for CartesianTreeNode<K, V>
+impl<K, V> Debug for CartesianNode<K, V>
 where 
     K: Debug,
     V: Debug,
@@ -183,7 +183,7 @@ where
     }
 }
 
-impl<K, V> Display for CartesianTreeNode<K, V>
+impl<K, V> Display for CartesianNode<K, V>
 where 
     K: Display,
     V: Display,
@@ -223,12 +223,12 @@ mod tests {
     use rand::prelude::*;
     use serde::Serialize;
 
-    fn is_heap<K, V, C>(tree: &BinaryTree<CartesianTreeNode<K, V>>) -> bool
+    fn is_heap<K, V, C>(tree: &BinaryTree<CartesianNode<K, V>>) -> bool
     where 
         K: Ord,
         C: Comparer,
     {
-        fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianTreeNode<K, V>>) -> bool
+        fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianNode<K, V>>) -> bool
         where
             K: Ord,
             C: Comparer,

@@ -3,7 +3,7 @@ use derive_more::Debug;
 use crate::binary_trees::{
     Side,
     binary_tree,
-    cartesian_tree::CartesianTreeNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
+    cartesian_tree::CartesianNode, cursor_errors::CursorError, traits::binary_tree_cursor::{
         Neighborhood,
         NeighborhoodMut,
         BinaryTreeCursor,
@@ -16,10 +16,10 @@ use crate::binary_trees::{
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 #[derive(Debug)]
-pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, CartesianTreeNode<K, V>>);
+pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, CartesianNode<K, V>>);
 
 impl<'t, K, V> Cursor<'t, K, V> {
-    pub(super) fn new(cursor: binary_tree::Cursor<'t, CartesianTreeNode<K, V>>) -> Self {
+    pub(super) fn new(cursor: binary_tree::Cursor<'t, CartesianNode<K, V>>) -> Self {
         Self(cursor)
     }
 }
@@ -59,7 +59,7 @@ impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
-    type Item = CartesianTreeNode<K, V>;
+    type Item = CartesianNode<K, V>;
 
     fn get(&self) -> Option<&'t Self::Item> {
         self.0.get()
@@ -95,22 +95,22 @@ impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
-pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, CartesianTreeNode<K, V>>);
+pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, CartesianNode<K, V>>);
 
 impl<'t, K, V> CursorMut<'t, K, V> {
-    pub(super) fn new(cursor: binary_tree::CursorMut<'t, CartesianTreeNode<K, V>>) -> Self {
+    pub(super) fn new(cursor: binary_tree::CursorMut<'t, CartesianNode<K, V>>) -> Self {
         Self(cursor)
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut CartesianTreeNode<K, V>; N]>
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut CartesianNode<K, V>; N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
         // "Downgrade" cursors_fn to one that works on binary_tree::Cursor.
-        let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, CartesianTreeNode<K, V>>; N]| {
+        let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, CartesianNode<K, V>>; N]| {
             let mut rb_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
@@ -118,11 +118,11 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         self.0.spawn_and_peek_mut(cursors_fn)
     }
 
-    pub(super) fn re_root_tree(&mut self, root: CartesianTreeNode<K, V>, side: Side) {
+    pub(super) fn re_root_tree(&mut self, root: CartesianNode<K, V>, side: Side) {
         self.0.re_root_tree(root, side);
     }
 
-    pub(super) fn attach_or_insert_child(&mut self, node: CartesianTreeNode<K, V>, side: Side) -> Result<(), CursorError> {
+    pub(super) fn attach_or_insert_child(&mut self, node: CartesianNode<K, V>, side: Side) -> Result<(), CursorError> {
         self.0.attach_or_insert_child(node, side)
     }
 
@@ -158,7 +158,7 @@ impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
 }
 
 impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
-    type Item = CartesianTreeNode<K, V>;
+    type Item = CartesianNode<K, V>;
     type SpawnedCursor<'c> = Cursor<'c, K, V>
     where Self: 'c;
 

@@ -3,7 +3,7 @@ use std::{cmp::Ordering, marker::PhantomData};
 use serde::{Serialize, Deserialize, de::Error};
 use thiserror::Error;
 
-use super::{CartesianTree, CartesianTreeNode, Comparer};
+use super::{CartesianTree, CartesianNode, Comparer};
 use crate::binary_trees::{
     binary_tree::{
         self,
@@ -56,12 +56,12 @@ pub enum CartesianTreeError {
     HeapError(String),
 }
 
-fn is_heap<K, V, C>(tree: &BinaryTree<CartesianTreeNode<K, V>>) -> bool
+fn is_heap<K, V, C>(tree: &BinaryTree<CartesianNode<K, V>>) -> bool
 where 
     K: Ord,
     C: Comparer,
 {
-    fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianTreeNode<K, V>>) -> bool
+    fn is_heap_recursive<K, V, C>(cursor: binary_tree::Cursor<'_, CartesianNode<K, V>>) -> bool
     where
         K: Ord,
         C: Comparer,
@@ -101,8 +101,8 @@ pub struct SerializationNode<K, V> {
     right: Option<Box<SerializationNode<K, V>>>,
 }
 
-impl<'t, K, V> From<binary_tree::serialization::SerializationNode<&'t CartesianTreeNode<K, V>>> for SerializationNode<&'t K, &'t V> {
-    fn from(value: binary_tree::serialization::SerializationNode<&'t CartesianTreeNode<K, V>>) -> Self {
+impl<'t, K, V> From<binary_tree::serialization::SerializationNode<&'t CartesianNode<K, V>>> for SerializationNode<&'t K, &'t V> {
+    fn from(value: binary_tree::serialization::SerializationNode<&'t CartesianNode<K, V>>) -> Self {
         let binary_tree::serialization::SerializationNode {
             data: node,
             left,
@@ -119,7 +119,7 @@ impl<'t, K, V> From<binary_tree::serialization::SerializationNode<&'t CartesianT
     }
 }
 
-impl<K, V> From<SerializationNode<K, V>> for binary_tree::serialization::SerializationNode<CartesianTreeNode<K, V>> {
+impl<K, V> From<SerializationNode<K, V>> for binary_tree::serialization::SerializationNode<CartesianNode<K, V>> {
     fn from(value: SerializationNode<K, V>) -> Self {
         let SerializationNode { key, value, left, right } = value;
         let left = if let Some(node) = left {
@@ -131,7 +131,7 @@ impl<K, V> From<SerializationNode<K, V>> for binary_tree::serialization::Seriali
         } else { None };
 
         binary_tree::serialization::SerializationNode {
-            data: CartesianTreeNode::new(key, value),
+            data: CartesianNode::new(key, value),
             left,
             right,
         }
@@ -147,14 +147,14 @@ impl<'t, K, V> SerializationTree<&'t K, &'t V> {
     }
 }
 
-impl<'t, K, V> From<binary_tree::serialization::SerializationTree<&'t CartesianTreeNode<K, V>>> for SerializationTree<&'t K, &'t V> {
-    fn from(value: binary_tree::serialization::SerializationTree<&'t CartesianTreeNode<K, V>>) -> Self {
+impl<'t, K, V> From<binary_tree::serialization::SerializationTree<&'t CartesianNode<K, V>>> for SerializationTree<&'t K, &'t V> {
+    fn from(value: binary_tree::serialization::SerializationTree<&'t CartesianNode<K, V>>) -> Self {
         let binary_tree::serialization::SerializationTree(root) = value;
         Self(root.map(Into::into))
     }
 }
 
-impl<K, V> From<SerializationTree<K, V>> for BinaryTree<CartesianTreeNode<K, V>> {
+impl<K, V> From<SerializationTree<K, V>> for BinaryTree<CartesianNode<K, V>> {
     fn from(value: SerializationTree<K, V>) -> Self {
         Self::from(binary_tree::serialization::SerializationTree(value.0.map(binary_tree::serialization::SerializationNode::from)))
     }

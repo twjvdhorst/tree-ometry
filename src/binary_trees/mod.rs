@@ -8,7 +8,6 @@ pub mod red_black_tree;
 pub mod semigroup_rb_tree;
 
 pub mod traits;
-pub mod tree_iterators;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {
