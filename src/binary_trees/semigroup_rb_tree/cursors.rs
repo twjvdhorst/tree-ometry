@@ -133,7 +133,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     /// Returns the removed node.
     pub(super) fn transplant_child(&mut self) -> Option<(K, V)> {
         // No need to fix semigroup values for the cursor node, as the subtree of the child is unchanged.
-        self.0.transplant_child().map(SemigroupRbNode::into_data)
+        self.0.transplant_child().map(Into::into)
     }
 }
 
@@ -180,7 +180,7 @@ where
     /// Does nothing if the cursor does not point to a leaf.
     /// Returns the detached node.
     pub(super) fn detach_node(&mut self) -> Option<(K, V)> {
-        let data = self.0.detach_node().map(SemigroupRbNode::into_data)?;
+        let data = self.0.detach_node().map(Into::into)?;
         self.recompute_semigroup_value();
         Some(data)
     }

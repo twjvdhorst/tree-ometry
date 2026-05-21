@@ -63,7 +63,7 @@ pub struct CartesianNode<K, V> {
 }
 
 impl<K, V> CartesianNode<K, V> {
-    pub fn new(key: K, value: V) -> Self {
+    pub(super) fn new(key: K, value: V) -> Self {
         Self {
             key,
             value,
@@ -80,6 +80,20 @@ impl<K, V> CartesianNode<K, V> {
 
     pub fn value_mut(&mut self) -> &mut V {
         &mut self.value
+    }
+
+    pub fn data(&self) -> (&K, &V) {
+        (&self.key, &self.value)
+    }
+
+    pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
+        (&self.key, &mut self.value)
+    }
+}
+
+impl<K, V> Into<(K, V)> for CartesianNode<K, V> {
+    fn into(self) -> (K, V) {
+        (self.key, self.value)
     }
 }
 
@@ -150,7 +164,7 @@ where
 }
 
 impl<K, V, C> IntoIterator for CartesianTree<K, V, C> {
-    type Item = CartesianNode<K, V>;
+    type Item = (K, V);
     type IntoIter = IntoInorderIter<K, V>;
 
     fn into_iter(self) -> Self::IntoIter {

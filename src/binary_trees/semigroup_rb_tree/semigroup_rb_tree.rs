@@ -83,8 +83,12 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         self.semigroup_value = semigroup_value;
     }
 
-    pub fn into_data(self) -> (K, V) {
-        (self.key, self.value)
+    pub fn data(&self) -> (&K, &V, &S) {
+        (&self.key, &self.value, &self.semigroup_value)
+    }
+
+    pub fn data_with_mut_value(&mut self) -> (&K, &mut V, &S) {
+        (&self.key, &mut self.value, &self.semigroup_value)
     }
 
     pub(super) fn is_red(&self) -> bool {
@@ -101,6 +105,12 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
 
     pub(super) fn set_color(&mut self, color: Color) {
         self.color = color;
+    }
+}
+
+impl<K, V, S> Into<(K, V)> for SemigroupRbNode<K, V, S> {
+    fn into(self) -> (K, V) {
+        (self.key, self.value)
     }
 }
 
@@ -138,7 +148,7 @@ where
 }
 
 impl<K, V, S> IntoIterator for SemigroupRbTree<K, V, S> {
-    type Item = SemigroupRbNode<K, V, S>;
+    type Item = (K, V);
     type IntoIter = IntoInorderIter<K, V, S>;
 
     fn into_iter(self) -> Self::IntoIter {

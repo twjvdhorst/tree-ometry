@@ -55,8 +55,8 @@ impl<K, V> RedBlackNode<K, V> {
         &mut self.value
     }
 
-    pub fn into_data(self) -> (K, V) {
-        (self.key, self.value)
+    pub fn data(&self) -> (&K, &V) {
+        (&self.key, &self.value)
     }
 
     pub(super) fn is_red(&self) -> bool {
@@ -73,6 +73,12 @@ impl<K, V> RedBlackNode<K, V> {
 
     pub(super) fn set_color(&mut self, color: Color) {
         self.color = color;
+    }
+}
+
+impl<K, V> Into<(K, V)> for RedBlackNode<K, V> {
+    fn into(self) -> (K, V) {
+        (self.key, self.value)
     }
 }
 
@@ -108,7 +114,7 @@ where
 }
 
 impl<K, V> IntoIterator for RedBlackTree<K, V> {
-    type Item = RedBlackNode<K, V>;
+    type Item = (K, V);
     type IntoIter = IntoInorderIter<K, V>;
 
     fn into_iter(self) -> Self::IntoIter {

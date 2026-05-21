@@ -133,7 +133,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     /// Returns the removed node.
     pub(super) fn transplant_child(&mut self) -> Option<(K, V)> {
         // No need to fix semigroup values for the cursor node, as the subtree of the child is unchanged.
-        self.0.transplant_child().map(RedBlackNode::into_data)
+        self.0.transplant_child().map(Into::into)
     }
 }
 
@@ -147,7 +147,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     /// Does nothing if the cursor does not point to a leaf.
     /// Returns the detached node.
     pub(super) fn detach_node(&mut self) -> Option<(K, V)> {
-        self.0.detach_node().map(RedBlackNode::into_data)
+        self.0.detach_node().map(Into::into)
     }
 
     /// Performs a tree rotation.

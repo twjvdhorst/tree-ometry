@@ -45,10 +45,10 @@ macro_rules! impl_iter {
             }
 
             impl<K, V> Iterator for [<Into $iter:camel>]<K, V> {
-                type Item = RedBlackNode<K, V>;
+                type Item = (K, V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(Into::into)
                 }
             }
         }
@@ -115,10 +115,10 @@ macro_rules! impl_iter_filtered {
             where
                 P: Fn(&RedBlackNode<K, V>) -> bool,
             {
-                type Item = RedBlackNode<K, V>;
+                type Item = (K, V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(Into::into)
                 }
             }
         }
