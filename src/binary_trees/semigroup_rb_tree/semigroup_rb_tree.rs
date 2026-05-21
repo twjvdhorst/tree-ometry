@@ -173,6 +173,10 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
         &self.0
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn map_values<U, F>(self, f: F) -> SemigroupRbTree<K, U, S>
     where 
         F: Fn(V) -> U,

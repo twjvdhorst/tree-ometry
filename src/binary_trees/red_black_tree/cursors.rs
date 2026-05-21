@@ -153,10 +153,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     /// Performs a tree rotation.
     /// The cursor keeps pointing to the node it originally pointed to.
     pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
-        match side {
-            Side::Left => self.0.rotate_left(),
-            Side::Right => self.0.rotate_right(),
-        }
+        self.0.rotate(side)
     }
 }
 

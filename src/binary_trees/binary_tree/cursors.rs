@@ -387,6 +387,13 @@ impl<'t, T> CursorMut<'t, T> {
         self.tree.add_edge_unchecked(left_id, node_id, Side::Right);
         Ok(())
     }
+
+    pub fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
+        match side {
+            Side::Left => self.rotate_left(),
+            Side::Right => self.rotate_right(),
+        }
+    }
 }
 
 impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {

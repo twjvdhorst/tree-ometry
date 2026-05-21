@@ -269,6 +269,10 @@ impl<T> BinaryTree<T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
     pub fn map<U, F>(self, f: F) -> BinaryTree<U>
     where 
         F: Fn(T) -> U,

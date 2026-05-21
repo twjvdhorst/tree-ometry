@@ -189,16 +189,8 @@ where
     /// The cursor keeps pointing to the node it originally pointed to.
     /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
     pub(super) fn rotate_and_fix_semigroup_value(&mut self, side: Side) -> Result<(), CursorError> {
-        match side {
-            Side::Left => {
-                self.0.rotate_left()?;
-                self.recompute_semigroup_value();
-            },
-            Side::Right => {
-                self.0.rotate_right()?;
-                self.recompute_semigroup_value();
-            },
-        }
+        self.0.rotate(side)?;
+        self.recompute_semigroup_value();
         Ok(())
     }
 }

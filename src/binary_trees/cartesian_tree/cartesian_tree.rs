@@ -117,6 +117,10 @@ impl<K, V, C> CartesianTree<K, V, C> {
         &self.0
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn map_values<U, F>(self, f: F) -> CartesianTree<K, U, C>
     where 
         F: Fn(V) -> U,
