@@ -52,6 +52,64 @@ pub trait BinaryTreeCursor {
             Side::Right => self.move_right(),
         }
     }
+
+    /// Moves the cursor to the inorder predecessor of the current node.
+    /// If no predecessor exists, false is returned and the cursor is not moved.
+    fn try_move_prev(&mut self) -> bool {
+        // Inorder predecessor is either the rightmost node in the left subtree, or the first ancestor that we are a right descendant of.
+        if self.try_move_left() {
+            while self.try_move_right() {}
+            return true;
+        }
+        
+        while let Some(side) = self.try_move_up() {
+            if side == Side::Right {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Moves the cursor to the inorder successor of the current node.
+    /// If no successor exists, false is returned and the cursor is not moved.
+    fn try_move_next(&mut self) -> bool {
+        // Inorder successor is either the leftmost node in the right subtree, or the first ancestor that we are a left descendant of.
+        if self.try_move_right() {
+            while self.try_move_left() {}
+            return true;
+        }
+        
+        while let Some(side) = self.try_move_up() {
+            if side == Side::Left {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Moves the cursor to the inorder predecessor of the current node.
+    /// If no predecessor exists, the cursor is moved to a "null" node.
+    fn move_prev(&mut self) {
+        // Inorder predecessor is either the rightmost node in the left subtree, or the first ancestor that we are a right descendant of.
+        if self.try_move_left() {
+            while self.try_move_right() {}
+        } else {
+            while let Some(side) = self.move_up() && side != Side::Right {}
+        }
+    }
+
+    /// Moves the cursor to the inorder successor of the current node.
+    /// If no successor exists, the cursor is moved to a "null" node.
+    fn move_next(&mut self) {
+        // Inorder successor is either the leftmost node in the right subtree, or the first ancestor that we are a left descendant of.
+        if self.try_move_right() {
+            while self.try_move_left() {}
+        } else {
+            while let Some(side) = self.move_up() && side != Side::Left {}
+        }
+    }
 }
 
 pub trait PeekingCursor<'t>: BinaryTreeCursor {
