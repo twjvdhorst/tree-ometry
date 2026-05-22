@@ -52,9 +52,9 @@ impl<T> BinaryTree<T> {
 pub struct InorderIter<'t, T>(InorderIterFiltered<'t, T, fn(&T) -> bool>);
 
 pub struct InorderIterFiltered<'t, T, P> {
-    cursor: Cursor<'t, T>,
+    tree: &'t BinaryTree<T>,
     subtree_filter: P,
-    first_iteration: bool,
+    current_id: Option<NodeId>,
 }
 
 impl<'t, T> InorderIter<'t, T> {
@@ -66,30 +66,35 @@ impl<'t, T> InorderIter<'t, T> {
 impl<'t, T, P> InorderIterFiltered<'t, T, P> {
     fn new(tree: &'t BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
-            cursor: tree.cursor(),
+            tree,
             subtree_filter,
-            first_iteration: true,
+            current_id: None,
         }
     }
 
-    fn is_cursor_in_valid_node(&self) -> bool 
+    fn is_id_valid(&self, id: NodeId) -> bool
     where 
         P: Fn(&T) -> bool,
     {
-        self.cursor.get().map_or(false, &self.subtree_filter)
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
     }
 
-    /// Moves the given cursor to the next (possibly null) node of the inorder iterator.
-    /// Assumes the cursor points to the previous element in the iterator.
-    fn move_cursor_to_next_node(&mut self)
+    fn next_node_id(&mut self) -> Option<NodeId>
     where 
         P: Fn(&T) -> bool,
     {
-        if self.cursor.try_move_right() {
-            while self.is_cursor_in_valid_node() && self.cursor.try_move_left() {}
+        let mut cursor = Cursor::new(self.tree, self.current_id?);
+        if let Some(right) = cursor.peek_right() && (self.subtree_filter)(right) {
+            cursor.move_right();
+            while let Some(left) = cursor.peek_left() && (self.subtree_filter)(left) {
+                cursor.move_left();
+            }
         } else {
-            while self.cursor.move_up() == Some(Side::Right) {}
+            while cursor.move_up() == Some(Side::Right) {}
         }
+        Some(cursor.node_id())
     }
 }
 
@@ -98,6 +103,10 @@ impl<'t, T> Iterator for InorderIter<'t, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 
@@ -108,18 +117,22 @@ where
     type Item = &'t T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.first_iteration {
-            // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
-            self.first_iteration = false;
-            while self.is_cursor_in_valid_node() && self.cursor.try_move_left() {}
-            if !self.is_cursor_in_valid_node() {
-                self.cursor.move_up();
+        if self.current_id.is_none() {
+            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+            let mut cursor = self.tree.cursor();
+            while self.is_id_valid(cursor.node_id()) && cursor.try_move_right() {}
+            if !self.is_id_valid(cursor.node_id()) {
+                cursor.move_up();
             }
-            self.cursor.get()
+            self.current_id = Some(cursor.node_id());
         } else {
-            self.move_cursor_to_next_node();
-            self.cursor.get()
+            self.current_id = self.next_node_id();
         }
+        self.tree.node(self.current_id.unwrap()).map(BinaryTreeNode::data)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.tree.len()))
     }
 }
 
@@ -181,6 +194,10 @@ impl<'t, T> Iterator for InorderIterMut<'t, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<'t, T, P> Iterator for InorderIterFilteredMut<'t, T, P>
@@ -206,6 +223,10 @@ where
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
         let pointer = next as *mut T;
         unsafe { Some(&mut *pointer) }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.tree.len()))
     }
 }
 
@@ -256,6 +277,10 @@ impl<T> Iterator for IntoInorderIter<T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<T, P> Iterator for IntoInorderIterFiltered<T, P>
@@ -274,5 +299,9 @@ where
             }
         }
         self.tree.remove_node(next_id)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.tree.len(), Some(self.tree.len()))
     }
 }

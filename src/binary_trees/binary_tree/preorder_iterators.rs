@@ -50,9 +50,9 @@ impl<T> BinaryTree<T> {
 pub struct PreorderIter<'t, T>(PreorderIterFiltered<'t, T, fn(&T) -> bool>);
 
 pub struct PreorderIterFiltered<'t, T, P> {
-    cursor: Cursor<'t, T>,
+    tree: &'t BinaryTree<T>,
     subtree_filter: P,
-    first_iteration: bool,
+    current_id: Option<NodeId>,
 }
 
 impl<'t, T> PreorderIter<'t, T> {
@@ -67,54 +67,39 @@ where
 {
     fn new(tree: &'t BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
-            cursor: tree.cursor(),
+            tree,
             subtree_filter,
-            first_iteration: true,
+            current_id: None,
         }
     }
 
-    fn move_cursor_left_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_left() {
-            return false;
-        }
+    fn is_id_valid(&self, id: NodeId) -> bool
+    where 
+        P: Fn(&T) -> bool,
+    {
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
+    }
 
-        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
-            self.cursor.move_up();
-            false
+    fn next_node_id(&mut self) -> Option<NodeId>
+    where 
+        P: Fn(&T) -> bool,
+    {
+        let mut cursor = Cursor::new(self.tree, self.current_id?);
+        if let Some(left) = cursor.peek_left() && (self.subtree_filter)(left) {
+            cursor.move_left();
+        } else if let Some(right) = cursor.peek_right() && (self.subtree_filter)(right) {
+            cursor.move_right();
         } else {
-            true
-        }
-    }
-
-    fn move_cursor_right_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_right() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
-
-    /// Moves the given cursor to the next (possibly null) node of the preorder iterator.
-    /// Assumes the cursor points to the previous element in the iterator.
-    fn move_cursor_to_next_node(&mut self) {
-        if self.move_cursor_left_if_valid() {
-            return;
-        }
-        
-        if self.move_cursor_right_if_valid() {
-            return;
-        }
-        
-        while let Some(side) = self.cursor.move_up() {
-            if side == Side::Left && self.move_cursor_right_if_valid() {
-                return;
+            while let Some(side) = cursor.move_up() {
+                if side == Side::Left && let Some(right) = cursor.peek_right() && (self.subtree_filter)(right) {
+                    cursor.move_right();
+                    break;
+                }
             }
         }
+        Some(cursor.node_id())
     }
 }
 
@@ -123,6 +108,10 @@ impl<'t, T> Iterator for PreorderIter<'t, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 
@@ -133,19 +122,22 @@ where
     type Item = &'t T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.first_iteration {
-            // In the first iteration, simply report the root node pointed at by the cursor.
-            self.first_iteration = false;
-            let node = self.cursor.get()?;
-            if (self.subtree_filter)(node) {
-                self.cursor.get()
+        if self.current_id.is_none() {
+            // In the first iteration, move the "cursor" to the root of the tree, if it satisfies the filter.
+            let root_id = self.tree.root_id();
+            if self.is_id_valid(root_id) {
+                self.current_id = Some(root_id);
             } else {
-                None
+                return None;
             }
         } else {
-            self.move_cursor_to_next_node();
-            self.cursor.get()
+            self.current_id = self.next_node_id();
         }
+        self.tree.node(self.current_id.unwrap()).map(BinaryTreeNode::data)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.tree.len()))
     }
 }
 
@@ -211,6 +203,10 @@ impl<'t, T> Iterator for PreorderIterMut<'t, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<'t, T, P> Iterator for PreorderIterFilteredMut<'t, T, P>
@@ -236,6 +232,10 @@ where
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
         let pointer = next as *mut T;
         unsafe { Some(&mut *pointer) }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.tree.len()))
     }
 }
 
@@ -285,6 +285,10 @@ impl<T> Iterator for IntoPreorderIter<T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<T, P> Iterator for IntoPreorderIterFiltered<T, P>
@@ -303,5 +307,9 @@ where
             self.stack.push(left_id);
         }
         self.tree.remove_node(next_id)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.tree.len(), Some(self.tree.len()))
     }
 }

@@ -29,6 +29,10 @@ macro_rules! impl_iter {
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
+                }
             }
 
             impl<'t, K, V> Iterator for [<$iter:camel Mut>]<'t, K, V> {
@@ -37,6 +41,10 @@ macro_rules! impl_iter {
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
+                }
             }
 
             impl<K, V> Iterator for [<Into $iter:camel>]<K, V> {
@@ -44,6 +52,10 @@ macro_rules! impl_iter {
 
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next().map(Into::into)
+                }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
                 }
             }
         }
@@ -89,6 +101,10 @@ macro_rules! impl_iter_filtered {
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
+                }
             }
 
             impl<'t, K, V, P> Iterator for [<$iter:camel FilteredMut>]<'t, K, V, P>
@@ -100,6 +116,10 @@ macro_rules! impl_iter_filtered {
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
+                }
             }
 
             impl<K, V, P> Iterator for [<Into $iter:camel Filtered>]<K, V, P>
@@ -110,6 +130,10 @@ macro_rules! impl_iter_filtered {
 
                 fn next(&mut self) -> Option<Self::Item> {
                     self.0.next().map(Into::into)
+                }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.0.size_hint()
                 }
             }
         }
