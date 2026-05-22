@@ -10,9 +10,7 @@ derive_more = { version = "2.1.1", features = [
     "from",
     "into",
 ] }
-lending-iterator = "0.1.7"
 paste = "1.0.15"
-ref-cast = "1.0.25"
 serde = { version = "1.0.228", optional = true, features = ["derive"] }
 slotmap = "1.1.1"
 thiserror = "2.0.17"

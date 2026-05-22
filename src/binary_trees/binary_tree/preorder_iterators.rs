@@ -127,13 +127,11 @@ where
             let root_id = self.tree.root_id();
             if self.is_id_valid(root_id) {
                 self.current_id = Some(root_id);
-            } else {
-                return None;
             }
         } else {
             self.current_id = self.next_node_id();
         }
-        self.tree.node(self.current_id.unwrap()).map(BinaryTreeNode::data)
+        self.tree.node(self.current_id?).map(BinaryTreeNode::data)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -221,13 +219,11 @@ where
             let root_id = self.tree.root_id();
             if self.is_id_valid(root_id) {
                 self.current_id = Some(root_id);
-            } else {
-                return None;
             }
         } else {
             self.current_id = self.next_node_id();
         }
-        let next = self.tree.node_mut(self.current_id.unwrap()).map(BinaryTreeNode::data_mut)?;
+        let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
         // Extend the lifetime of the yielded reference to be independent of the iterator.
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
         let pointer = next as *mut T;

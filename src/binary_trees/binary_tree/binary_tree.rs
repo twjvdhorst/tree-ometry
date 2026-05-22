@@ -495,5 +495,154 @@ mod tests {
         assert_eq!(cursor.peek_left(), Some(&4));
         assert_eq!(cursor.peek_right(), Some(&5));
     }
-}
 
+    fn get_iter_test_tree() -> BinaryTree<i32> {
+        // Makes the following test tree:
+        // └──1
+        //    ├──2
+        //    │  ├──3
+        //    │  └──4
+        //    │     └──5
+        //    └──6
+        //       ├──7
+        //       └──8
+        //          └──9
+        let mut tree = BinaryTree::new();
+        let mut cursor = tree.cursor_mut();
+        cursor.root_tree(1).unwrap();
+        cursor.attach_child(2, Side::Left).unwrap();
+        cursor.move_left();
+        cursor.attach_child(3, Side::Left).unwrap();
+        cursor.attach_child(4, Side::Right).unwrap();
+        cursor.move_right();
+        cursor.attach_child(5, Side::Left).unwrap();
+        let mut cursor = tree.cursor_mut();
+        cursor.attach_child(6, Side::Right).unwrap();
+        cursor.move_right();
+        cursor.attach_child(7, Side::Left).unwrap();
+        cursor.attach_child(8, Side::Right).unwrap();
+        cursor.move_right();
+        cursor.attach_child(9, Side::Left).unwrap();
+        tree
+    }
+
+    #[test]
+    fn test_inorder_iters() {
+        let mut tree = get_iter_test_tree();
+        let inorder_sequence = [3, 2, 5, 4, 1, 7, 6, 9, 8];
+
+        // Testing iters without mutations.
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_mut()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_inorder_iter()) {
+            assert_eq!(i, j);
+        }
+
+        // Test mutating elements during iteration.
+        let mut tree = get_iter_test_tree();
+        for i in tree.inorder_iter_mut() {
+            *i = 2 * *i;
+        }
+        for (&i, &j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter()) {
+            assert_eq!(2 * i, j);
+        }
+
+        // Test filtering the subtree rooted at 6.
+        let mut tree = get_iter_test_tree();
+        let inorder_sequence = [3, 2, 5, 4, 1];
+
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_filtered_mut(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_inorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+    }
+
+    #[test]
+    fn test_preorder_iters() {
+        let mut tree = get_iter_test_tree();
+        let preorder_sequence = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        // Testing iters without mutations.
+        for (i, j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter_mut()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(preorder_sequence.clone().into_iter(), tree.into_preorder_iter()) {
+            assert_eq!(i, j);
+        }
+
+        // Test mutating elements during iteration.
+        let mut tree = get_iter_test_tree();
+        for i in tree.preorder_iter_mut() {
+            *i = 2 * *i;
+        }
+        for (&i, &j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter()) {
+            assert_eq!(2 * i, j);
+        }
+
+        // Test filtering the subtree rooted at 6.
+        let mut tree = get_iter_test_tree();
+        let inorder_sequence = [3, 2, 5, 4, 1];
+
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.preorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.preorder_iter_filtered_mut(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_preorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+    }
+
+    #[test]
+    fn test_postorder_iters() {
+        let mut tree = get_iter_test_tree();
+        let postorder_sequence = [3, 5, 4, 2, 7, 9, 8, 6, 1];
+
+        // Testing iters without mutations.
+        for (i, j) in Iterator::zip(postorder_sequence.iter(), tree.postorder_iter()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(postorder_sequence.iter(), tree.postorder_iter_mut()) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(postorder_sequence.clone().into_iter(), tree.into_postorder_iter()) {
+            assert_eq!(i, j);
+        }
+
+        // Test mutating elements during iteration.
+        let mut tree = get_iter_test_tree();
+        for i in tree.postorder_iter_mut() {
+            *i = 2 * *i;
+        }
+        for (&i, &j) in Iterator::zip(postorder_sequence.iter(), tree.postorder_iter()) {
+            assert_eq!(2 * i, j);
+        }
+
+        // Test filtering the subtree rooted at 6.
+        let mut tree = get_iter_test_tree();
+        let postorder_sequence = [3, 5, 4, 2, 1];
+
+        for (i, j) in Iterator::zip(postorder_sequence.iter(), tree.postorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(postorder_sequence.iter(), tree.postorder_iter_filtered_mut(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+        for (i, j) in Iterator::zip(postorder_sequence.clone().into_iter(), tree.into_postorder_iter_filtered(|&i| i == 6)) {
+            assert_eq!(i, j);
+        }
+    }
+}

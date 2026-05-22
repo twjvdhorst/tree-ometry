@@ -123,7 +123,7 @@ where
         if self.current_id.is_none() {
             // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id()) && cursor.try_move_right() {}
+            while self.is_id_valid(cursor.node_id()) && cursor.try_move_left() {}
             if !self.is_id_valid(cursor.node_id()) {
                 cursor.move_up();
             }
@@ -131,7 +131,7 @@ where
         } else {
             self.current_id = self.next_node_id();
         }
-        self.tree.node(self.current_id.unwrap()).map(BinaryTreeNode::data)
+        self.tree.node(self.current_id?).map(BinaryTreeNode::data)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -213,7 +213,7 @@ where
         if self.current_id.is_none() {
             // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id()) && cursor.try_move_right() {}
+            while self.is_id_valid(cursor.node_id()) && cursor.try_move_left() {}
             if !self.is_id_valid(cursor.node_id()) {
                 cursor.move_up();
             }
@@ -221,7 +221,7 @@ where
         } else {
             self.current_id = self.next_node_id();
         }
-        let next = self.tree.node_mut(self.current_id.unwrap()).map(BinaryTreeNode::data_mut)?;
+        let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
         // Extend the lifetime of the yielded reference to be independent of the iterator.
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
         let pointer = next as *mut T;
