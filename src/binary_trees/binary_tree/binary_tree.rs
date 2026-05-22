@@ -12,6 +12,7 @@ use crate::binary_trees::{
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
+        PeekingCursorMut,
     },
 };
 use super::cursors::{
@@ -270,6 +271,44 @@ impl<T> BinaryTree<T> {
             true
         } else {
             false
+        }
+    }
+    
+    /// Helper method that turns the tree into a path where every node has at most one child, on their right.
+    fn to_path(&mut self) {
+        let mut cursor = self.cursor_mut();
+        while cursor.get().is_some() {
+            if cursor.peek_left().is_some() {
+                cursor.rotate_right().unwrap();
+                cursor.move_up();
+            } else {
+                cursor.move_right();
+            }
+        }
+    }
+
+    fn compress(&mut self, count: usize) {
+        let mut cursor = self.cursor_mut();
+        for _ in 0..count {
+            cursor.rotate_left().unwrap();
+            cursor.move_up();
+            cursor.move_right();
+        }
+    }
+
+    /// Rebalances the tree in place, making the tree perfectly balanced (all leaves differ in depth by at most one).
+    /// Time complexity: O(n).
+    pub fn rebalance(&mut self) {
+        // Day-Stout-Warren algorithm.
+        // Transform the tree into a path, and unfold this path to a balanced binary search tree.
+        self.to_path();
+        let size = self.len();
+        let mut k = (1 << usize::ilog2(size + 1)) - 1;
+        self.compress(size - k);
+        
+        while k > 1 {
+            k /= 2;
+            self.compress(k);
         }
     }
 
