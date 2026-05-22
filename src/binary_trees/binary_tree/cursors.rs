@@ -34,6 +34,10 @@ impl<'t, T> Cursor<'t, T> {
     fn node(&self) -> Option<&'t BinaryTreeNode<T>> {
         self.tree.node(self.node_id)
     }
+
+    pub(super) fn node_id(&self) -> NodeId {
+        self.node_id
+    }
 }
 
 impl<'t, T> Clone for Cursor<'t, T> {
