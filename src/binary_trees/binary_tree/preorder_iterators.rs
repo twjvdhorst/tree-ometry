@@ -1,17 +1,14 @@
-use lending_iterator::prelude::*;
-
 use crate::binary_trees::{
     Side, 
     binary_tree::{
         BinaryTree,
+        BinaryTreeNode,
         Cursor,
-        CursorMut,
         NodeId,
     },
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
-        PeekingCursorMut,
     },
 };
 
@@ -155,9 +152,9 @@ where
 pub struct PreorderIterMut<'t, T>(PreorderIterFilteredMut<'t, T, fn(&T) -> bool>);
 
 pub struct PreorderIterFilteredMut<'t, T, P> {
-    cursor: CursorMut<'t, T>,
+    tree: &'t mut BinaryTree<T>,
     subtree_filter: P,
-    first_iteration: bool,
+    stack: Vec<NodeId>,
 }
 
 impl<'t, T> PreorderIterMut<'t, T> {
@@ -166,101 +163,61 @@ impl<'t, T> PreorderIterMut<'t, T> {
     }
 }
 
-impl<'t, T, P> PreorderIterFilteredMut<'t, T, P>
+impl<'t, T, P> PreorderIterFilteredMut<'t, T, P> 
 where 
     P: Fn(&T) -> bool,
 {
     fn new(tree: &'t mut BinaryTree<T>, subtree_filter: P) -> Self {
+        let id = tree.root_id();
+        let mut stack = Vec::new();
+        if tree.node(id).map(|node| subtree_filter(node.data())).unwrap_or(false) {
+            stack.push(id);
+        }
+
         Self {
-            cursor: tree.cursor_mut(),
+            tree,
             subtree_filter,
-            first_iteration: true,
+            stack,
         }
     }
 
-    fn move_cursor_left_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_left() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
-
-    fn move_cursor_right_if_valid(&mut self) -> bool {
-        if !self.cursor.try_move_right() {
-            return false;
-        }
-
-        if !(self.subtree_filter)(self.cursor.get().unwrap()) {
-            self.cursor.move_up();
-            false
-        } else {
-            true
-        }
-    }
-
-    /// Moves the given cursor to the next (possibly null) node of the preorder iterator.
-    /// Assumes the cursor points to the previous element in the iterator.
-    fn move_cursor_to_next_node(&mut self) {
-        if self.move_cursor_left_if_valid() {
-            return;
-        }
-        
-        if self.move_cursor_right_if_valid() {
-            return;
-        }
-        
-        while let Some(side) = self.cursor.move_up() {
-            if side == Side::Left && self.move_cursor_right_if_valid() {
-                return;
-            }
-        }
+    fn is_id_valid(&self, id: NodeId) -> bool {
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
     }
 }
 
-#[gat]
-impl<'t, T> LendingIterator for PreorderIterMut<'t, T> {
-    type Item<'next>
-    where 
-        Self: 'next,
-        = &'next mut T;
+impl<'t, T> Iterator for PreorderIterMut<'t, T> {
+    type Item = &'t mut T;
 
-    fn next(self: &mut PreorderIterMut<'t, T>) -> Option<&mut T> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
 }
 
-#[gat]
-impl<'t, T, P> LendingIterator for PreorderIterFilteredMut<'t, T, P>
+impl<'t, T, P> Iterator for PreorderIterFilteredMut<'t, T, P>
 where 
     P: Fn(&T) -> bool,
 {
-    type Item<'next>
-    where 
-        Self: 'next,
-        = &'next mut T;
+    type Item = &'t mut T;
 
-    fn next(self: &mut PreorderIterFilteredMut<'t, T, P>) -> Option<&mut T> {
-        if self.first_iteration {
-            // In the first iteration, simply report the root node pointed at by the cursor.
-            self.first_iteration = false;
-            let node = self.cursor.get_mut()?;
-            if (self.subtree_filter)(node) {
-                Some(node)
-            } else {
-                None
-            }
-        } else {
-            self.move_cursor_to_next_node();
-            self.cursor.get_mut()
+    fn next(&mut self) -> Option<Self::Item> {
+        // Get id of the to-be-reported element, and expand stack.
+        let next_id = self.stack.pop()?;
+        if let Some(right_id) = self.tree.right_id(next_id) && self.is_id_valid(right_id) {
+            self.stack.push(right_id);
         }
+        if let Some(left_id) = self.tree.left_id(next_id) && self.is_id_valid(left_id) {
+            self.stack.push(left_id);
+        }
+        // Extend the lifetime of the yielded reference to be independent of the iterator.
+        // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
+        let pointer: *mut T = self.tree.node_mut(next_id).map(BinaryTreeNode::data_mut)?;
+        unsafe { Some(&mut *pointer) }
     }
 }
+
 
 pub struct IntoPreorderIter<T>(IntoPreorderIterFiltered<T, fn(&T) -> bool>);
 

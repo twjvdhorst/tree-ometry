@@ -1,18 +1,16 @@
-use lending_iterator::prelude::*;
 use slotmap::Key;
 
 use crate::binary_trees::{
     Side, 
     binary_tree::{
         BinaryTree,
+        BinaryTreeNode,
         Cursor,
-        CursorMut,
         NodeId,
     },
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
-        PeekingCursorMut,
     },
 };
 
@@ -130,9 +128,9 @@ where
 pub struct PostorderIterMut<'t, T>(PostorderIterFilteredMut<'t, T, fn(&T) -> bool>);
 
 pub struct PostorderIterFilteredMut<'t, T, P> {
-    cursor: CursorMut<'t, T>,
+    tree: &'t mut BinaryTree<T>,
     subtree_filter: P,
-    first_iteration: bool,
+    stack: Vec<NodeId>,
 }
 
 impl<'t, T> PostorderIterMut<'t, T> {
@@ -141,73 +139,61 @@ impl<'t, T> PostorderIterMut<'t, T> {
     }
 }
 
-impl<'t, T, P> PostorderIterFilteredMut<'t, T, P>
+impl<'t, T, P> PostorderIterFilteredMut<'t, T, P> 
 where 
     P: Fn(&T) -> bool,
 {
     fn new(tree: &'t mut BinaryTree<T>, subtree_filter: P) -> Self {
+        // Move the "cursor" to the first node in the inorder order.
+        let mut id = tree.root_id();
+        let mut stack = Vec::new();
+        while tree.node(id).map(|node| subtree_filter(node.data())).unwrap_or(false) {
+            stack.push(id);
+            id = tree.left_id(id).unwrap_or(NodeId::null());
+        }
+
         Self {
-            cursor: tree.cursor_mut(),
+            tree,
             subtree_filter,
-            first_iteration: true,
+            stack,
         }
     }
 
-    fn is_cursor_in_valid_node(&self) -> bool {
-        self.cursor.get().map_or(false, &self.subtree_filter)
-    }
-
-    fn move_cursor_to_successor_in_subtree(&mut self) {
-        if self.cursor.try_move_right() {
-            while self.is_cursor_in_valid_node() && self.cursor.try_move_left() {}
-        }
-    }
-
-    /// Moves the given cursor to the next (possibly null) node of the postorder iterator.
-    /// Assumes the cursor points to the previous element in the iterator.
-    fn move_cursor_to_next_node(&mut self) {
-        if self.cursor.move_up() == Some(Side::Left) {
-            // Explore the right subtree of the node's parent (which the cursor points to now).
-            self.move_cursor_to_successor_in_subtree();
-        }
+    fn is_id_valid(&self, id: NodeId) -> bool {
+        self.tree.node(id)
+            .map(|node| (self.subtree_filter)(node.data()))
+            .unwrap_or(false)
     }
 }
 
-#[gat]
-impl<'t, T> LendingIterator for PostorderIterMut<'t, T> {
-    type Item<'next>
-    where 
-        Self: 'next,
-        = &'next mut T;
+impl<'t, T> Iterator for PostorderIterMut<'t, T> {
+    type Item = &'t mut T;
 
-    fn next(self: &mut PostorderIterMut<'t, T>) -> Option<&mut T> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
 }
 
-#[gat]
-impl<'t, T, P> LendingIterator for PostorderIterFilteredMut<'t, T, P>
+impl<'t, T, P> Iterator for PostorderIterFilteredMut<'t, T, P>
 where 
     P: Fn(&T) -> bool,
 {
-    type Item<'next>
-    where 
-        Self: 'next,
-        = &'next mut T;
+    type Item = &'t mut T;
 
-    fn next(self: &mut PostorderIterFilteredMut<'t, T, P>) -> Option<&mut T> {
-        if self.first_iteration {
-            // In the first iteration, move the cursor to the leftmost node that satisfies the filter.
-            self.first_iteration = false;
-            while self.is_cursor_in_valid_node() && self.cursor.try_move_left() {}
-            if !self.is_cursor_in_valid_node() {
-                self.cursor.move_up();
+    fn next(&mut self) -> Option<Self::Item> {
+        // Expand the stack first, then report the element.
+        let id = self.stack.last()?;
+        if let Some(right_id) = self.tree.right_id(*id) && self.is_id_valid(right_id) {
+            self.stack.push(right_id);
+            while let Some(left_id) = self.tree.left_id(*self.stack.last().unwrap()) && self.is_id_valid(left_id) {
+                self.stack.push(left_id);
             }
-            self.cursor.get_mut()
-        } else {
-            self.move_cursor_to_next_node();
-            self.cursor.get_mut()
         }
+        let next_id = self.stack.pop()?;
+        // Extend the lifetime of the yielded reference to be independent of the iterator.
+        // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
+        let pointer: *mut T = self.tree.node_mut(next_id).map(BinaryTreeNode::data_mut)?;
+        unsafe { Some(&mut *pointer) }
     }
 }
 
