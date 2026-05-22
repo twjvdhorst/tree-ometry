@@ -1,4 +1,3 @@
-use lending_iterator::prelude::*;
 use paste::paste;
 
 use crate::binary_trees::{binary_tree, semigroup_rb_tree::{SemigroupRbNode, SemigroupRbTree}};
@@ -32,14 +31,10 @@ macro_rules! impl_iter {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V, S> LendingIterator for [<$iter:camel Mut>]<'t, K, V, S> {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut SemigroupRbNode<K, V, S>;
+            impl<'t, K, V, S> Iterator for [<$iter:camel Mut>]<'t, K, V, S> {
+                type Item = &'t mut SemigroupRbNode<K, V, S>;
 
-                fn next(self: &mut [<$iter:camel Mut>]<'t, K, V, S>) -> Option<&mut SemigroupRbNode<K, V, S>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }
@@ -96,17 +91,13 @@ macro_rules! impl_iter_filtered {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V, S, P> LendingIterator for [<$iter:camel FilteredMut>]<'t, K, V, S, P>
+            impl<'t, K, V, S, P> Iterator for [<$iter:camel FilteredMut>]<'t, K, V, S, P>
             where
                 P: Fn(&SemigroupRbNode<K, V, S>) -> bool,
             {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut SemigroupRbNode<K, V, S>;
+                type Item = &'t mut SemigroupRbNode<K, V, S>;
 
-                fn next(self: &mut [<$iter:camel FilteredMut>]<'t, K, V, S, P>) -> Option<&mut SemigroupRbNode<K, V, S>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }

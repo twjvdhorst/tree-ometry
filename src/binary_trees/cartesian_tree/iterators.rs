@@ -1,4 +1,3 @@
-use lending_iterator::prelude::*;
 use paste::paste;
 
 use crate::binary_trees::{binary_tree, cartesian_tree::{CartesianNode, CartesianTree}};
@@ -32,14 +31,10 @@ macro_rules! impl_iter {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V> LendingIterator for [<$iter:camel Mut>]<'t, K, V> {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut CartesianNode<K, V>;
+            impl<'t, K, V> Iterator for [<$iter:camel Mut>]<'t, K, V> {
+                type Item = &'t mut CartesianNode<K, V>;
 
-                fn next(self: &mut [<$iter:camel Mut>]<'t, K, V>) -> Option<&mut CartesianNode<K, V>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }
@@ -96,17 +91,13 @@ macro_rules! impl_iter_filtered {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V, P> LendingIterator for [<$iter:camel FilteredMut>]<'t, K, V, P>
+            impl<'t, K, V, P> Iterator for [<$iter:camel FilteredMut>]<'t, K, V, P>
             where
                 P: Fn(&CartesianNode<K, V>) -> bool,
             {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut CartesianNode<K, V>;
+                type Item = &'t mut CartesianNode<K, V>;
 
-                fn next(self: &mut [<$iter:camel FilteredMut>]<'t, K, V, P>) -> Option<&mut CartesianNode<K, V>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }

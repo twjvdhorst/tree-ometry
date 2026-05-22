@@ -1,4 +1,3 @@
-use lending_iterator::prelude::*;
 use paste::paste;
 
 use crate::binary_trees::{binary_tree, red_black_tree::{RedBlackNode, RedBlackTree}};
@@ -32,14 +31,10 @@ macro_rules! impl_iter {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V> LendingIterator for [<$iter:camel Mut>]<'t, K, V> {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut RedBlackNode<K, V>;
+            impl<'t, K, V> Iterator for [<$iter:camel Mut>]<'t, K, V> {
+                type Item = &'t mut RedBlackNode<K, V>;
 
-                fn next(self: &mut [<$iter:camel Mut>]<'t, K, V>) -> Option<&mut RedBlackNode<K, V>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }
@@ -96,17 +91,13 @@ macro_rules! impl_iter_filtered {
                 }
             }
 
-            #[gat]
-            impl<'t, K, V, P> LendingIterator for [<$iter:camel FilteredMut>]<'t, K, V, P>
+            impl<'t, K, V, P> Iterator for [<$iter:camel FilteredMut>]<'t, K, V, P>
             where
                 P: Fn(&RedBlackNode<K, V>) -> bool,
             {
-                type Item<'next>
-                where 
-                    Self: 'next,
-                    = &'next mut RedBlackNode<K, V>;
+                type Item = &'t mut RedBlackNode<K, V>;
 
-                fn next(self: &mut [<$iter:camel FilteredMut>]<'t, K, V, P>) -> Option<&mut RedBlackNode<K, V>> {
+                fn next(&mut self) -> Option<Self::Item> {
                     self.0.next()
                 }
             }

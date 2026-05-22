@@ -16,7 +16,12 @@ use crate::binary_trees::{
         BinaryTree,
         BinaryTreeNode,
     }, 
-    semigroup_rb_tree::{IntoInorderIter, TreeSemigroup}, 
+    semigroup_rb_tree::{
+        InorderIter,
+        InorderIterMut,
+        IntoInorderIter,
+        TreeSemigroup,
+    }, 
     binary_tree_cursor::{
         BinaryTreeCursor,
         Neighborhood,
@@ -144,6 +149,24 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<'t, K, V, S> IntoIterator for &'t SemigroupRbTree<K, V, S> {
+    type Item = &'t SemigroupRbNode<K, V, S>;
+    type IntoIter = InorderIter<'t, K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, K, V, S> IntoIterator for &'t mut SemigroupRbTree<K, V, S> {
+    type Item = &'t mut SemigroupRbNode<K, V, S>;
+    type IntoIter = InorderIterMut<'t, K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
     }
 }
 

@@ -16,7 +16,11 @@ use crate::binary_trees::{
         BinaryTree,
         BinaryTreeNode,
     },
-    red_black_tree::IntoInorderIter,
+    red_black_tree::{
+        InorderIter,
+        InorderIterMut,
+        IntoInorderIter,
+    },
     binary_tree_cursor::{
         BinaryTreeCursor,
         Neighborhood,
@@ -110,6 +114,24 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<'t, K, V> IntoIterator for &'t RedBlackTree<K, V> {
+    type Item = &'t RedBlackNode<K, V>;
+    type IntoIter = InorderIter<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, K, V> IntoIterator for &'t mut RedBlackTree<K, V> {
+    type Item = &'t mut RedBlackNode<K, V>;
+    type IntoIter = InorderIterMut<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
     }
 }
 

@@ -4,7 +4,11 @@ use slotmap::{Key, SlotMap, new_key_type};
 
 use crate::binary_trees::{
     Side, 
-    binary_tree::IntoInorderIter,
+    binary_tree::{
+        InorderIter,
+        InorderIterMut,
+        IntoInorderIter,
+    },
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
@@ -325,6 +329,24 @@ impl<T> BinaryTree<T> {
 
     pub fn cursor_mut(&mut self) -> CursorMut<'_, T> {
         CursorMut::new(self, self.root_id)
+    }
+}
+
+impl<'t, T> IntoIterator for &'t BinaryTree<T> {
+    type Item = &'t T;
+    type IntoIter = InorderIter<'t, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, T> IntoIterator for &'t mut BinaryTree<T> {
+    type Item = &'t mut T;
+    type IntoIter = InorderIterMut<'t, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
     }
 }
 

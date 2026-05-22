@@ -3,7 +3,11 @@ use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 
-use crate::binary_trees::cartesian_tree::IntoInorderIter;
+use crate::binary_trees::cartesian_tree::{
+    InorderIter,
+    InorderIterMut,
+    IntoInorderIter,
+};
 use crate::binary_trees::{
     Side, 
     binary_tree::BinaryTree, 
@@ -164,6 +168,24 @@ where
         }
         
         tree
+    }
+}
+
+impl<'t, K, V, C> IntoIterator for &'t CartesianTree<K, V, C> {
+    type Item = &'t CartesianNode<K, V>;
+    type IntoIter = InorderIter<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, K, V, C> IntoIterator for &'t mut CartesianTree<K, V, C> {
+    type Item = &'t mut CartesianNode<K, V>;
+    type IntoIter = InorderIterMut<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
     }
 }
 
