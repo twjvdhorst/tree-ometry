@@ -1,5 +1,10 @@
 use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}};
 
+use super::{
+    InorderIter,
+    InorderIterMut,
+    IntoInorderIter,
+};
 use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}};
 
 #[cfg(feature = "serde")]
@@ -163,6 +168,33 @@ where
         }
         tree.rebalance();
         tree
+    }
+}
+
+impl<'t, K, V> IntoIterator for &'t BinarySearchTree<K, V> {
+    type Item = &'t BstNode<K, V>;
+    type IntoIter = InorderIter<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, K, V> IntoIterator for &'t mut BinarySearchTree<K, V> {
+    type Item = &'t mut BstNode<K, V>;
+    type IntoIter = InorderIterMut<'t, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
+    }
+}
+
+impl<K, V> IntoIterator for BinarySearchTree<K, V> {
+    type Item = (K, V);
+    type IntoIter = IntoInorderIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 

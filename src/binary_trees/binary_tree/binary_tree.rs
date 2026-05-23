@@ -2,13 +2,13 @@ use std::{collections::HashMap, fmt::{self, Debug, Display}};
 
 use slotmap::{Key, SlotMap, new_key_type};
 
+use super::{
+    InorderIter,
+    InorderIterMut,
+    IntoInorderIter,
+};
 use crate::binary_trees::{
-    Side, 
-    binary_tree::{
-        InorderIter,
-        InorderIterMut,
-        IntoInorderIter,
-    },
+    Side,
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,

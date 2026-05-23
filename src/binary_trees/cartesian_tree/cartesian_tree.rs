@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 
-use crate::binary_trees::cartesian_tree::{
+use super::{
     InorderIter,
     InorderIterMut,
     IntoInorderIter,
