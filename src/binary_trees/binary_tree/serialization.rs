@@ -6,6 +6,10 @@ use crate::binary_trees::{
         Cursor, 
         NodeId,
     },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+    },
 };
 use super::BinaryTree;
 

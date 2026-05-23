@@ -1,20 +1,15 @@
 use crate::binary_trees::Side;
 
-pub struct Neighborhood<'c, T> {
-    pub node: Option<&'c T>,
-    pub parent: Option<&'c T>,
-    pub left: Option<&'c T>,
-    pub right: Option<&'c T>,
-}
-
-pub struct NeighborhoodMut<'c, T> {
-    pub node: Option<&'c mut T>,
-    pub parent: Option<&'c mut T>,
-    pub left: Option<&'c mut T>,
-    pub right: Option<&'c mut T>,
+pub struct Neighborhood<T> {
+    pub node: Option<T>,
+    pub parent: Option<T>,
+    pub left: Option<T>,
+    pub right: Option<T>,
 }
 
 pub trait BinaryTreeCursor {
+    fn side_of_parent(&self) -> Option<Side>;
+
     /// Advances the cursor to the parent node, returning the side of the parent node that the cursor previously pointed to.
     /// If the parent node does not exit, None is returned and the cursor is not moved.
     fn try_move_up(&mut self) -> Option<Side>;
@@ -116,9 +111,6 @@ pub trait PeekingCursor: BinaryTreeCursor {
     type Item;
 
     fn get(&self) -> Option<Self::Item>;
-    fn spawn_cursor(&self) -> Self;
-
-    fn side_of_parent(&self) -> Option<Side>;
 
     fn peek_up(&self) -> Option<Self::Item>;
     fn peek_left(&self) -> Option<Self::Item>;
@@ -130,19 +122,17 @@ pub trait PeekingCursor: BinaryTreeCursor {
         }
     }
 
-    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item>;
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item>;
 }
 
 pub trait PeekingCursorMut: BinaryTreeCursor {
-    type Item<'c>
-    where Self: 'c;
-    type AsCursor<'c>: PeekingCursor<Item = Self::Item<'c>>
-    where Self: 'c;
+    type Item<'c> where Self: 'c;
+    type ItemMut<'c> where Self: 'c;
+    type AsCursor<'c>: PeekingCursor<Item = Self::Item<'c>> where Self: 'c;
 
     fn get(&self) -> Option<Self::Item<'_>>;
-    fn spawn_cursor(&self) -> Self::AsCursor<'_>;
-
-    fn side_of_parent(&self) -> Option<Side>;
+    fn get_mut(&mut self) -> Option<Self::ItemMut<'_>>;
+    fn as_cursor(&self) -> Self::AsCursor<'_>;
 
     fn peek_up(&self) -> Option<Self::Item<'_>>;
     fn peek_left(&self) -> Option<Self::Item<'_>>;
@@ -154,5 +144,17 @@ pub trait PeekingCursorMut: BinaryTreeCursor {
         }
     }
 
-    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item<'_>>;
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item<'_>>;
+
+    fn peek_up_mut(&mut self) -> Option<Self::ItemMut<'_>>;
+    fn peek_left_mut(&mut self) -> Option<Self::ItemMut<'_>>;
+    fn peek_right_mut(&mut self) -> Option<Self::ItemMut<'_>>;
+    fn peek_side_mut(&mut self, side: Side) -> Option<Self::ItemMut<'_>> {
+        match side {
+            Side::Left => self.peek_left_mut(),
+            Side::Right => self.peek_right_mut(),
+        }
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> Neighborhood<Self::ItemMut<'_>>;
 }

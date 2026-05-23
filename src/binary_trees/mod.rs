@@ -4,6 +4,7 @@ pub mod binary_tree;
 pub mod binary_tree_cursor;
 pub mod cursor_errors;
 
+/*
 pub mod binary_search_tree;
 pub mod cartesian_tree;
 pub mod red_black_tree;
@@ -30,6 +31,7 @@ impl<T> Neighborhood<T> {
         }
     }
 }
+*/
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Side {

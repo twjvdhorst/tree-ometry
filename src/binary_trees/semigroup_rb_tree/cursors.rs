@@ -28,6 +28,22 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
     }
+
+    pub(super) fn node(&self) -> Option<&SemigroupRbNode<K, V, S>> {
+        self.0.get()
+    }
+
+    pub(super) fn parent(&self) -> Option<&SemigroupRbNode<K, V, S>> {
+        self.0.peek_up()
+    }
+
+    pub(super) fn left(&self) -> Option<&SemigroupRbNode<K, V, S>> {
+        self.0.peek_left()
+    }
+
+    pub(super) fn right(&self) -> Option<&SemigroupRbNode<K, V, S>> {
+        self.0.peek_right()
+    }
     
     pub(super) fn child(&self, side: Side) -> Option<&SemigroupRbNode<K, V, S>> {
         match side {
