@@ -172,7 +172,7 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
         self.0.get_mut().map(CartesianNode::data_with_mut_value)
     }
 
-    fn as_cursor(&self) -> Cursor<'_, K, V> {
+    fn as_cursor(&self) -> Self::AsCursor<'_> {
         Cursor::new(self.0.as_cursor())
     }
 

@@ -34,13 +34,6 @@ impl<'t, K, V> Cursor<'t, K, V> {
         Self(cursor)
     }
 
-    pub(super) fn child(&self, side: Side) -> Option<&RedBlackNode<K, V>> {
-        match side {
-            Side::Left => self.0.peek_left(),
-            Side::Right => self.0.peek_right(),
-        }
-    }
-
     pub(super) fn child_color(&self, side: Side) -> Option<Color> {
         Some(match side {
             Side::Left => self.0.peek_left()?.color(),
@@ -242,7 +235,7 @@ impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
         self.0.get_mut().map(RedBlackNode::data_with_mut_value)
     }
 
-    fn as_cursor(&self) -> Cursor<'_, K, V> {
+    fn as_cursor(&self) -> Self::AsCursor<'_> {
         Cursor::new(self.0.as_cursor())
     }
 

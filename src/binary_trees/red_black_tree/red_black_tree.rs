@@ -24,7 +24,6 @@ use crate::binary_trees::{
     },
     binary_tree_cursor::{
         BinaryTreeCursor,
-        PeekingCursor,
         PeekingCursorMut,
     },
 };
@@ -333,15 +332,14 @@ where
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
-            //let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
-            if cursor.left_color() != Some(Color::Red) && cursor.right_color() != Some(Color::Red) {//left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black) {
+            if cursor.left_color() != Some(Color::Red) && cursor.right_color() != Some(Color::Red) {
                 // Case 2.
                 cursor.set_color(Color::Red);
                 cursor.move_up(); // Move the cursor to x.p
             } else {
-                if cursor.child_color(side.opposite()) != Some(Color::Red) {//cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
+                if cursor.child_color(side.opposite()) != Some(Color::Red) {
                     // Case 3.
-                    cursor.set_child_color(side, Color::Black);//cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
+                    cursor.set_child_color(side, Color::Black);
                     cursor.set_color(Color::Red);
                     cursor.rotate(side.opposite()).unwrap();
                     cursor.move_up();
@@ -349,7 +347,7 @@ where
 
                 // Case 4.
                 cursor.set_color(cursor.parent_color().unwrap()); // w is the sibling of x, so x.p is also w.p
-                cursor.set_child_color(side.opposite(), Color::Black);//cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
+                cursor.set_child_color(side.opposite(), Color::Black);
                 cursor.move_up();
                 cursor.set_color(Color::Black);
                 cursor.rotate(side).unwrap();

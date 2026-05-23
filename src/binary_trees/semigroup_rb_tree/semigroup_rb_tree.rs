@@ -23,6 +23,10 @@ use crate::binary_trees::{
         IntoInorderIter,
         TreeSemigroup,
     },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursorMut,
+    },
 };
 use super::{Color, cursors::{Cursor, CursorMut}};
 
@@ -299,7 +303,7 @@ where
     fn insert_fixup(cursor: &mut CursorMut<'_, K, V, S>) {
         // Cormen et al.'s algorithm.
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.parent().as_deref().map_or(false, SemigroupRbNode::is_red) {
+        while cursor.parent_color() == Some(Color::Red) {
             // Throughout the loop, cursor points to z, and peeking_cursor moves around to check states of various nodes.
             let mut peeking_cursor = cursor.as_cursor();
             let side_current = peeking_cursor.move_up().unwrap(); // Move the cursor to z.p
@@ -312,7 +316,7 @@ where
                 cursor.set_color(Color::Black);
                 cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to z.p.p, where it stays for the next iteration.
                 cursor.set_color(Color::Red);
-                cursor.child(side_parent.opposite()).unwrap().set_color(Color::Black);
+                cursor.set_child_color(side_parent.opposite(), Color::Black);
             } else {
                 if side_current == side_parent.opposite() {
                     // Case 2
@@ -352,7 +356,7 @@ where
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
         let Some(side) = Self::find_node_to_insert_at(&mut cursor, &key) else {
             // Cursor was moved to the node containing the key.
-            let old_value = std::mem::replace(cursor.get().unwrap().1, value);
+            let old_value = std::mem::replace(cursor.get_mut().unwrap().1, value);
             return Some(old_value);
         };
 
@@ -396,35 +400,31 @@ where
 
     fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V, S>, mut side: Side) {
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.get().is_some() && cursor.child(side).as_deref().map_or(true, SemigroupRbNode::is_black) {
-            let sibling = cursor.child(side.opposite()).unwrap(); // w
-            if sibling.is_red() {
+        while cursor.get().is_some() && cursor.child_color(side) != Some(Color::Red) {
+            if cursor.child_color(side.opposite()) == Some(Color::Red) {
                 // Case 1.
-                sibling.set_color(Color::Black);
+                cursor.set_child_color(side.opposite(), Color::Black);
                 cursor.set_color(Color::Red);
                 cursor.rotate_and_fix_semigroup_value(side).unwrap();
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
-            if cursor.left().as_deref().map_or(true, SemigroupRbNode::is_black)
-                && cursor.right().as_deref().map_or(true, SemigroupRbNode::is_black)
-            {
+            if cursor.left_color() != Some(Color::Red) && cursor.right_color() != Some(Color::Red) {
                 // Case 2.
                 cursor.set_color(Color::Red);
                 cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to x.p
             } else {
-                if cursor.child(side.opposite()).as_deref().map_or(true, SemigroupRbNode::is_black) {
+                if cursor.child_color(side.opposite()) != Some(Color::Red) {
                     // Case 3.
-                    cursor.child(side).unwrap().set_color(Color::Black);
+                    cursor.set_child_color(side, Color::Black);
                     cursor.set_color(Color::Red);
                     cursor.rotate_and_fix_semigroup_value(side.opposite()).unwrap();
                     cursor.move_up_and_recompute_semigroup_value();
                 }
 
                 // Case 4.
-                let parent_color = cursor.parent().unwrap().color;
-                cursor.set_color(parent_color); // w is the sibling of x, so x.p is also w.p
-                cursor.child(side.opposite()).unwrap().set_color(Color::Black);
+                cursor.set_color(cursor.parent_color().unwrap()); // w is the sibling of x, so x.p is also w.p
+                cursor.set_child_color(side.opposite(), Color::Black);
                 cursor.move_up_and_recompute_semigroup_value();
                 cursor.set_color(Color::Black);
                 cursor.rotate_and_fix_semigroup_value(side).unwrap();
@@ -459,7 +459,7 @@ where
         let mut cursor = self.get_cursor_mut_at_key(key)?;
         if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
-            let [key_node, successor_node] = cursor.spawn_and_peek(|[_, successor_cursor]| {
+            let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
                 if successor_cursor.try_move_right() {
                     while successor_cursor.try_move_left() {}
                 }
@@ -474,7 +474,7 @@ where
         }
 
         // The to-be-removed node has at most one child.
-        let key_color = cursor.node().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let key_color = cursor.node_color().unwrap(); // Can unwrap safely: the cursor exists, so it points to the node with the key.
         let data = match cursor.peek_neighborhood() {
             Neighborhood { left: None, right: None, .. } => {
                 let Some(side) = cursor.side_of_parent() else {
@@ -557,7 +557,10 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::semigroup_rb_tree::{Height, CanonInterval, CanonSubset};
+    use crate::binary_trees::{
+        semigroup_rb_tree::{Height, CanonInterval, CanonSubset},
+        binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}
+    };
 
     fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 

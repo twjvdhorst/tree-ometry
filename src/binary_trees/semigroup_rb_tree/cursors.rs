@@ -7,6 +7,11 @@ use crate::binary_trees::{
     binary_tree, 
     cursor_errors::CursorError, 
     semigroup_rb_tree::TreeSemigroup,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
 };
 
 /// A cursor over a SemigroupRbTree.
@@ -51,64 +56,58 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
             Side::Right => self.0.peek_right(),
         }
     }
+}
 
-    pub fn try_move_up(&mut self) -> Option<Side> {
-        self.0.try_move_up()
-    }
-    
-    pub fn try_move_left(&mut self) -> bool {
-        self.0.try_move_left()
-    }
-    
-    pub fn try_move_right(&mut self) -> bool {
-        self.0.try_move_right()
-    }
-
-    pub fn try_move_side(&mut self, side: Side) -> bool {
-        self.0.try_move_side(side)
-    }
-
-    pub fn move_up(&mut self) -> Option<Side> {
-        self.0.move_up()
-    }
-
-    pub fn move_left(&mut self) {
-        self.0.move_left();
-    }
-
-    pub fn move_right(&mut self) {
-        self.0.move_right();
-    }
-
-    pub fn move_side(&mut self, side: Side) {
-        self.0.move_side(side);
-    }
-    
-    pub fn get(&self) -> Option<(&'t K, &'t V, &'t S)> {
-        self.0.get().map(SemigroupRbNode::data)
-    }
-
-    pub fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
+impl<'t, K, V, S> BinaryTreeCursor for Cursor<'t, K, V, S> {   
+    fn side_of_parent(&self) -> Option<Side> {
         self.0.side_of_parent()
     }
 
-    pub fn peek_up(&self) -> Option<(&'t K, &'t V, &'t S)> {
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
+    fn move_up(&mut self) -> Option<Side> {
+        self.0.move_up()
+    }
+
+    fn move_left(&mut self) {
+        self.0.move_left();
+    }
+
+    fn move_right(&mut self) {
+        self.0.move_right();
+    }
+}
+
+impl<'t, K, V, S> PeekingCursor for Cursor<'t, K, V, S> {
+    type Item = (&'t K, &'t V, &'t S);
+
+    fn get(&self) -> Option<Self::Item> {
+        self.0.get().map(SemigroupRbNode::data)
+    }
+
+    fn peek_up(&self) -> Option<Self::Item> {
         self.0.peek_up().map(SemigroupRbNode::data)
     }
 
-    pub fn peek_left(&self) -> Option<(&'t K, &'t V, &'t S)> {
+    fn peek_left(&self) -> Option<Self::Item> {
         self.0.peek_left().map(SemigroupRbNode::data)
     }
 
-    pub fn peek_right(&self) -> Option<(&'t K, &'t V, &'t S)> {
+    fn peek_right(&self) -> Option<Self::Item> {
         self.0.peek_right().map(SemigroupRbNode::data)
     }
 
-    pub fn peek_side(&self, side: Side) -> Option<(&'t K, &'t V, &'t S)> {
-        self.0.peek_side(side).map(SemigroupRbNode::data)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<(&'t K, &'t V, &'t S)> {
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item> {
         self.0.peek_neighborhood().map(SemigroupRbNode::data)
     }
 }
@@ -125,109 +124,56 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
         Self(cursor)
     }
 
+    pub(super) fn node_color(&self) -> Option<Color> {
+        self.0.get().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn parent_color(&self) -> Option<Color> {
+        self.0.peek_up().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn left_color(&self) -> Option<Color> {
+        self.0.peek_left().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn right_color(&self) -> Option<Color> {
+        self.0.peek_right().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn child_color(&self, side: Side) -> Option<Color> {
+        match side {
+            Side::Left => self.left_color(),
+            Side::Right => self.right_color(),
+        }
+    }
+
     pub(super) fn set_color(&mut self, color: Color) {
-        if let Some(node) = self.0.get() {
+        if let Some(node) = self.0.get_mut() {
             node.set_color(color);
         }
     }
 
+    pub(super) fn set_child_color(&mut self, side: Side, color: Color) {
+        match side {
+            Side::Left => if let Some(left) = self.0.peek_left_mut() {
+                left.set_color(color);
+            },
+            Side::Right => if let Some(right) = self.0.peek_right_mut() {
+                right.set_color(color);
+            }
+        }
+    }
+
     pub(super) fn set_semigroup_value(&mut self, semigroup_value: S) {
-        if let Some(node) = self.0.get() {
+        if let Some(node) = self.0.get_mut() {
             node.set_semigroup_value(semigroup_value);
         }
-    }
-
-    pub(super) fn node(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        self.0.get()
-    }
-
-    pub(super) fn parent(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        self.0.peek_up()
-    }
-
-    pub(super) fn left(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        self.0.peek_left()
-    }
-
-    pub(super) fn right(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        self.0.peek_right()
-    }
-
-    pub(super) fn child(&mut self, side: Side) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        match side {
-            Side::Left => self.left(),
-            Side::Right => self.right(),
-        }
-    }
-
-    pub fn try_move_up(&mut self) -> Option<Side> {
-        self.0.try_move_up()
-    }
-    
-    pub fn try_move_left(&mut self) -> bool {
-        self.0.try_move_left()
-    }
-    
-    pub fn try_move_right(&mut self) -> bool {
-        self.0.try_move_right()
-    }
-
-    pub fn try_move_side(&mut self, side: Side) -> bool {
-        self.0.try_move_side(side)
-    }
-
-    pub fn move_up(&mut self) -> Option<Side> {
-        self.0.move_up()
-    }
-
-    pub fn move_left(&mut self) {
-        self.0.move_left();
-    }
-
-    pub fn move_right(&mut self) {
-        self.0.move_right();
-    }
-
-    pub fn move_side(&mut self, side: Side) {
-        self.0.move_side(side);
-    }
-    
-    pub fn get(&mut self) -> Option<(&K, &mut V, &S)> {
-        self.0.get().map(SemigroupRbNode::data_with_mut_value)
-    }
-
-    pub fn as_cursor(&self) -> Cursor<'_, K, V, S> {
-        Cursor::new(self.0.as_cursor())
-    }
-
-    pub fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
-        self.0.side_of_parent()
-    }
-
-    pub fn peek_up(&mut self) -> Option<(&K, &mut V, &S)> {
-        self.0.peek_up().map(SemigroupRbNode::data_with_mut_value)
-    }
-
-    pub fn peek_left(&mut self) -> Option<(&K, &mut V, &S)> {
-        self.0.peek_left().map(SemigroupRbNode::data_with_mut_value)
-    }
-
-    pub fn peek_right(&mut self) -> Option<(&K, &mut V, &S)> {
-        self.0.peek_right().map(SemigroupRbNode::data_with_mut_value)
-    }
-
-    pub fn peek_side(&mut self, side: Side) -> Option<(&K, &mut V, &S)> {
-        self.0.peek_side(side).map(SemigroupRbNode::data_with_mut_value)
-    }
-
-    pub fn peek_neighborhood(&mut self) -> Neighborhood<(&K, &mut V, &S)> {
-        self.0.peek_neighborhood().map(SemigroupRbNode::data_with_mut_value)
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut SemigroupRbNode<K, V, S>; N]>
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut SemigroupRbNode<K, V, S>; N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V, S>; N]),
     {
@@ -237,7 +183,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek(cursors_fn)
+        self.0.spawn_and_peek_mut(cursors_fn)
     }
 
     /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
@@ -255,16 +201,12 @@ where
     S: TreeSemigroup<K>,
 {
     pub(super) fn recompute_semigroup_value(&mut self) {
-        let new_semigroup_value = {
-            //let Some(node) = self.get() else { return; };
-            let Neighborhood { node: Some((key, ..)), left, right, .. } = self.peek_neighborhood() else { return; };
-            S::op(
-                key,
-                left.map(|(.., s)| s),
-                right.map(|(.., s)| s),
-            )
-        };
-        self.node().unwrap().set_semigroup_value(new_semigroup_value);
+        let Neighborhood { node: Some(node), left, right, .. } = self.0.peek_neighborhood_mut() else { return; };
+        node.set_semigroup_value(S::op(
+            node.key(),
+            left.as_deref().map(SemigroupRbNode::semigroup_value),
+            right.as_deref().map(SemigroupRbNode::semigroup_value),
+        ));
     }
 
     pub(super) fn move_up_and_recompute_semigroup_value(&mut self) -> Option<Side> {
@@ -307,3 +249,84 @@ where
         Ok(())
     }
 }
+
+impl<'t, K, V, S> BinaryTreeCursor for CursorMut<'t, K, V, S> {   
+    fn side_of_parent(&self) -> Option<Side> {
+        self.0.side_of_parent()
+    }
+
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
+    fn move_up(&mut self) -> Option<Side> {
+        self.0.move_up()
+    }
+
+    fn move_left(&mut self) {
+        self.0.move_left();
+    }
+
+    fn move_right(&mut self) {
+        self.0.move_right();
+    }
+}
+
+impl<'t, K, V, S> PeekingCursorMut for CursorMut<'t, K, V, S> {
+    type Item<'c> = (&'c K, &'c V, &'c S) where Self: 'c;
+    type ItemMut<'c> = (&'c K, &'c mut V, &'c S) where Self: 'c;
+    type AsCursor<'c> = Cursor<'c, K, V, S> where Self: 'c;
+
+    fn get(&self) -> Option<Self::Item<'_>> {
+        self.0.get().map(SemigroupRbNode::data)
+    }
+
+    fn get_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.get_mut().map(SemigroupRbNode::data_with_mut_value)
+    }
+
+    fn as_cursor(&self) -> Self::AsCursor<'_> {
+        Cursor::new(self.0.as_cursor())
+    }
+
+    fn peek_up(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_up().map(SemigroupRbNode::data)
+    }
+
+    fn peek_left(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_left().map(SemigroupRbNode::data)
+    }
+
+    fn peek_right(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_right().map(SemigroupRbNode::data)
+    }
+
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item<'_>> {
+        self.0.peek_neighborhood().map(SemigroupRbNode::data)
+    }
+
+    fn peek_up_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_up_mut().map(SemigroupRbNode::data_with_mut_value)
+    }
+
+    fn peek_left_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_left_mut().map(SemigroupRbNode::data_with_mut_value)
+    }
+
+    fn peek_right_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_right_mut().map(SemigroupRbNode::data_with_mut_value)
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> Neighborhood<Self::ItemMut<'_>> {
+        self.0.peek_neighborhood_mut().map(SemigroupRbNode::data_with_mut_value)
+    }
+}
+

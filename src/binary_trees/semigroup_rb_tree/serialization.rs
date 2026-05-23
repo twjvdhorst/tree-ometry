@@ -13,6 +13,10 @@ use crate::binary_trees::{
         SemigroupRbTree, 
         TreeSemigroup
     },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+    },
 };
 
 impl<K, V, SG> Serialize for SemigroupRbTree<K, V, SG>
