@@ -1,8 +1,16 @@
 use derive_more::Debug;
 
-use super::BstNode;
+use super::{BstNode};
 use crate::binary_trees::{
-    Neighborhood, Side, binary_tree, cursor_errors::CursorError
+    Neighborhood,
+    Side,
+    binary_tree,
+    cursor_errors::CursorError,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
 };
 
 /// A cursor over a BinarySearchTree.
@@ -24,88 +32,58 @@ impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, BstNode<K, V>>) -> Self {
         Self(cursor)
     }
-    
-    pub fn try_move_up(&mut self) -> Option<Side> {
-        self.0.try_move_up()
-    }
-    
-    pub fn try_move_left(&mut self) -> bool {
-        self.0.try_move_left()
-    }
-    
-    pub fn try_move_right(&mut self) -> bool {
-        self.0.try_move_right()
-    }
+}
 
-    pub fn try_move_side(&mut self, side: Side) -> bool {
-        self.0.try_move_side(side)
-    }
-
-    pub fn move_up(&mut self) -> Option<Side> {
-        self.0.move_up()
-    }
-
-    pub fn move_left(&mut self) {
-        self.0.move_left();
-    }
-
-    pub fn move_right(&mut self) {
-        self.0.move_right();
-    }
-
-    pub fn move_side(&mut self, side: Side) {
-        self.0.move_side(side);
-    }
-
-    /// Moves the cursor to the inorder predecessor of the current node.
-    /// If no predecessor exists, false is returned and the cursor is not moved.
-    pub fn try_move_prev(&mut self) -> bool {
-        self.0.try_move_prev()
-    }
-
-    /// Moves the cursor to the inorder successor of the current node.
-    /// If no successor exists, false is returned and the cursor is not moved.
-    pub fn try_move_next(&mut self) -> bool {
-        self.0.try_move_next()
-    }
-
-    /// Moves the cursor to the inorder predecessor of the current node.
-    /// If no predecessor exists, the cursor is moved to a "null" node.
-    pub fn move_prev(&mut self) {
-        self.0.move_prev();
-    }
-
-    /// Moves the cursor to the inorder successor of the current node.
-    /// If no successor exists, the cursor is moved to a "null" node.
-    pub fn move_next(&mut self) {
-        self.0.move_next();
-    }
-
-    pub fn get(&self) -> Option<(&'t K, &'t V)> {
-        self.0.get().map(BstNode::data)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
+impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
+    fn side_of_parent(&self) -> Option<Side> {
         self.0.side_of_parent()
     }
 
-    pub fn peek_up(&self) -> Option<(&'t K, &'t V)> {
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
+    fn move_up(&mut self) -> Option<Side> {
+        self.0.move_up()
+    }
+
+    fn move_left(&mut self) {
+        self.0.move_left();
+    }
+
+    fn move_right(&mut self) {
+        self.0.move_right();
+    }
+}
+
+impl<'t, K, V> PeekingCursor for Cursor<'t, K, V> {
+    type Item = (&'t K, &'t V);
+
+    fn get(&self) -> Option<Self::Item> {
+        self.0.get().map(BstNode::data)
+    }
+
+    fn peek_up(&self) -> Option<Self::Item> {
         self.0.peek_up().map(BstNode::data)
     }
 
-    pub fn peek_left(&self) -> Option<(&'t K, &'t V)> {
+    fn peek_left(&self) -> Option<Self::Item> {
         self.0.peek_left().map(BstNode::data)
     }
 
-    pub fn peek_right(&self) -> Option<(&'t K, &'t V)> {
+    fn peek_right(&self) -> Option<Self::Item> {
         self.0.peek_right().map(BstNode::data)
     }
 
-    pub fn peek_side(&self, side: Side) -> Option<(&'t K, &'t V)> {
-        self.0.peek_side(side).map(BstNode::data)
-    }
-
-    pub fn peek_neighborhood(&self) -> Neighborhood<(&'t K, &'t V)> {
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item> {
         self.0.peek_neighborhood().map(BstNode::data)
     }
 }
@@ -121,95 +99,11 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, BstNode<K, V>>) -> Self {
         Self(cursor)
     }
-    
-    pub fn try_move_up(&mut self) -> Option<Side> {
-        self.0.try_move_up()
-    }
-    
-    pub fn try_move_left(&mut self) -> bool {
-        self.0.try_move_left()
-    }
-    
-    pub fn try_move_right(&mut self) -> bool {
-        self.0.try_move_right()
-    }
-
-    pub fn try_move_side(&mut self, side: Side) -> bool {
-        self.0.try_move_side(side)
-    }
-
-    pub fn move_up(&mut self) -> Option<Side> {
-        self.0.move_up()
-    }
-
-    pub fn move_left(&mut self) {
-        self.0.move_left();
-    }
-
-    pub fn move_right(&mut self) {
-        self.0.move_right();
-    }
-
-    pub fn move_side(&mut self, side: Side) {
-        self.0.move_side(side);
-    }
-
-    /// Moves the cursor to the inorder predecessor of the current node.
-    /// If no predecessor exists, false is returned and the cursor is not moved.
-    pub fn try_move_prev(&mut self) -> bool {
-        self.0.try_move_prev()
-    }
-
-    /// Moves the cursor to the inorder successor of the current node.
-    /// If no successor exists, false is returned and the cursor is not moved.
-    pub fn try_move_next(&mut self) -> bool {
-        self.0.try_move_next()
-    }
-
-    /// Moves the cursor to the inorder predecessor of the current node.
-    /// If no predecessor exists, the cursor is moved to a "null" node.
-    pub fn move_prev(&mut self) {
-        self.0.move_prev();
-    }
-
-    /// Moves the cursor to the inorder successor of the current node.
-    /// If no successor exists, the cursor is moved to a "null" node.
-    pub fn move_next(&mut self) {
-        self.0.move_next();
-    }
-    
-    pub fn get(&mut self) -> Option<(&K, &mut V)> {
-        self.0.get().map(BstNode::data_with_mut_value)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
-        self.0.side_of_parent()
-    }
-
-    pub fn peek_up(&mut self) -> Option<(&K, &mut V)> {
-        self.0.peek_up().map(BstNode::data_with_mut_value)
-    }
-
-    pub fn peek_left(&mut self) -> Option<(&K, &mut  V)> {
-        self.0.peek_left().map(BstNode::data_with_mut_value)
-    }
-
-    pub fn peek_right(&mut self) -> Option<(&K, &mut V)> {
-        self.0.peek_right().map(BstNode::data_with_mut_value)
-    }
-
-    pub fn peek_side(&mut self, side: Side) -> Option<(&K, &mut V)> {
-        self.0.peek_side(side).map(BstNode::data_with_mut_value)
-    }
-
-    pub fn peek_neighborhood(&mut self) -> Neighborhood<(&K, &mut V)> {
-        self.0.peek_neighborhood().map(BstNode::data_with_mut_value)
-    }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
@@ -219,7 +113,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             cursors_fn(&mut bst_cursors);
             *cursors = bst_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek(cursors_fn)
+        self.0.spawn_and_peek_mut(cursors_fn)
             .map(|results| results.map(BstNode::data_with_mut_value))
     }
 
@@ -265,5 +159,85 @@ impl<'t, K, V> CursorMut<'t, K, V> {
 
     pub fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
         self.0.rotate(side)
+    }
+}
+
+impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {   
+    fn side_of_parent(&self) -> Option<Side> {
+        self.0.side_of_parent()
+    }
+
+    fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
+    fn move_up(&mut self) -> Option<Side> {
+        self.0.move_up()
+    }
+
+    fn move_left(&mut self) {
+        self.0.move_left();
+    }
+
+    fn move_right(&mut self) {
+        self.0.move_right();
+    }
+}
+
+impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
+    type Item<'c> = (&'c K, &'c V) where Self: 'c;
+    type ItemMut<'c> = (&'c K, &'c mut V) where Self: 'c;
+    type AsCursor<'c> = Cursor<'c, K, V> where Self: 'c;
+
+    fn get(&self) -> Option<Self::Item<'_>> {
+        self.0.get().map(BstNode::data)
+    }
+
+    fn get_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.get_mut().map(BstNode::data_with_mut_value)
+    }
+
+    fn as_cursor(&self) -> Self::AsCursor<'_> {
+        Cursor::new(self.0.as_cursor())
+    }
+
+    fn peek_up(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_up().map(BstNode::data)
+    }
+
+    fn peek_left(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_left().map(BstNode::data)
+    }
+
+    fn peek_right(&self) -> Option<Self::Item<'_>> {
+        self.0.peek_right().map(BstNode::data)
+    }
+
+    fn peek_neighborhood(&self) -> Neighborhood<Self::Item<'_>> {
+        self.0.peek_neighborhood().map(BstNode::data)
+    }
+
+    fn peek_up_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_up_mut().map(BstNode::data_with_mut_value)
+    }
+
+    fn peek_left_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_left_mut().map(BstNode::data_with_mut_value)
+    }
+
+    fn peek_right_mut(&mut self) -> Option<Self::ItemMut<'_>> {
+        self.0.peek_right_mut().map(BstNode::data_with_mut_value)
+    }
+
+    fn peek_neighborhood_mut(&mut self) -> Neighborhood<Self::ItemMut<'_>> {
+        self.0.peek_neighborhood_mut().map(BstNode::data_with_mut_value)
     }
 }

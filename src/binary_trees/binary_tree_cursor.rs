@@ -1,11 +1,4 @@
-use crate::binary_trees::Side;
-
-pub struct Neighborhood<T> {
-    pub node: Option<T>,
-    pub parent: Option<T>,
-    pub left: Option<T>,
-    pub right: Option<T>,
-}
+use crate::binary_trees::{Neighborhood, Side};
 
 pub trait BinaryTreeCursor {
     fn side_of_parent(&self) -> Option<Side>;

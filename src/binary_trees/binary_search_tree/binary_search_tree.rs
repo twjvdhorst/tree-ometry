@@ -5,7 +5,19 @@ use super::{
     InorderIterMut,
     IntoInorderIter,
 };
-use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree};
+use crate::binary_trees::{
+    Side, 
+    binary_search_tree::{
+        Cursor, 
+        CursorMut,
+    }, 
+    binary_tree::BinaryTree,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+        PeekingCursorMut,
+    },
+};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -200,7 +212,7 @@ where
         // Cursor is in the predecessor.
         // Extend the lifetime of the yielded references to be independent of the cursor.
         // This is safe, because we don't alter the tree or any value after returning.
-        let (pred_key, pred_value) = cursor.get()?;
+        let (pred_key, pred_value) = cursor.get_mut()?;
         let key_pointer = pred_key as *const K;
         let value_pointer = pred_value as *mut V;
         unsafe { Some((&*key_pointer, &mut *value_pointer)) }
@@ -243,7 +255,7 @@ where
         // Cursor is in the successor.
         // Extend the lifetime of the yielded reference to be independent of the cursor.
         // This is safe, because we don't alter the tree or any value after returning.
-        let (succ_key, succ_value) = cursor.get()?;
+        let (succ_key, succ_value) = cursor.get_mut()?;
         let key_pointer = succ_key as *const K;
         let value_pointer = succ_value as *mut V;
         unsafe { Some((&*key_pointer, &mut *value_pointer)) }

@@ -3,10 +3,10 @@ use slotmap::Key;
 
 use super::{BinaryTree, BinaryTreeNode, NodeId};
 use crate::binary_trees::{
+    Neighborhood,
     Side,
     cursor_errors::CursorError,
     binary_tree_cursor::{
-        Neighborhood,
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
