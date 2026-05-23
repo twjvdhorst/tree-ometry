@@ -6,10 +6,6 @@ use crate::binary_trees::{
         Cursor, 
         NodeId,
     },
-    binary_tree_cursor::{
-        BinaryTreeCursor, 
-        PeekingCursor,
-    },
 };
 use super::BinaryTree;
 
@@ -48,8 +44,8 @@ impl<'t, T> SerializationNode<&'t T> {
     fn new(cursor: Cursor<'t, T>) -> Option<Self> {
         let data = cursor.get()?;
 
-        let mut left_cursor = cursor.spawn_cursor();
-        let mut right_cursor = cursor.spawn_cursor();
+        let mut left_cursor = cursor.clone();
+        let mut right_cursor = cursor.clone();
         left_cursor.move_left();
         right_cursor.move_right();
 

@@ -112,58 +112,47 @@ pub trait BinaryTreeCursor {
     }
 }
 
-pub trait PeekingCursor<'t>: BinaryTreeCursor {
+pub trait PeekingCursor: BinaryTreeCursor {
     type Item;
 
-    fn get(&self) -> Option<&'t Self::Item>;
+    fn get(&self) -> Option<Self::Item>;
     fn spawn_cursor(&self) -> Self;
 
     fn side_of_parent(&self) -> Option<Side>;
 
-    fn peek_up(&self) -> Option<&'t Self::Item>;
-    fn peek_left(&self) -> Option<&'t Self::Item>;
-    fn peek_right(&self) -> Option<&'t Self::Item>;
-    fn peek_side(&self, side: Side) -> Option<&'t Self::Item> {
+    fn peek_up(&self) -> Option<Self::Item>;
+    fn peek_left(&self) -> Option<Self::Item>;
+    fn peek_right(&self) -> Option<Self::Item>;
+    fn peek_side(&self, side: Side) -> Option<Self::Item> {
         match side {
             Side::Left => self.peek_left(),
             Side::Right => self.peek_right(),
-        }
-    }
-
-    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item>;
-}
-
-pub trait PeekingCursorMut: BinaryTreeCursor {
-    type Item;
-    type SpawnedCursor<'c>: PeekingCursor<'c, Item = Self::Item>
-    where Self: 'c;
-
-    fn get(&self) -> Option<&Self::Item>;
-    fn get_mut(&mut self) -> Option<&mut Self::Item>;
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_>;
-
-    fn side_of_parent(&self) -> Option<Side>;
-
-    fn peek_up(&self) -> Option<&Self::Item>;
-    fn peek_left(&self) -> Option<&Self::Item>;
-    fn peek_right(&self) -> Option<&Self::Item>;
-    fn peek_side(&self, side: Side) -> Option<&Self::Item> {
-        match side {
-            Side::Left => self.peek_left(),
-            Side::Right => self.peek_right(),
-        }
-    }
-
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Item>;
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Item>;
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Item>;
-    fn peek_side_mut(&mut self, side: Side) -> Option<&mut Self::Item> {
-        match side {
-            Side::Left => self.peek_left_mut(),
-            Side::Right => self.peek_right_mut(),
         }
     }
 
     fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item>;
-    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item>;
+}
+
+pub trait PeekingCursorMut: BinaryTreeCursor {
+    type Item<'c>
+    where Self: 'c;
+    type AsCursor<'c>: PeekingCursor<Item = Self::Item<'c>>
+    where Self: 'c;
+
+    fn get(&self) -> Option<Self::Item<'_>>;
+    fn spawn_cursor(&self) -> Self::AsCursor<'_>;
+
+    fn side_of_parent(&self) -> Option<Side>;
+
+    fn peek_up(&self) -> Option<Self::Item<'_>>;
+    fn peek_left(&self) -> Option<Self::Item<'_>>;
+    fn peek_right(&self) -> Option<Self::Item<'_>>;
+    fn peek_side(&self, side: Side) -> Option<Self::Item<'_>> {
+        match side {
+            Side::Left => self.peek_left(),
+            Side::Right => self.peek_right(),
+        }
+    }
+
+    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item<'_>>;
 }

@@ -7,14 +7,7 @@ use super::{
     InorderIterMut,
     IntoInorderIter,
 };
-use crate::binary_trees::{
-    Side,
-    binary_tree_cursor::{
-        BinaryTreeCursor,
-        PeekingCursor,
-        PeekingCursorMut,
-    },
-};
+use crate::binary_trees::Side;
 use super::cursors::{
     Cursor,
     CursorMut,
@@ -433,8 +426,8 @@ where
                 node.fmt(f)?;
                 writeln!(f, "")?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                let mut left_cursor = cursor.spawn_cursor();
-                let mut right_cursor = cursor.spawn_cursor();
+                let mut left_cursor = cursor.clone();
+                let mut right_cursor = cursor.clone();
                 if left_cursor.try_move_left() {
                     recursive_fmt(left_cursor, f, &new_prefix, true)?;
                 }
@@ -480,8 +473,8 @@ where
                 node.fmt(f)?;
                 writeln!(f, "")?;
                 let new_prefix = String::from(prefix) + if is_left { "│  " } else { "   " };
-                let mut left_cursor = cursor.spawn_cursor();
-                let mut right_cursor = cursor.spawn_cursor();
+                let mut left_cursor = cursor.clone();
+                let mut right_cursor = cursor.clone();
                 if left_cursor.try_move_left() {
                     recursive_fmt(left_cursor, f, &new_prefix, true)?;
                 }
@@ -502,7 +495,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut};
     
     #[test]
     fn test_cursors() {
@@ -534,12 +526,12 @@ mod tests {
         cursor.rotate_right().unwrap();
         cursor.move_up();
 
-        assert_eq!(cursor.get(), Some(&2));
-        assert_eq!(cursor.peek_left(), Some(&3));
-        assert_eq!(cursor.peek_right(), Some(&1));
+        assert_eq!(cursor.get(), Some(&mut 2));
+        assert_eq!(cursor.peek_left(), Some(&mut 3));
+        assert_eq!(cursor.peek_right(), Some(&mut 1));
         cursor.move_right();
-        assert_eq!(cursor.peek_left(), Some(&4));
-        assert_eq!(cursor.peek_right(), Some(&5));
+        assert_eq!(cursor.peek_left(), Some(&mut 4));
+        assert_eq!(cursor.peek_right(), Some(&mut 5));
     }
 
     fn get_iter_test_tree() -> BinaryTree<i32> {
