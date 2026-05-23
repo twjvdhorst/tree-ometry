@@ -9,8 +9,12 @@ use super::{
     IntoInorderIter,
 };
 use crate::binary_trees::{
-    Side, 
+    Side,
     binary_tree::BinaryTree,
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursorMut,
+    },
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -250,6 +254,10 @@ mod tests {
         binary_tree::{
             self,
             BinaryTree,
+        },
+        binary_tree_cursor::{
+            BinaryTreeCursor,
+            PeekingCursor,
         },
     };
 

@@ -6,8 +6,8 @@ pub mod cursor_errors;
 
 
 pub mod binary_search_tree;
-/*pub mod cartesian_tree;
-pub mod red_black_tree;
+pub mod cartesian_tree;
+/*pub mod red_black_tree;
 pub mod semigroup_rb_tree;
 */
 

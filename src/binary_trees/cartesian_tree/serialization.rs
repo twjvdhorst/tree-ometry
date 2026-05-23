@@ -9,6 +9,10 @@ use crate::binary_trees::{
         self,
         BinaryTree,
     },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
+    },
 };
 
 impl<K, V, C> Serialize for CartesianTree<K, V, C>
