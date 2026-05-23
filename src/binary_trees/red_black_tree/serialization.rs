@@ -5,10 +5,15 @@ use crate::binary_trees::{
     binary_tree::{
         self, 
         BinaryTree,
-    }, red_black_tree::{
+    },
+    red_black_tree::{
         Color,
         RedBlackNode,
         RedBlackTree,
+    },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursor,
     },
 };
 
