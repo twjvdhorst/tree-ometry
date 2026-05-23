@@ -181,7 +181,7 @@ where
 }
 
 impl<'t, K, V, C> IntoIterator for &'t CartesianTree<K, V, C> {
-    type Item = &'t CartesianNode<K, V>;
+    type Item = (&'t K, &'t V);
     type IntoIter = InorderIter<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -190,7 +190,7 @@ impl<'t, K, V, C> IntoIterator for &'t CartesianTree<K, V, C> {
 }
 
 impl<'t, K, V, C> IntoIterator for &'t mut CartesianTree<K, V, C> {
-    type Item = &'t mut CartesianNode<K, V>;
+    type Item = (&'t K, &'t mut V);
     type IntoIter = InorderIterMut<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -313,9 +313,8 @@ mod tests {
         
         // Assert the sequence is preserved.
         let mut tree_sequence = Vec::new();
-        let mut iter = tree.inorder_iter();
-        while let Some(node) = iter.next() {
-            tree_sequence.push((node.key.clone(), node.value.clone()));
+        for (key, value) in tree.inorder_iter() {
+            tree_sequence.push((key.clone(), value.clone()));
         }
         for i in 0..sequence.len() {
             assert_eq!(sequence.get(i), tree_sequence.get(i));

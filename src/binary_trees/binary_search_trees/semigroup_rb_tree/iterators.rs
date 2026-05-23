@@ -25,10 +25,10 @@ macro_rules! impl_iter {
             pub struct [<Into $iter:camel>]<K, V, S>(binary_tree::[<Into $iter:camel>]<SemigroupRbNode<K, V, S>>);
 
             impl<'t, K, V, S> Iterator for [<$iter:camel>]<'t, K, V, S> {
-                type Item = &'t SemigroupRbNode<K, V, S>;
+                type Item = (&'t K, &'t V, &'t S);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(SemigroupRbNode::data)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -37,10 +37,10 @@ macro_rules! impl_iter {
             }
 
             impl<'t, K, V, S> Iterator for [<$iter:camel Mut>]<'t, K, V, S> {
-                type Item = &'t mut SemigroupRbNode<K, V, S>;
+                type Item = (&'t K, &'t mut V, &'t S);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(SemigroupRbNode::data_with_mut_value)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -97,10 +97,10 @@ macro_rules! impl_iter_filtered {
             where
                 P: Fn(&SemigroupRbNode<K, V, S>) -> bool,
             {
-                type Item = &'t SemigroupRbNode<K, V, S>;
+                type Item = (&'t K, &'t V, &'t S);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(SemigroupRbNode::data)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -112,10 +112,10 @@ macro_rules! impl_iter_filtered {
             where
                 P: Fn(&SemigroupRbNode<K, V, S>) -> bool,
             {
-                type Item = &'t mut SemigroupRbNode<K, V, S>;
+                type Item = (&'t K, &'t mut V, &'t S);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(SemigroupRbNode::data_with_mut_value)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {

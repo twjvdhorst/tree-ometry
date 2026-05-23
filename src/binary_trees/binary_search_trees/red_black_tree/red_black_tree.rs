@@ -123,7 +123,7 @@ where
 }
 
 impl<'t, K, V> IntoIterator for &'t RedBlackTree<K, V> {
-    type Item = &'t RedBlackNode<K, V>;
+    type Item = (&'t K, &'t V);
     type IntoIter = InorderIter<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -132,7 +132,7 @@ impl<'t, K, V> IntoIterator for &'t RedBlackTree<K, V> {
 }
 
 impl<'t, K, V> IntoIterator for &'t mut RedBlackTree<K, V> {
-    type Item = &'t mut RedBlackNode<K, V>;
+    type Item = (&'t K, &'t mut V);
     type IntoIter = InorderIterMut<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {

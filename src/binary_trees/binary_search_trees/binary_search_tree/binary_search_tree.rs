@@ -9,12 +9,11 @@ use super::{
 };
 use crate::binary_trees::{
     Side,
-    binary_tree::BinaryTree,
-    binary_tree_cursor::{
+    binary_tree::BinaryTree, binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
-    },
+    }
 };
 
 #[cfg(feature = "serde")]
@@ -86,6 +85,18 @@ impl<K, V> BinarySearchTree<K, V> {
 
     pub fn rebalance(&mut self) {
         self.0.rebalance();
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn map_values<U, F>(self, f: F) -> BinarySearchTree<K, U>
+    where 
+        F: Fn(V) -> U,
+    {
+        let f = |node: BstNode<K, V>| BstNode { key: node.key, value: f(node.value) };
+        BinarySearchTree(self.0.map(f))
     }
 
     pub fn cursor(&self) -> Cursor<'_, K, V> {
@@ -280,7 +291,7 @@ where
 }
 
 impl<'t, K, V> IntoIterator for &'t BinarySearchTree<K, V> {
-    type Item = &'t BstNode<K, V>;
+    type Item = (&'t K, &'t V);
     type IntoIter = InorderIter<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -289,7 +300,7 @@ impl<'t, K, V> IntoIterator for &'t BinarySearchTree<K, V> {
 }
 
 impl<'t, K, V> IntoIterator for &'t mut BinarySearchTree<K, V> {
-    type Item = &'t mut BstNode<K, V>;
+    type Item = (&'t K, &'t mut V);
     type IntoIter = InorderIterMut<'t, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {

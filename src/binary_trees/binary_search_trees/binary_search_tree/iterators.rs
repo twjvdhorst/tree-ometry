@@ -25,10 +25,10 @@ macro_rules! impl_iter {
             pub struct [<Into $iter:camel>]<K, V>(binary_tree::[<Into $iter:camel>]<BstNode<K, V>>);
 
             impl<'t, K, V> Iterator for [<$iter:camel>]<'t, K, V> {
-                type Item = &'t BstNode<K, V>;
+                type Item = (&'t K, &'t V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(BstNode::data)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -37,10 +37,10 @@ macro_rules! impl_iter {
             }
 
             impl<'t, K, V> Iterator for [<$iter:camel Mut>]<'t, K, V> {
-                type Item = &'t mut BstNode<K, V>;
+                type Item = (&'t K, &'t mut V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(BstNode::data_with_mut_value)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -97,10 +97,10 @@ macro_rules! impl_iter_filtered {
             where
                 P: Fn(&BstNode<K, V>) -> bool,
             {
-                type Item = &'t BstNode<K, V>;
+                type Item = (&'t K, &'t V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(BstNode::data)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
@@ -112,10 +112,10 @@ macro_rules! impl_iter_filtered {
             where
                 P: Fn(&BstNode<K, V>) -> bool,
             {
-                type Item = &'t mut BstNode<K, V>;
+                type Item = (&'t K, &'t mut V);
 
                 fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next()
+                    self.0.next().map(BstNode::data_with_mut_value)
                 }
 
                 fn size_hint(&self) -> (usize, Option<usize>) {
