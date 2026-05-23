@@ -1,6 +1,6 @@
-use std::{borrow::Borrow, cmp::Ordering};
+use std::fmt::{Debug, Display};
 
-use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, Neighborhood, PeekingCursorMut}};
+use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::BinaryTreeCursor};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -53,6 +53,10 @@ impl<K, V> BinarySearchTree<K, V> {
         Self::default()
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(BinaryTree::with_capacity(capacity))
+    }
+
     pub fn rebalance(&mut self) {
         self.0.rebalance();
     }
@@ -66,64 +70,61 @@ impl<K, V> BinarySearchTree<K, V> {
     }
 }
 
-impl<K, V> BinarySearchTree<K, V>
-where 
-    K: Ord,
-{
-    /// Moves the given cursor to either the direct predecessor or the direct successor of the given key.
-    fn find_with_cursor<Q>(cursor: &mut CursorMut<'_, K, V>, key: &Q)
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        while let Neighborhood { node: Some(node), parent: Some(parent), .. } = cursor.peek_neighborhood() {
-            match (K::cmp(&node.key, &parent.key), Q::cmp(node.key.borrow(), key)) {
-                (Ordering::Greater, Ordering::Less) => {
-                    // Predecessor of key is in the right subtree of the cursor.
-                    while cursor.try_move_right() {}
-                    return;
-                },
-                (Ordering::Less, Ordering::Greater) => {
-                    // Successor of key is in the left subtree of the cursor.
-                    while cursor.try_move_left() {}
-                    return;
-                },
-                (Ordering::Equal, _) => return,
-                _ => {
-                    cursor.move_up();
-                },
-            }
-        }
-
-        // Cursor is at the root of the tree.
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
-                Ordering::Greater => if !cursor.try_move_left() { return; },
-                Ordering::Less => if !cursor.try_move_right() { return; },
-                Ordering::Equal => return,
-            }
-        }
-    }
-}
-
 impl<K, V> FromIterator<(K, V)> for BinarySearchTree<K, V>
 where 
     K: Ord,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        let mut tree = Self::new();
+        // Start from a right-leaning path and rebalance.
+        let mut sorted_sequence = iter.into_iter().collect::<Vec<_>>();
+        sorted_sequence.sort_by(|(k1, _), (k2, _)| K::cmp(k1, k2));
+        let mut tree = Self::with_capacity(sorted_sequence.len());
         let mut cursor = tree.cursor_mut();
-        for (key, value) in iter.into_iter() {
-            Self::find_with_cursor(&mut cursor, &key);
-            if let Some(node) = cursor.get() {
-                match K::cmp(&node.key, &key) {
-                    Ordering::Greater => cursor.attach_or_insert_child(key, value, Side::Right).unwrap(), // Insert a new node as the cursor's right child.
-                    _ => cursor.attach_or_insert_child(key, value, Side::Left).unwrap(), // Insert a new node as the cursor's left child.
-                }
-            } else {
-                cursor.root_tree(key, value).unwrap();
-            }
+        for (key, value) in sorted_sequence.into_iter() {
+            cursor.attach_child(key, value, Side::Right).unwrap();
+            cursor.move_right();
         }
+        tree.rebalance();
         tree
+    }
+}
+
+impl<K, V> Debug for BstNode<K, V>
+where 
+    K: Debug,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:?}: {:?})", self.key, self.value)
+    }
+}
+
+impl<K, V> Debug for BinarySearchTree<K, V>
+where 
+    K: Debug,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<K, V> Display for BstNode<K, V>
+where 
+    K: Display,
+    V: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}: {})", self.key, self.value)
+    }
+}
+
+impl<K, V> Display for BinarySearchTree<K, V>
+where 
+    K: Display,
+    V: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }

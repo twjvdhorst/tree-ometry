@@ -113,8 +113,12 @@ impl<K, V, C> Default for CartesianTree<K, V, C> {
 }
 
 impl<K, V, C> CartesianTree<K, V, C> {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self::default()
+    }
+
+    fn with_capacity(capacity: usize) -> Self {
+        Self(BinaryTree::with_capacity(capacity), PhantomData)
     }
 
     pub(super) fn inner(&self) -> &BinaryTree<CartesianNode<K, V>> {
@@ -148,7 +152,12 @@ where
     C: Comparer,
 {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        let mut tree = Self::default();
+        let iter = iter.into_iter();
+        let mut tree = if let Some(capacity) = iter.size_hint().1 {
+            Self::with_capacity(capacity)
+        } else {
+            Self::new()
+        };
         let mut cursor = tree.cursor_mut();
         for (key, value) in iter {
             // Find the node that becomes the parent of the new node.

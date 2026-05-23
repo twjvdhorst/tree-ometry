@@ -184,6 +184,10 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
         Self::default()
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(BinaryTree::with_capacity(capacity))
+    }
+
     pub fn root(&self) -> Option<&SemigroupRbNode<K, V, S>> {
         self.0.root().map(BinaryTreeNode::data)
     }

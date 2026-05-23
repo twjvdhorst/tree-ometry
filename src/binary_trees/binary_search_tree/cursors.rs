@@ -1,5 +1,3 @@
-use derive_more::Debug;
-
 use crate::binary_trees::{
     Side, 
     binary_search_tree::BstNode,
@@ -126,24 +124,8 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         self.0.root_tree(BstNode::new(key, value))
     }
 
-    /// Creates a new node and attaches it as a leaf to the node pointed at by the cursor.
-    pub fn attach_leaf(&mut self, key: K, value: V) -> Result<(), CursorError> 
-    where 
-        K: Ord,
-    {
-        let node_key = self.get().ok_or(CursorError::NullError)?.key();
-        let side = if node_key > &key {
-            Side::Left
-        } else {
-            Side::Right
-        };
+    pub(super) fn attach_child(&mut self, key: K, value: V, side: Side) -> Result<(), CursorError> {
         self.0.attach_child(BstNode::new(key, value), side)
-    }
-
-    /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
-    /// If the cursor already had a child on the assigned side, the new node is "inserted" onto the edge.
-    pub(super) fn attach_or_insert_child(&mut self, key: K, value: V, side: Side) -> Result<(), CursorError> {
-        self.0.attach_or_insert_child(BstNode::new(key, value), side)
     }
 
     /// Detaches the child of the node pointed at by the cursor from the tree.

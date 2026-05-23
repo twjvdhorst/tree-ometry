@@ -160,6 +160,13 @@ impl<T> BinaryTree<T> {
         node_id
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            nodes: SlotMap::with_capacity_and_key(capacity),
+            root_id: NodeId::null(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.root_id.is_null()
     }

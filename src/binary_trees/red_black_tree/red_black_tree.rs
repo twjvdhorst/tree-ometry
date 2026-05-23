@@ -149,6 +149,10 @@ impl<K, V> RedBlackTree<K, V> {
         Self::default()
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(BinaryTree::with_capacity(capacity))
+    }
+
     pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
         self.0.root().map(BinaryTreeNode::data)
     }
