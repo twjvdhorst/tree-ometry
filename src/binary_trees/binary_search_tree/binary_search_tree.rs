@@ -5,7 +5,7 @@ use super::{
     InorderIterMut,
     IntoInorderIter,
 };
-use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut}};
+use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -35,6 +35,18 @@ impl<K, V> BstNode<K, V> {
 
     pub fn value_mut(&mut self) -> &mut V {
         &mut self.value
+    }
+
+    pub fn data(&self) -> (&K, &V) {
+        (&self.key, &self.value)
+    }
+
+    pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
+        (&self.key, &mut self.value)
+    }
+
+    pub fn into_data(self) -> (K, V) {
+        (self.key, self.value)
     }
 }
 
@@ -85,8 +97,8 @@ where
         K: Borrow<Q>,
     {
         let mut cursor = self.cursor();
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
+        while let Some((curr_key, _)) = cursor.get() {
+            match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => cursor.move_left(),
                 Ordering::Less => cursor.move_right(),
                 Ordering::Equal => return true,
@@ -100,7 +112,7 @@ where
         Q: Ord,
         K: Borrow<Q>,
     {
-        self.pred_node(key).map(BstNode::key)
+        self.pred_data(key).map(|(pred_key, _)| pred_key)
     }
 
     pub fn succ_key<Q>(&self, key: &Q) -> Option<&K>
@@ -108,58 +120,58 @@ where
         Q: Ord,
         K: Borrow<Q>,
     {
-        self.succ_node(key).map(BstNode::key)
+        self.succ_data(key).map(|(succ_key, _)| succ_key)
     }
 
-    pub fn pred_node<Q>(&self, key: &Q) -> Option<&BstNode<K, V>>
+    pub fn pred_data<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where 
         Q: Ord,
         K: Borrow<Q>,
     {
         let mut cursor = self.cursor();
         let mut pred = None;
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
+        while let Some(data @ (curr_key, _)) = cursor.get() {
+            match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => cursor.move_left(),
                 Ordering::Less => {
-                    pred = Some(node);
+                    pred = Some(data);
                     cursor.move_right();
                 },
-                Ordering::Equal => return Some(node),
+                Ordering::Equal => return Some(data),
             }
         }
         pred
     }
 
-    pub fn succ_node<Q>(&self, key: &Q) -> Option<&BstNode<K, V>>
+    pub fn succ_data<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where 
         Q: Ord,
         K: Borrow<Q>,
     {
         let mut cursor = self.cursor();
         let mut succ = None;
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
+        while let Some(data @ (curr_key, _)) = cursor.get() {
+            match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => {
-                    succ = Some(node);
+                    succ = Some(data);
                     cursor.move_left();
                 },
                 Ordering::Less => cursor.move_right(),
-                Ordering::Equal => return Some(node),
+                Ordering::Equal => return Some(data),
             }
         }
         succ
     }
 
-    pub fn pred_node_mut<Q>(&mut self, key: &Q) -> Option<&mut BstNode<K, V>>
+    pub fn pred_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
     where 
         Q: Ord,
         K: Borrow<Q>,
     {
         let mut cursor = self.cursor_mut();
         let mut depth_since_pred = None;
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
+        while let Some((curr_key, _)) = cursor.get() {
+            match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => {
                     if cursor.try_move_left() {
                         if let Some(depth) = depth_since_pred {
@@ -186,21 +198,23 @@ where
         }
 
         // Cursor is in the predecessor.
-        // Extend the lifetime of the yielded reference to be independent of the cursor.
+        // Extend the lifetime of the yielded references to be independent of the cursor.
         // This is safe, because we don't alter the tree or any value after returning.
-        let pointer = cursor.get_mut()? as *mut BstNode<K, V>;
-        unsafe { Some(&mut *pointer) }
+        let (pred_key, pred_value) = cursor.get()?;
+        let key_pointer = pred_key as *const K;
+        let value_pointer = pred_value as *mut V;
+        unsafe { Some((&*key_pointer, &mut *value_pointer)) }
     }
 
-    pub fn succ_node_mut<Q>(&mut self, key: &Q) -> Option<&mut BstNode<K, V>>
+    pub fn succ_node_mut<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
     where 
         Q: Ord,
         K: Borrow<Q>,
     {
         let mut cursor = self.cursor_mut();
         let mut depth_since_succ = None;
-        while let Some(node) = cursor.get() {
-            match Q::cmp(node.key.borrow(), key) {
+        while let Some((curr_key, _)) = cursor.get() {
+            match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => {
                     if cursor.try_move_left() {
                         depth_since_succ = Some(1);
@@ -229,8 +243,10 @@ where
         // Cursor is in the successor.
         // Extend the lifetime of the yielded reference to be independent of the cursor.
         // This is safe, because we don't alter the tree or any value after returning.
-        let pointer = cursor.get_mut()? as *mut BstNode<K, V>;
-        unsafe { Some(&mut *pointer) }
+        let (succ_key, succ_value) = cursor.get()?;
+        let key_pointer = succ_key as *const K;
+        let value_pointer = succ_value as *mut V;
+        unsafe { Some((&*key_pointer, &mut *value_pointer)) }
     }
 }
 
