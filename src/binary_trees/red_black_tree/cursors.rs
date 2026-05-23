@@ -18,7 +18,7 @@ use crate::binary_trees::{
 /// A cursor over a RedBlackTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, RedBlackNode<K, V>>);
 
 impl<'t, K, V> Cursor<'t, K, V> {
@@ -26,14 +26,6 @@ impl<'t, K, V> Cursor<'t, K, V> {
         Self(cursor)
     }
 }
-
-impl<'t, K, V> Clone for Cursor<'t, K, V> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
     fn try_move_up(&mut self) -> Option<Side> {
@@ -118,7 +110,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn)
+        self.0.spawn_and_peek(cursors_fn)
     }
 
     pub(super) fn set_color(&mut self, color: Color) {

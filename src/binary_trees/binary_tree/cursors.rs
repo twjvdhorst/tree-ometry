@@ -40,14 +40,6 @@ impl<'t, T> Cursor<'t, T> {
     pub(super) fn node_id(&self) -> NodeId {
         self.node_id
     }
-
-    pub fn get(&self) -> Option<&'t T> {
-        self.node().map(BinaryTreeNode::data)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
-        self.tree.parent(self.node_id)?.side_of(self.node_id)
-    }
     
     pub fn try_move_up(&mut self) -> Option<Side> {
         let node_id = self.node_id;
@@ -158,6 +150,14 @@ impl<'t, T> Cursor<'t, T> {
         } else {
             while let Some(side) = self.move_up() && side != Side::Left {}
         }
+    }
+
+    pub fn get(&self) -> Option<&'t T> {
+        self.node().map(BinaryTreeNode::data)
+    }
+
+    pub fn side_of_parent(&self) -> Option<Side> {
+        self.tree.parent(self.node_id)?.side_of(self.node_id)
     }
 
     pub fn peek_up(&self) -> Option<&'t T> {
@@ -214,17 +214,9 @@ impl<'t, T> CursorMut<'t, T> {
     fn node_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.tree.node_mut(self.node_id)
     }
-    
-    pub fn get(&mut self) -> Option<&mut T> {
-        self.node_mut().map(BinaryTreeNode::data_mut)
-    }
 
     pub fn as_cursor(&self) -> Cursor<'_, T> {
         Cursor::new(self.tree, self.node_id)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
-        self.tree.parent(self.node_id)?.side_of(self.node_id)
     }
     
     pub fn try_move_up(&mut self) -> Option<Side> {
@@ -336,6 +328,14 @@ impl<'t, T> CursorMut<'t, T> {
         } else {
             while let Some(side) = self.move_up() && side != Side::Left {}
         }
+    }
+    
+    pub fn get(&mut self) -> Option<&mut T> {
+        self.node_mut().map(BinaryTreeNode::data_mut)
+    }
+
+    pub fn side_of_parent(&self) -> Option<Side> {
+        self.tree.parent(self.node_id)?.side_of(self.node_id)
     }
 
     pub fn peek_up(&mut self) -> Option<&mut T> {
@@ -455,7 +455,7 @@ impl<'t, T> CursorMut<'t, T> {
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut T; N]>
+    pub fn spawn_and_peek<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut T; N]>
     where
         F: FnOnce(&mut [Cursor<'_, T>; N]),
     {

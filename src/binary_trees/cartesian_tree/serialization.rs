@@ -9,10 +9,6 @@ use crate::binary_trees::{
         self,
         BinaryTree,
     },
-    binary_tree_cursor::{
-        BinaryTreeCursor, 
-        PeekingCursor,
-    },
 };
 
 impl<K, V, C> Serialize for CartesianTree<K, V, C>
@@ -68,7 +64,7 @@ where
             if C::compare(node.key(), left.key()) == Ordering::Greater {
                 return false;
             }
-            let mut left_cursor = cursor.spawn_cursor();
+            let mut left_cursor = cursor.clone();
             left_cursor.move_left();
             if !is_heap_recursive::<_, _, C>(left_cursor) {
                 return false;
@@ -78,7 +74,7 @@ where
             if C::compare(node.key(), right.key()) == Ordering::Greater {
                 return false;
             }
-            let mut right_cursor = cursor.spawn_cursor();
+            let mut right_cursor = cursor.clone();
             right_cursor.move_right();
             if !is_heap_recursive::<_, _, C>(right_cursor) {
                 return false;

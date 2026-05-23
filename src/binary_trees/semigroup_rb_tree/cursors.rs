@@ -18,7 +18,7 @@ use crate::binary_trees::{
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Cursor<'t, K, V, S>(binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>);
 
 impl<'t, K, V, S> Cursor<'t, K, V, S> {
@@ -26,14 +26,6 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
         Self(cursor)
     }
 }
-
-impl<'t, K, V, S> Clone for Cursor<'t, K, V, S> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<'t, K, V, S> Copy for Cursor<'t, K, V, S> {}
 
 impl<'t, K, V, S> BinaryTreeCursor for Cursor<'t, K, V, S> {
     fn try_move_up(&mut self) -> Option<Side> {
@@ -118,7 +110,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
             cursors_fn(&mut rb_cursors);
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn)
+        self.0.spawn_and_peek(cursors_fn)
     }
 
     pub(super) fn set_color(&mut self, color: Color) {

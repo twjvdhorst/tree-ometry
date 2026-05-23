@@ -10,11 +10,7 @@ use super::{
 };
 use crate::binary_trees::{
     Side, 
-    binary_tree::BinaryTree, 
-    binary_tree_cursor::{
-        BinaryTreeCursor,
-        PeekingCursorMut,
-    },
+    binary_tree::BinaryTree,
 };
 use super::{cursors::{Cursor, CursorMut}};
 
@@ -161,7 +157,7 @@ where
         let mut cursor = tree.cursor_mut();
         for (key, value) in iter {
             // Find the node that becomes the parent of the new node.
-            while let Some(node) = cursor.get() && C::compare(node.key(), &key) == Ordering::Greater {
+            while let Some((curr_key, _)) = cursor.get() && curr_key > &key {
                 cursor.move_up();
             }
 
@@ -255,10 +251,6 @@ mod tests {
             self,
             BinaryTree,
         },
-        binary_tree_cursor::{
-            BinaryTreeCursor, 
-            PeekingCursor,
-        },
     };
 
     use rand::prelude::*;
@@ -279,7 +271,7 @@ mod tests {
                 if C::compare(node.key(), left.key()) == Ordering::Greater {
                     return false;
                 }
-                let mut left_cursor = cursor.spawn_cursor();
+                let mut left_cursor = cursor.clone();
                 left_cursor.move_left();
                 if !is_heap_recursive::<_, _, C>(left_cursor) {
                     return false;
@@ -289,7 +281,7 @@ mod tests {
                 if C::compare(node.key(), right.key()) == Ordering::Greater {
                     return false;
                 }
-                let mut right_cursor = cursor.spawn_cursor();
+                let mut right_cursor = cursor.clone();
                 right_cursor.move_right();
                 if !is_heap_recursive::<_, _, C>(right_cursor) {
                     return false;

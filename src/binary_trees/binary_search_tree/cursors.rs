@@ -8,28 +8,12 @@ use crate::binary_trees::{
 /// A cursor over a BinarySearchTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, BstNode<K, V>>);
-
-impl<'t, K, V> Clone for Cursor<'t, K, V> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, BstNode<K, V>>) -> Self {
         Self(cursor)
-    }
-
-    pub fn get(&self) -> Option<(&'t K, &'t V)> {
-        self.0.get().map(BstNode::data)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
-        self.0.side_of_parent()
     }
     
     pub fn try_move_up(&mut self) -> Option<Side> {
@@ -86,6 +70,14 @@ impl<'t, K, V> Cursor<'t, K, V> {
     /// If no successor exists, the cursor is moved to a "null" node.
     pub fn move_next(&mut self) {
         self.0.move_next();
+    }
+
+    pub fn get(&self) -> Option<(&'t K, &'t V)> {
+        self.0.get().map(BstNode::data)
+    }
+
+    pub fn side_of_parent(&self) -> Option<Side> {
+        self.0.side_of_parent()
     }
 
     pub fn peek_up(&self) -> Option<(&'t K, &'t V)> {
@@ -121,14 +113,6 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         Self(cursor)
     }
     
-    pub fn get(&mut self) -> Option<(&K, &mut V)> {
-        self.0.get().map(BstNode::data_with_mut_value)
-    }
-
-    pub fn side_of_parent(&self) -> Option<Side> {
-        self.0.side_of_parent()
-    }
-    
     pub fn try_move_up(&mut self) -> Option<Side> {
         self.0.try_move_up()
     }
@@ -184,6 +168,14 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     pub fn move_next(&mut self) {
         self.0.move_next();
     }
+    
+    pub fn get(&mut self) -> Option<(&K, &mut V)> {
+        self.0.get().map(BstNode::data_with_mut_value)
+    }
+
+    pub fn side_of_parent(&self) -> Option<Side> {
+        self.0.side_of_parent()
+    }
 
     pub fn peek_up(&mut self) -> Option<(&K, &mut V)> {
         self.0.peek_up().map(BstNode::data_with_mut_value)
@@ -208,7 +200,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
+    pub fn spawn_and_peek<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
@@ -218,7 +210,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             cursors_fn(&mut bst_cursors);
             *cursors = bst_cursors.map(|cursor| cursor.0);
         };
-        self.0.spawn_and_peek_mut(cursors_fn)
+        self.0.spawn_and_peek(cursors_fn)
             .map(|results| results.map(BstNode::data_with_mut_value))
     }
 
