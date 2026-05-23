@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Display};
+use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}};
 
-use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::BinaryTreeCursor};
+use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -67,6 +67,83 @@ impl<K, V> BinarySearchTree<K, V> {
 
     pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V> {
         CursorMut::new(self.0.cursor_mut())
+    }
+}
+
+impl<K, V> BinarySearchTree<K, V>
+where 
+    K: Ord,
+{
+    pub fn contains<Q>(&self, key: &Q) -> bool
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        let mut cursor = self.cursor();
+        while let Some(node) = cursor.get() {
+            match Q::cmp(node.key.borrow(), key) {
+                Ordering::Greater => cursor.move_left(),
+                Ordering::Less => cursor.move_right(),
+                Ordering::Equal => return true,
+            }
+        }
+        false
+    }
+
+    pub fn pred_key<Q>(&self, key: &Q) -> Option<&K>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        self.pred_node(key).map(BstNode::key)
+    }
+
+    pub fn succ_key<Q>(&self, key: &Q) -> Option<&K>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        self.succ_node(key).map(BstNode::key)
+    }
+
+    pub fn pred_node<Q>(&self, key: &Q) -> Option<&BstNode<K, V>>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        let mut cursor = self.cursor();
+        let mut pred = None;
+        while let Some(node) = cursor.get() {
+            match Q::cmp(node.key.borrow(), key) {
+                Ordering::Greater => cursor.move_left(),
+                Ordering::Less => {
+                    pred = Some(node);
+                    cursor.move_right();
+                },
+                Ordering::Equal => return Some(node),
+            }
+        }
+        pred
+    }
+
+    pub fn succ_node<Q>(&self, key: &Q) -> Option<&BstNode<K, V>>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        let mut cursor = self.cursor();
+        let mut succ = None;
+        while let Some(node) = cursor.get() {
+            match Q::cmp(node.key.borrow(), key) {
+                Ordering::Greater => {
+                    succ = Some(node);
+                    cursor.move_left();
+                },
+                Ordering::Less => cursor.move_right(),
+                Ordering::Equal => return Some(node),
+            }
+        }
+        succ
     }
 }
 
