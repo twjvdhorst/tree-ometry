@@ -1,14 +1,10 @@
 use std::{borrow::Borrow, cmp::Ordering, fmt::{Debug, Display}};
 
 use super::{
-    InorderIter,
-    InorderIterMut,
-    IntoInorderIter,
     Cursor,
     CursorMut,
 };
 use crate::binary_trees::{
-    Side,
     binary_tree::BinaryTree, binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
@@ -112,7 +108,7 @@ impl<K, V> BinarySearchTree<K, V>
 where 
     K: Ord,
 {
-    pub fn contains<Q>(&self, key: &Q) -> bool
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
     where 
         Q: Ord,
         K: Borrow<Q>,
@@ -268,52 +264,6 @@ where
         let key_pointer = succ_key as *const K;
         let value_pointer = succ_value as *mut V;
         unsafe { Some((&*key_pointer, &mut *value_pointer)) }
-    }
-}
-
-impl<K, V> FromIterator<(K, V)> for BinarySearchTree<K, V>
-where 
-    K: Ord,
-{
-    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        // Start from a right-leaning path and rebalance.
-        let mut sorted_sequence = iter.into_iter().collect::<Vec<_>>();
-        sorted_sequence.sort_by(|(k1, _), (k2, _)| K::cmp(k1, k2));
-        let mut tree = Self::with_capacity(sorted_sequence.len());
-        let mut cursor = tree.cursor_mut();
-        for (key, value) in sorted_sequence.into_iter() {
-            cursor.attach_child(key, value, Side::Right).unwrap();
-            cursor.move_right();
-        }
-        tree.rebalance();
-        tree
-    }
-}
-
-impl<'t, K, V> IntoIterator for &'t BinarySearchTree<K, V> {
-    type Item = (&'t K, &'t V);
-    type IntoIter = InorderIter<'t, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.inorder_iter()
-    }
-}
-
-impl<'t, K, V> IntoIterator for &'t mut BinarySearchTree<K, V> {
-    type Item = (&'t K, &'t mut V);
-    type IntoIter = InorderIterMut<'t, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.inorder_iter_mut()
-    }
-}
-
-impl<K, V> IntoIterator for BinarySearchTree<K, V> {
-    type Item = (K, V);
-    type IntoIter = IntoInorderIter<K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.into_inorder_iter()
     }
 }
 
