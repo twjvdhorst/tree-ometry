@@ -8,8 +8,17 @@ use crate::binary_trees::{
 /// A cursor over a BinarySearchTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, BstNode<K, V>>);
+
+/// Make own implementation of Clone, so K and V don't have to be Clone.
+impl<'t, K, V> Clone for Cursor<'t, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, BstNode<K, V>>) -> Self {

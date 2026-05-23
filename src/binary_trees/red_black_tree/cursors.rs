@@ -2,86 +2,98 @@ use derive_more::Debug;
 
 use super::Color;
 use crate::binary_trees::{
+    Neighborhood,
     Side,
     binary_tree,
     cursor_errors::CursorError,
     red_black_tree::RedBlackNode,
-    binary_tree_cursor::{
-        BinaryTreeCursor,
-        Neighborhood,
-        NeighborhoodMut,
-        PeekingCursor,
-        PeekingCursorMut,
-    },
 };
 
 /// A cursor over a RedBlackTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, RedBlackNode<K, V>>);
+
+/// Make own implementation of Clone, so K and V don't have to be Clone.
+impl<'t, K, V> Clone for Cursor<'t, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
     }
-}
 
-impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
-    fn try_move_up(&mut self) -> Option<Side> {
+    pub(super) fn child(&self, side: Side) -> Option<&RedBlackNode<K, V>> {
+        match side {
+            Side::Left => self.0.peek_left(),
+            Side::Right => self.0.peek_right(),
+        }
+    }
+
+    pub fn try_move_up(&mut self) -> Option<Side> {
         self.0.try_move_up()
     }
     
-    fn try_move_left(&mut self) -> bool {
+    pub fn try_move_left(&mut self) -> bool {
         self.0.try_move_left()
     }
     
-    fn try_move_right(&mut self) -> bool {
+    pub fn try_move_right(&mut self) -> bool {
         self.0.try_move_right()
     }
 
-    fn move_up(&mut self) -> Option<Side> {
+    pub fn try_move_side(&mut self, side: Side) -> bool {
+        self.0.try_move_side(side)
+    }
+
+    pub fn move_up(&mut self) -> Option<Side> {
         self.0.move_up()
     }
 
-    fn move_left(&mut self) {
+    pub fn move_left(&mut self) {
         self.0.move_left();
     }
 
-    fn move_right(&mut self) {
+    pub fn move_right(&mut self) {
         self.0.move_right();
     }
-}
 
-impl<'t, K, V> PeekingCursor<'t> for Cursor<'t, K, V> {
-    type Item = RedBlackNode<K, V>;
-
-    fn get(&self) -> Option<&'t Self::Item> {
-        self.0.get()
+    pub fn move_side(&mut self, side: Side) {
+        self.0.move_side(side);
+    }
+    
+    pub fn get(&self) -> Option<(&'t K, &'t V)> {
+        self.0.get().map(RedBlackNode::data)
     }
 
-    fn spawn_cursor(&self) -> Self {
-        self.clone()
-    }
-
-    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
+    pub fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
         self.0.side_of_parent()
     }
 
-    fn peek_up(&self) -> Option<&'t Self::Item> {
-        self.0.peek_up()
+    pub fn peek_up(&self) -> Option<(&'t K, &'t V)> {
+        self.0.peek_up().map(RedBlackNode::data)
     }
 
-    fn peek_left(&self) -> Option<&'t Self::Item> {
-        self.0.peek_left()
+    pub fn peek_left(&self) -> Option<(&'t K, &'t V)> {
+        self.0.peek_left().map(RedBlackNode::data)
     }
 
-    fn peek_right(&self) -> Option<&'t Self::Item> {
-        self.0.peek_right()
+    pub fn peek_right(&self) -> Option<(&'t K, &'t V)> {
+        self.0.peek_right().map(RedBlackNode::data)
     }
 
-    fn peek_neighborhood(&self) -> Neighborhood<'t, Self::Item> {
-        self.0.peek_neighborhood()
+    pub fn peek_side(&self, side: Side) -> Option<(&'t K, &'t V)> {
+        self.0.peek_side(side).map(RedBlackNode::data)
+    }
+
+    pub fn peek_neighborhood(&self) -> Neighborhood<(&'t K, &'t V)> {
+        self.0.peek_neighborhood().map(RedBlackNode::data)
     }
 }
 
@@ -97,10 +109,103 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         Self(cursor)
     }
 
+    pub(super) fn set_color(&mut self, color: Color) {
+        if let Some(node) = self.0.get() {
+            node.set_color(color);
+        }
+    }
+
+    pub(super) fn node(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        self.0.get()
+    }
+
+    pub(super) fn parent(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        self.0.peek_up()
+    }
+
+    pub(super) fn left(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        self.0.peek_left()
+    }
+
+    pub(super) fn right(&mut self) -> Option<&mut RedBlackNode<K, V>> {
+        self.0.peek_right()
+    }
+
+    pub(super) fn child(&mut self, side: Side) -> Option<&mut RedBlackNode<K, V>> {
+        match side {
+            Side::Left => self.left(),
+            Side::Right => self.right(),
+        }
+    }
+
+    pub fn try_move_up(&mut self) -> Option<Side> {
+        self.0.try_move_up()
+    }
+    
+    pub fn try_move_left(&mut self) -> bool {
+        self.0.try_move_left()
+    }
+    
+    pub fn try_move_right(&mut self) -> bool {
+        self.0.try_move_right()
+    }
+
+    pub fn try_move_side(&mut self, side: Side) -> bool {
+        self.0.try_move_side(side)
+    }
+
+    pub fn move_up(&mut self) -> Option<Side> {
+        self.0.move_up()
+    }
+
+    pub fn move_left(&mut self) {
+        self.0.move_left();
+    }
+
+    pub fn move_right(&mut self) {
+        self.0.move_right();
+    }
+
+    pub fn move_side(&mut self, side: Side) {
+        self.0.move_side(side);
+    }
+    
+    pub fn get(&mut self) -> Option<(&K, &mut V)> {
+        self.0.get().map(RedBlackNode::data_with_mut_value)
+    }
+
+    pub fn as_cursor(&self) -> Cursor<'_, K, V> {
+        Cursor::new(self.0.as_cursor())
+    }
+
+    pub fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
+        self.0.side_of_parent()
+    }
+
+    pub fn peek_up(&mut self) -> Option<(&K, &mut V)> {
+        self.0.peek_up().map(RedBlackNode::data_with_mut_value)
+    }
+
+    pub fn peek_left(&mut self) -> Option<(&K, &mut V)> {
+        self.0.peek_left().map(RedBlackNode::data_with_mut_value)
+    }
+
+    pub fn peek_right(&mut self) -> Option<(&K, &mut V)> {
+        self.0.peek_right().map(RedBlackNode::data_with_mut_value)
+    }
+
+    pub fn peek_side(&mut self, side: Side) -> Option<(&K, &mut V)> {
+        self.0.peek_side(side).map(RedBlackNode::data_with_mut_value)
+    }
+
+    pub fn peek_neighborhood(&mut self) -> Neighborhood<(&K, &mut V)> {
+        self.0.peek_neighborhood().map(RedBlackNode::data_with_mut_value)
+    }
+    
     /// Spawn N cursors and move them around the tree according to the supplied function.
     /// Reports mutable references to the nodes the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut RedBlackNode<K, V>; N]>
+    pub fn spawn_and_peek<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut RedBlackNode<K, V>; N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
@@ -111,12 +216,6 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             *cursors = rb_cursors.map(|cursor| cursor.0);
         };
         self.0.spawn_and_peek(cursors_fn)
-    }
-
-    pub(super) fn set_color(&mut self, color: Color) {
-        if let Some(node) = self.get_mut() {
-            node.set_color(color);
-        }
     }
 
     /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
@@ -144,85 +243,5 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     /// The cursor keeps pointing to the node it originally pointed to.
     pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
         self.0.rotate(side)
-    }
-}
-
-impl<'t, K, V> BinaryTreeCursor for CursorMut<'t, K, V> {
-    fn try_move_up(&mut self) -> Option<Side> {
-        self.0.try_move_up()
-    }
-    
-    fn try_move_left(&mut self) -> bool {
-        self.0.try_move_left()
-    }
-    
-    fn try_move_right(&mut self) -> bool {
-        self.0.try_move_right()
-    }
-
-    fn move_up(&mut self) -> Option<Side> {
-        self.0.move_up()
-    }
-
-    fn move_left(&mut self) {
-        self.0.move_left();
-    }
-
-    fn move_right(&mut self) {
-        self.0.move_right();
-    }
-}
-
-impl<'t, K, V> PeekingCursorMut for CursorMut<'t, K, V> {
-    type Item = RedBlackNode<K, V>;
-    type SpawnedCursor<'c> = Cursor<'c, K, V>
-    where Self: 'c;
-
-    fn get(&self) -> Option<&Self::Item> {
-        self.0.get()
-    }
-
-    fn get_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.get_mut()
-    }
-
-    fn spawn_cursor(&self) -> Self::SpawnedCursor<'_> {
-        Cursor::new(self.0.spawn_cursor())
-    }
-
-    fn side_of_parent(&self) -> Option<crate::binary_trees::Side> {
-        self.0.side_of_parent()
-    }
-
-    fn peek_up(&self) -> Option<&Self::Item> {
-        self.0.peek_up()
-    }
-
-    fn peek_left(&self) -> Option<&Self::Item> {
-        self.0.peek_left()
-    }
-
-    fn peek_right(&self) -> Option<&Self::Item> {
-        self.0.peek_right()
-    }
-
-    fn peek_neighborhood(&self) -> Neighborhood<'_, Self::Item> {
-        self.0.peek_neighborhood()
-    }
-
-    fn peek_neighborhood_mut(&mut self) -> NeighborhoodMut<'_, Self::Item> {
-        self.0.peek_neighborhood_mut()
-    }
-
-    fn peek_up_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_up_mut()
-    }
-
-    fn peek_left_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_left_mut()
-    }
-
-    fn peek_right_mut(&mut self) -> Option<&mut Self::Item> {
-        self.0.peek_right_mut()
     }
 }

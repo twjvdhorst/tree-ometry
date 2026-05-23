@@ -157,7 +157,7 @@ where
         let mut cursor = tree.cursor_mut();
         for (key, value) in iter {
             // Find the node that becomes the parent of the new node.
-            while let Some((curr_key, _)) = cursor.get() && curr_key > &key {
+            while let Some((curr_key, _)) = cursor.get() && C::compare(curr_key, &key) == Ordering::Greater {
                 cursor.move_up();
             }
 

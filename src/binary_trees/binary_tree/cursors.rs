@@ -17,6 +17,7 @@ pub struct Cursor<'t, T> {
     node_id: NodeId,
 }
 
+/// Make own implementation of Clone, so T doesn't have to be Clone.
 impl<'t, T> Clone for Cursor<'t, T> {
     fn clone(&self) -> Self {
         Self::new(self.tree, self.node_id)

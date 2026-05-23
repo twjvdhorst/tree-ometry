@@ -11,8 +11,17 @@ use crate::binary_trees::{
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, CartesianNode<K, V>>);
+
+/// Make own implementation of Clone, so K and V don't have to be Clone.
+impl<'t, K, V> Clone for Cursor<'t, K, V> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, CartesianNode<K, V>>) -> Self {
@@ -31,6 +40,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
         self.0.try_move_right()
     }
 
+    pub fn try_move_side(&mut self, side: Side) -> bool {
+        self.0.try_move_side(side)
+    }
+
     pub fn move_up(&mut self) -> Option<Side> {
         self.0.move_up()
     }
@@ -41,6 +54,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
 
     pub fn move_right(&mut self) {
         self.0.move_right();
+    }
+
+    pub fn move_side(&mut self, side: Side) {
+        self.0.move_side(side);
     }
 
     pub fn get(&self) -> Option<(&'t K, &'t V)> {
@@ -61,6 +78,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
 
     pub fn peek_right(&self) -> Option<(&'t K, &'t V)> {
         self.0.peek_right().map(CartesianNode::data)
+    }
+
+    pub fn peek_side(&self, side: Side) -> Option<(&'t K, &'t V)> {
+        self.0.peek_side(side).map(CartesianNode::data)
     }
 
     pub fn peek_neighborhood(&self) -> Neighborhood<(&'t K, &'t V)> {
@@ -92,6 +113,10 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         self.0.try_move_right()
     }
 
+    pub fn try_move_side(&mut self, side: Side) -> bool {
+        self.0.try_move_side(side)
+    }
+
     pub fn move_up(&mut self) -> Option<Side> {
         self.0.move_up()
     }
@@ -102,6 +127,10 @@ impl<'t, K, V> CursorMut<'t, K, V> {
 
     pub fn move_right(&mut self) {
         self.0.move_right();
+    }
+
+    pub fn move_side(&mut self, side: Side) {
+        self.0.move_side(side);
     }
 
     pub fn get(&mut self) -> Option<(&K, &mut V)> {
@@ -128,6 +157,10 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         self.0.peek_right().map(CartesianNode::data_with_mut_value)
     }
 
+    pub fn peek_side(&mut self, side: Side) -> Option<(&K, &mut V)> {
+        self.0.peek_side(side).map(CartesianNode::data_with_mut_value)
+    }
+
     pub fn peek_neighborhood(&mut self) -> Neighborhood<(&K, &mut V)> {
         self.0.peek_neighborhood().map(CartesianNode::data_with_mut_value)
     }
@@ -141,9 +174,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     {
         // "Downgrade" cursors_fn to one that works on binary_tree::Cursor.
         let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, CartesianNode<K, V>>; N]| {
-            let mut rb_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
-            cursors_fn(&mut rb_cursors);
-            *cursors = rb_cursors.map(|cursor| cursor.0);
+            let mut cart_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
+            cursors_fn(&mut cart_cursors);
+            *cursors = cart_cursors.map(|cursor| cursor.0);
         };
         self.0.spawn_and_peek(cursors_fn)
     }

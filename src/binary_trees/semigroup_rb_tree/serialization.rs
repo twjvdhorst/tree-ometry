@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize, de::Error};
 use thiserror::Error;
 
 use crate::binary_trees::{
+    Neighborhood,
     binary_tree::{
         self, 
         BinaryTree,
@@ -11,11 +12,6 @@ use crate::binary_trees::{
         SemigroupRbNode, 
         SemigroupRbTree, 
         TreeSemigroup
-    }, 
-    binary_tree_cursor::{
-        Neighborhood,
-        BinaryTreeCursor, 
-        PeekingCursor,
     },
 };
 
@@ -174,7 +170,7 @@ where
         }
             
         let mut left_cursor = cursor;
-        let mut right_cursor = cursor.spawn_cursor();
+        let mut right_cursor = cursor.clone();
         left_cursor.move_left();
         right_cursor.move_right();
         check_semigroup_values_recursive(left_cursor) && check_semigroup_values_recursive(right_cursor)

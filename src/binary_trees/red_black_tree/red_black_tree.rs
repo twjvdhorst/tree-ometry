@@ -11,6 +11,7 @@ use std::{
 use serde::Serialize;
 
 use crate::binary_trees::{
+    Neighborhood,
     Side,
     binary_tree::{
         BinaryTree,
@@ -20,12 +21,6 @@ use crate::binary_trees::{
         InorderIter,
         InorderIterMut,
         IntoInorderIter,
-    },
-    binary_tree_cursor::{
-        BinaryTreeCursor,
-        Neighborhood,
-        PeekingCursor,
-        PeekingCursorMut,
     },
 };
 use super::{Color, cursors::{Cursor, CursorMut}};
@@ -61,6 +56,10 @@ impl<K, V> RedBlackNode<K, V> {
 
     pub fn data(&self) -> (&K, &V) {
         (&self.key, &self.value)
+    }
+
+    pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
+        (&self.key, &mut self.value)
     }
 
     pub(super) fn is_red(&self) -> bool {
@@ -198,8 +197,8 @@ where
     /// Moves the cursor to the direct predecessor or successor of the value being inserted.
     /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
     fn find_node_to_insert_at(cursor: &mut CursorMut<'_, K, V>, key: &K) -> Option<Side> {
-        while let Some(node) = cursor.get_mut() {
-            match K::cmp(&key, &node.key) {
+        while let Some((curr_key, _)) = cursor.get() {
+            match K::cmp(&key, curr_key) {
                 Ordering::Less => {
                     if !cursor.try_move_left() {
                         return Some(Side::Left);
@@ -221,20 +220,20 @@ where
     fn insert_fixup(cursor: &mut CursorMut<'_, K, V>) {
         // Cormen et al.'s algorithm.
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.peek_up().map_or(false, RedBlackNode::is_red) {
+        while cursor.parent().as_deref().map_or(false, RedBlackNode::is_red) {
             // Throughout the loop, cursor points to z, and peeking_cursor moves around to check states of various nodes.
-            let mut peeking_cursor = cursor.spawn_cursor();
+            let mut peeking_cursor = cursor.as_cursor();
             let side_current = peeking_cursor.move_up().unwrap(); // Move the cursor to z.p
             let side_parent = peeking_cursor.move_up() // Move the cursor to z.p.p
                 .unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
 
-            if let Some(uncle) = peeking_cursor.peek_side(side_parent.opposite()) && uncle.is_red() {
+            if let Some(uncle) = peeking_cursor.child(side_parent.opposite()) && uncle.is_red() {
                 // Case 1
                 cursor.move_up(); // Move the cursor to z.p
                 cursor.set_color(Color::Black);
                 cursor.move_up(); // Move the cursor to z.p.p, where it stays for the next iteration.
                 cursor.set_color(Color::Red);
-                cursor.peek_side_mut(side_parent.opposite()).unwrap().set_color(Color::Black);
+                cursor.child(side_parent.opposite()).unwrap().set_color(Color::Black);
             } else {
                 if side_current == side_parent.opposite() {
                     // Case 2
@@ -272,7 +271,7 @@ where
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
         let Some(side) = Self::find_node_to_insert_at(&mut cursor, &key) else {
             // Cursor was moved to the node containing the key.
-            let old_value = std::mem::replace(cursor.get_mut().unwrap().value_mut(), value);
+            let old_value = std::mem::replace(cursor.get().unwrap().1, value);
             return Some(old_value);
         };
 
@@ -303,8 +302,8 @@ where
         Q: Ord + ?Sized,
     {
         let mut cursor = self.cursor_mut();
-        while let Some(node) = cursor.get() {
-            match Q::cmp(key, node.key.borrow()) {
+        while let Some((curr_key, _)) = cursor.get() {
+            match Q::cmp(key, curr_key.borrow()) {
                 Ordering::Less => cursor.move_left(),
                 Ordering::Greater => cursor.move_right(),
                 Ordering::Equal => return Some(cursor),
@@ -313,16 +312,10 @@ where
         None
     }
 
-    fn move_cursor_to_successor(cursor: &mut impl BinaryTreeCursor) {
-        if cursor.try_move_right() {
-            while cursor.try_move_left() {}
-        }
-    }
-
     fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V>, mut side: Side) {
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.get().is_some() && cursor.peek_side(side).map_or(true, RedBlackNode::is_black) {
-            let sibling = cursor.peek_side_mut(side.opposite()).unwrap(); // w
+        while cursor.get().is_some() && cursor.child(side).as_deref().map_or(true, RedBlackNode::is_black) {
+            let sibling = cursor.child(side.opposite()).unwrap(); // w
             if sibling.is_red() {
                 // Case 1.
                 sibling.set_color(Color::Black);
@@ -331,23 +324,25 @@ where
             }
             
             cursor.move_side(side.opposite()); // Move the cursor to w
-            let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
-            if left.map_or(true, RedBlackNode::is_black) && right.map_or(true, RedBlackNode::is_black) {
+            if cursor.left().as_deref().map_or(true, RedBlackNode::is_black)
+                && cursor.right().as_deref().map_or(true, RedBlackNode::is_black)
+            {
                 // Case 2.
                 cursor.set_color(Color::Red);
                 cursor.move_up(); // Move the cursor to x.p
             } else {
-                if cursor.peek_side(side.opposite()).map_or(true, RedBlackNode::is_black) {
+                if cursor.child(side.opposite()).as_deref().map_or(true, RedBlackNode::is_black) {
                     // Case 3.
-                    cursor.peek_side_mut(side).unwrap().set_color(Color::Black);
+                    cursor.child(side).unwrap().set_color(Color::Black);
                     cursor.set_color(Color::Red);
                     cursor.rotate(side.opposite()).unwrap();
                     cursor.move_up();
                 }
 
                 // Case 4.
-                cursor.set_color(cursor.peek_up().unwrap().color); // w is the sibling of x, so x.p is also w.p
-                cursor.peek_side_mut(side.opposite()).unwrap().set_color(Color::Black);
+                let parent_color = cursor.parent().unwrap().color;
+                cursor.set_color(parent_color); // w is the sibling of x, so x.p is also w.p
+                cursor.child(side.opposite()).unwrap().set_color(Color::Black);
                 cursor.move_up();
                 cursor.set_color(Color::Black);
                 cursor.rotate(side).unwrap();
@@ -382,18 +377,22 @@ where
         let mut cursor = self.get_cursor_mut_at_key(key)?;
         if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
-            let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
-                Self::move_cursor_to_successor(successor_cursor);
+            let [key_node, successor_node] = cursor.spawn_and_peek(|[_, successor_cursor]| {
+                if successor_cursor.try_move_right() {
+                    while successor_cursor.try_move_left() {}
+                }
             }).unwrap();
             std::mem::swap(&mut key_node.key, &mut successor_node.key);
             std::mem::swap(&mut key_node.value, &mut successor_node.value);
 
             // Move the cursor to the successor node, which now holds the to-be-removed data.
-            Self::move_cursor_to_successor(&mut cursor);
+            if cursor.try_move_right() {
+                while cursor.try_move_left() {}
+            }
         }
 
         // The to-be-removed node has at most one child.
-        let key_color = cursor.get().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let key_color = cursor.node().unwrap().color; // Can unwrap safely: the cursor exists, so it points to the node with the key.
         let data = match cursor.peek_neighborhood() {
             Neighborhood { left: None, right: None, .. } => {
                 let Some(side) = cursor.side_of_parent() else {

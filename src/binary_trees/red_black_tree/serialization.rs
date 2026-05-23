@@ -10,10 +10,6 @@ use crate::binary_trees::{
         RedBlackNode,
         RedBlackTree,
     },
-    binary_tree_cursor::{
-        BinaryTreeCursor,
-        PeekingCursor,
-    },
 };
 
 impl<K, V> Serialize for RedBlackTree<K, V>
