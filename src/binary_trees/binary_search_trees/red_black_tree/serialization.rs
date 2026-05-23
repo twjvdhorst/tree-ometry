@@ -1,15 +1,15 @@
 use serde::{Serialize, Deserialize, de::Error};
 use thiserror::Error;
 
+use super::{
+    Color,
+    RedBlackNode,
+    RedBlackTree,
+};
 use crate::binary_trees::{
     binary_tree::{
         self, 
         BinaryTree,
-    },
-    red_black_tree::{
-        Color,
-        RedBlackNode,
-        RedBlackTree,
     },
     binary_tree_cursor::{
         BinaryTreeCursor,

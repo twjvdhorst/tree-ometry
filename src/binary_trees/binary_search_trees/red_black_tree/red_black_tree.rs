@@ -10,6 +10,14 @@ use std::{
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
+use super::{
+    Color, 
+    InorderIter,
+    InorderIterMut,
+    IntoInorderIter,
+    Cursor,
+    CursorMut
+};
 use crate::binary_trees::{
     Neighborhood,
     Side,
@@ -17,17 +25,11 @@ use crate::binary_trees::{
         BinaryTree,
         BinaryTreeNode,
     },
-    red_black_tree::{
-        InorderIter,
-        InorderIterMut,
-        IntoInorderIter,
-    },
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursorMut,
     },
 };
-use super::{Color, cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -74,7 +76,7 @@ impl<K, V> RedBlackNode<K, V> {
         self.color == Color::Black
     }
 
-    pub(in crate::binary_trees) fn color(&self) -> Color {
+    pub(super) fn color(&self) -> Color {
         self.color
     }
 

@@ -1,17 +1,17 @@
 use serde::{Serialize, Deserialize, de::Error};
 use thiserror::Error;
 
+use super::{
+    Color,
+    SemigroupRbNode, 
+    SemigroupRbTree, 
+    TreeSemigroup,
+};
 use crate::binary_trees::{
     Neighborhood,
     binary_tree::{
         self, 
         BinaryTree,
-    },
-    semigroup_rb_tree::{
-        Color,
-        SemigroupRbNode, 
-        SemigroupRbTree, 
-        TreeSemigroup
     },
     binary_tree_cursor::{
         BinaryTreeCursor,

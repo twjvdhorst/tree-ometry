@@ -1,12 +1,11 @@
 use derive_more::Debug;
 
-use super::{Color, SemigroupRbNode};
+use super::{Color, TreeSemigroup, SemigroupRbNode};
 use crate::binary_trees::{
     Neighborhood,
     Side, 
     binary_tree, 
     cursor_errors::CursorError, 
-    semigroup_rb_tree::TreeSemigroup,
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,

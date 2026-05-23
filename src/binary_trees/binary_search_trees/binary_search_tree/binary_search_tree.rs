@@ -4,13 +4,11 @@ use super::{
     InorderIter,
     InorderIterMut,
     IntoInorderIter,
+    Cursor,
+    CursorMut,
 };
 use crate::binary_trees::{
-    Side, 
-    binary_search_tree::{
-        Cursor, 
-        CursorMut,
-    }, 
+    Side,
     binary_tree::BinaryTree,
     binary_tree_cursor::{
         BinaryTreeCursor,

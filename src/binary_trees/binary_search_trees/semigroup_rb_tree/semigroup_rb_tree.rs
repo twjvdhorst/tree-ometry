@@ -10,6 +10,12 @@ use std::{
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
+use super::{
+    InorderIter,
+    InorderIterMut,
+    IntoInorderIter,
+    TreeSemigroup,
+};
 use crate::binary_trees::{
     Neighborhood,
     Side, 
@@ -17,12 +23,6 @@ use crate::binary_trees::{
         BinaryTree,
         BinaryTreeNode,
     }, 
-    semigroup_rb_tree::{
-        InorderIter,
-        InorderIterMut,
-        IntoInorderIter,
-        TreeSemigroup,
-    },
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursorMut,
@@ -102,7 +102,7 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         self.color == Color::Black
     }
 
-    pub(in crate::binary_trees) fn color(&self) -> Color {
+    pub(super) fn color(&self) -> Color {
         self.color
     }
 
@@ -557,10 +557,8 @@ mod tests {
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::{
-        semigroup_rb_tree::{Height, CanonInterval, CanonSubset},
-        binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}
-    };
+    use crate::binary_trees::binary_search_trees::semigroup_rb_tree::*;
+    use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor};
 
     fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 

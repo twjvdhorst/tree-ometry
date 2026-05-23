@@ -1,10 +1,10 @@
 use derive_more::Debug;
 
+use super::CartesianNode;
 use crate::binary_trees::{
     Neighborhood,
     Side,
     binary_tree,
-    cartesian_tree::CartesianNode,
     cursor_errors::CursorError,
     binary_tree_cursor::{
         BinaryTreeCursor,

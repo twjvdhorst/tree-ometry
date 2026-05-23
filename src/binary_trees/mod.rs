@@ -4,11 +4,8 @@ pub mod binary_tree;
 pub mod binary_tree_cursor;
 pub mod cursor_errors;
 
-
-pub mod binary_search_tree;
-pub mod cartesian_tree;
-pub mod red_black_tree;
-pub mod semigroup_rb_tree;
+pub mod binary_search_trees;
+pub mod heaps;
 
 pub struct Neighborhood<T> {
     pub node: Option<T>,

@@ -1,12 +1,11 @@
 use derive_more::Debug;
 
-use super::Color;
+use super::{Color, RedBlackNode};
 use crate::binary_trees::{
     Neighborhood,
     Side,
     binary_tree,
     cursor_errors::CursorError,
-    red_black_tree::RedBlackNode,
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
