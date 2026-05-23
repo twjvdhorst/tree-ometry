@@ -135,9 +135,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         // No need to fix semigroup values for the cursor node, as the subtree of the child is unchanged.
         self.0.transplant_child().map(Into::into)
     }
-}
 
-impl<'t, K, V> CursorMut<'t, K, V> {
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     pub(super) fn attach_child(&mut self, node: RedBlackNode<K, V>, side: Side) -> Result<(), CursorError> {
         self.0.attach_child(node, side)

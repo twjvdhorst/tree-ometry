@@ -128,7 +128,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
         self.0.attach_or_insert_child(node, side)
     }
 
-    pub fn swap_children(&mut self) -> Result<(), CursorError> {
+    pub(super) fn swap_children(&mut self) -> Result<(), CursorError> {
         self.0.swap_children()
     }
 }

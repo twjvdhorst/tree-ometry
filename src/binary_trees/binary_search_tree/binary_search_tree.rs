@@ -5,7 +5,7 @@ use super::{
     InorderIterMut,
     IntoInorderIter,
 };
-use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}};
+use crate::binary_trees::{Side, binary_search_tree::{Cursor, CursorMut}, binary_tree::BinaryTree, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor, PeekingCursorMut}};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -149,6 +149,88 @@ where
             }
         }
         succ
+    }
+
+    pub fn pred_node_mut<Q>(&mut self, key: &Q) -> Option<&mut BstNode<K, V>>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        let mut cursor = self.cursor_mut();
+        let mut depth_since_pred = None;
+        while let Some(node) = cursor.get() {
+            match Q::cmp(node.key.borrow(), key) {
+                Ordering::Greater => {
+                    if cursor.try_move_left() {
+                        if let Some(depth) = depth_since_pred {
+                            depth_since_pred = Some(depth + 1);
+                        }
+                    } else {
+                        // Move the cursor back to the last seen predecessor.
+                        let depth = depth_since_pred?;
+                        for _ in 0..depth {
+                            cursor.move_up();
+                        }
+                        break;
+                    }
+                },
+                Ordering::Less => {
+                    if cursor.try_move_right() {
+                        depth_since_pred = Some(1);
+                    } else {
+                        break;
+                    }
+                },
+                Ordering::Equal => break,
+            }
+        }
+
+        // Cursor is in the predecessor.
+        // Extend the lifetime of the yielded reference to be independent of the cursor.
+        // This is safe, because we don't alter the tree or any value after returning.
+        let pointer = cursor.get_mut()? as *mut BstNode<K, V>;
+        unsafe { Some(&mut *pointer) }
+    }
+
+    pub fn succ_node_mut<Q>(&mut self, key: &Q) -> Option<&mut BstNode<K, V>>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        let mut cursor = self.cursor_mut();
+        let mut depth_since_succ = None;
+        while let Some(node) = cursor.get() {
+            match Q::cmp(node.key.borrow(), key) {
+                Ordering::Greater => {
+                    if cursor.try_move_left() {
+                        depth_since_succ = Some(1);
+                    } else {
+                        break;
+                    }
+                },
+                Ordering::Less => {
+                    if cursor.try_move_right() {
+                        if let Some(depth) = depth_since_succ {
+                            depth_since_succ = Some(depth + 1);
+                        }
+                    } else {
+                        // Move the cursor back to the last seen successor.
+                        let depth = depth_since_succ?;
+                        for _ in 0..depth {
+                            cursor.move_up();
+                        }
+                        break;
+                    }
+                },
+                Ordering::Equal => break,
+            }
+        }
+
+        // Cursor is in the successor.
+        // Extend the lifetime of the yielded reference to be independent of the cursor.
+        // This is safe, because we don't alter the tree or any value after returning.
+        let pointer = cursor.get_mut()? as *mut BstNode<K, V>;
+        unsafe { Some(&mut *pointer) }
     }
 }
 
