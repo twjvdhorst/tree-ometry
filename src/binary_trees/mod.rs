@@ -3,9 +3,10 @@ use std::fmt::Display;
 pub mod binary_tree;
 pub mod binary_tree_cursor;
 pub mod cursor_errors;
+pub mod tree_iterators;
 
-pub mod binary_search_trees;
-pub mod heaps;
+//pub mod binary_search_trees;
+//pub mod heaps;
 
 pub struct Neighborhood<T> {
     pub node: Option<T>,

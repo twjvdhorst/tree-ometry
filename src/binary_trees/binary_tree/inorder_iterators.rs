@@ -11,7 +11,7 @@ use crate::binary_trees::{
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
-    },
+    }, tree_iterators::TreeIterator,
 };
 
 impl<T> BinaryTree<T> {
@@ -19,76 +19,55 @@ impl<T> BinaryTree<T> {
         InorderIter::new(self)
     }
 
-    pub fn inorder_iter_filtered<P>(&self, subtree_filter: P) -> InorderIterFiltered<'_, T, P>
-    where 
-        P: Fn(&T) -> bool,
-    {
-        InorderIterFiltered::new(self, subtree_filter)
-    }
-
     pub fn inorder_iter_mut(&mut self) -> InorderIterMut<'_, T> {
         InorderIterMut::new(self)
-    }
-
-    pub fn inorder_iter_filtered_mut<P>(&mut self, subtree_filter: P) -> InorderIterFilteredMut<'_, T, P>
-    where 
-        P: Fn(&T) -> bool,
-    {
-        InorderIterFilteredMut::new(self, subtree_filter)
     }
 
     pub fn into_inorder_iter(self) -> IntoInorderIter<T> {
         IntoInorderIter::new(self)
     }
-
-    pub fn into_inorder_iter_filtered<P>(self, subtree_filter: P) -> IntoInorderIterFiltered<T, P>
-    where 
-        P: Fn(&T) -> bool,
-    {
-        IntoInorderIterFiltered::new(self, subtree_filter)
-    }
 }
 
-pub struct InorderIter<'t, T>(InorderIterFiltered<'t, T, fn(&T) -> bool>);
-
-pub struct InorderIterFiltered<'t, T, P> {
+pub struct InorderIter<'t, T> {
     tree: &'t BinaryTree<T>,
-    subtree_filter: P,
     current_id: Option<NodeId>,
 }
 
 impl<'t, T> InorderIter<'t, T> {
     fn new(tree: &'t BinaryTree<T>) -> Self {
-        Self(InorderIterFiltered::new(tree, |_| true))
-    }
-}
-
-impl<'t, T, P> InorderIterFiltered<'t, T, P> {
-    fn new(tree: &'t BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             tree,
-            subtree_filter,
             current_id: None,
         }
     }
 
-    fn is_id_valid(&self, id: NodeId) -> bool
+    fn next_id(&mut self) -> Option<NodeId> {
+        let mut cursor = Cursor::new(self.tree, self.current_id?);
+        if cursor.try_move_right() {
+            while cursor.try_move_left() {}
+        } else {
+            while cursor.move_up() == Some(Side::Right) {}
+        }
+        Some(cursor.node_id())
+    }
+
+    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
     where 
-        P: Fn(&T) -> bool,
+        P: FnMut(&T) -> bool,
     {
         self.tree.node(id)
-            .map(|node| (self.subtree_filter)(node.data()))
+            .map(|node| (predicate)(node.data()))
             .unwrap_or(false)
     }
 
-    fn next_node_id(&mut self) -> Option<NodeId>
+    fn next_id_with_filter<P>(&mut self, mut predicate: P) -> Option<NodeId>
     where 
-        P: Fn(&T) -> bool,
+        P: FnMut(&T) -> bool,
     {
         let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if let Some(right) = cursor.peek_right() && (self.subtree_filter)(right) {
+        if let Some(right) = cursor.peek_right() && (predicate)(right) {
             cursor.move_right();
-            while let Some(left) = cursor.peek_left() && (self.subtree_filter)(left) {
+            while let Some(left) = cursor.peek_left() && (predicate)(left) {
                 cursor.move_left();
             }
         } else {
@@ -102,31 +81,13 @@ impl<'t, T> Iterator for InorderIter<'t, T> {
     type Item = &'t T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl<'t, T, P> Iterator for InorderIterFiltered<'t, T, P>
-where 
-    P: Fn(&T) -> bool,
-{
-    type Item = &'t T;
-
-    fn next(&mut self) -> Option<Self::Item> {
         if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id()) && cursor.try_move_left() {}
-            if !self.is_id_valid(cursor.node_id()) {
-                cursor.move_up();
-            }
+            while cursor.try_move_left() {}
             self.current_id = Some(cursor.node_id());
         } else {
-            self.current_id = self.next_node_id();
+            self.current_id = self.next_id();
         }
         self.tree.node(self.current_id?).map(BinaryTreeNode::data)
     }
@@ -136,49 +97,66 @@ where
     }
 }
 
-pub struct InorderIterMut<'t, T>(InorderIterFilteredMut<'t, T, fn(&T) -> bool>);
+impl<'t, T> TreeIterator<T> for InorderIter<'t, T> {
+    fn next_with_subtree_filter<P>(&mut self, mut predicate: P) -> Option<Self::Item>
+    where 
+        P: FnMut(&T) -> bool
+    {
+        if self.current_id.is_none() {
+            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+            let mut cursor = self.tree.cursor();
+            while self.is_id_valid(cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
+            if !self.is_id_valid(cursor.node_id(), predicate) {
+                cursor.move_up();
+            }
+            self.current_id = Some(cursor.node_id());
+        } else {
+            self.current_id = self.next_id_with_filter(predicate);
+        }
+        self.tree.node(self.current_id?).map(BinaryTreeNode::data)
+    }
+}
 
-pub struct InorderIterFilteredMut<'t, T, P> {
+pub struct InorderIterMut<'t, T> {
     tree: &'t mut BinaryTree<T>,
-    subtree_filter: P,
     current_id: Option<NodeId>,
 }
 
 impl<'t, T> InorderIterMut<'t, T> {
     fn new(tree: &'t mut BinaryTree<T>) -> Self {
-        Self(InorderIterFilteredMut::new(tree, |_| true))
-    }
-}
-
-impl<'t, T, P> InorderIterFilteredMut<'t, T, P> 
-where 
-    P: Fn(&T) -> bool,
-{
-    fn new(tree: &'t mut BinaryTree<T>, subtree_filter: P) -> Self {
         Self {
             tree,
-            subtree_filter,
             current_id: None,
         }
     }
 
-    fn is_id_valid(&self, id: NodeId) -> bool
+    fn next_id(&mut self) -> Option<NodeId> {
+        let mut cursor = Cursor::new(self.tree, self.current_id?);
+        if cursor.try_move_right() {
+            while cursor.try_move_left() {}
+        } else {
+            while cursor.move_up() == Some(Side::Right) {}
+        }
+        Some(cursor.node_id())
+    }
+
+    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
     where 
-        P: Fn(&T) -> bool,
+        P: FnMut(&T) -> bool,
     {
         self.tree.node(id)
-            .map(|node| (self.subtree_filter)(node.data()))
+            .map(|node| (predicate)(node.data()))
             .unwrap_or(false)
     }
 
-    fn next_node_id(&mut self) -> Option<NodeId>
+    fn next_id_with_filter<P>(&mut self, mut predicate: P) -> Option<NodeId>
     where 
-        P: Fn(&T) -> bool,
+        P: FnMut(&T) -> bool,
     {
         let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if let Some(right) = cursor.peek_right() && (self.subtree_filter)(right) {
+        if let Some(right) = cursor.peek_right() && (predicate)(right) {
             cursor.move_right();
-            while let Some(left) = cursor.peek_left() && (self.subtree_filter)(left) {
+            while let Some(left) = cursor.peek_left() && (predicate)(left) {
                 cursor.move_left();
             }
         } else {
@@ -192,31 +170,13 @@ impl<'t, T> Iterator for InorderIterMut<'t, T> {
     type Item = &'t mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl<'t, T, P> Iterator for InorderIterFilteredMut<'t, T, P>
-where 
-    P: Fn(&T) -> bool,
-{
-    type Item = &'t mut T;
-
-    fn next(&mut self) -> Option<Self::Item> {
         if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id()) && cursor.try_move_left() {}
-            if !self.is_id_valid(cursor.node_id()) {
-                cursor.move_up();
-            }
+            while cursor.try_move_left() {}
             self.current_id = Some(cursor.node_id());
         } else {
-            self.current_id = self.next_node_id();
+            self.current_id = self.next_id();
         }
         let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
         // Extend the lifetime of the yielded reference to be independent of the iterator.
@@ -230,43 +190,51 @@ where
     }
 }
 
-pub struct IntoInorderIter<T>(IntoInorderIterFiltered<T, fn(&T) -> bool>);
+impl<'t, T> TreeIterator<T> for InorderIterMut<'t, T> {
+    fn next_with_subtree_filter<P>(&mut self, mut predicate: P) -> Option<Self::Item>
+    where 
+        P: FnMut(&T) -> bool
+    {
+        if self.current_id.is_none() {
+            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+            let mut cursor = self.tree.cursor();
+            while self.is_id_valid(cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
+            if !self.is_id_valid(cursor.node_id(), predicate) {
+                cursor.move_up();
+            }
+            self.current_id = Some(cursor.node_id());
+        } else {
+            self.current_id = self.next_id_with_filter(predicate);
+        }
+        let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
+        // Extend the lifetime of the yielded reference to be independent of the iterator.
+        // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
+        let pointer = next as *mut T;
+        unsafe { Some(&mut *pointer) }
+    }
+}
 
-pub struct IntoInorderIterFiltered<T, P> {
+pub struct IntoInorderIter<T> {
     tree: BinaryTree<T>,
-    subtree_filter: P,
     stack: Vec<NodeId>,
+    first_iteration: bool,
 }
 
 impl<T> IntoInorderIter<T> {
     fn new(tree: BinaryTree<T>) -> Self {
-        Self(IntoInorderIterFiltered::new(tree, |_| true))
-    }
-}
-
-impl<T, P> IntoInorderIterFiltered<T, P> 
-where 
-    P: Fn(&T) -> bool,
-{
-    fn new(tree: BinaryTree<T>, subtree_filter: P) -> Self {
-        // Move the "cursor" to the first node in the inorder order.
-        let mut id = tree.root_id();
-        let mut stack = Vec::new();
-        while tree.node(id).map(|node| subtree_filter(node.data())).unwrap_or(false) {
-            stack.push(id);
-            id = tree.left_id(id).unwrap_or(NodeId::null());
-        }
-
         Self {
             tree,
-            subtree_filter,
-            stack,
+            stack: Vec::new(),
+            first_iteration: true,
         }
     }
 
-    fn is_id_valid(&self, id: NodeId) -> bool {
+    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
+    where 
+        P: FnMut(&T) -> bool,
+    {
         self.tree.node(id)
-            .map(|node| (self.subtree_filter)(node.data()))
+            .map(|node| (predicate)(node.data()))
             .unwrap_or(false)
     }
 }
@@ -275,26 +243,21 @@ impl<T> Iterator for IntoInorderIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
+        if self.first_iteration {
+            // Make an initial stack, up to the leftmost node in the tree.
+            let mut cursor = self.tree.cursor();
+            while !cursor.node_id().is_null() {
+                self.stack.push(cursor.node_id());
+                cursor.move_left();
+            }
+            self.first_iteration = false;
+        }
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl<T, P> Iterator for IntoInorderIterFiltered<T, P>
-where 
-    P: Fn(&T) -> bool,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
         // Get id of the to-be-reported element, and expand stack.
         let next_id = self.stack.pop()?;
-        if let Some(id) = self.tree.right_id(next_id) && self.is_id_valid(id) {
+        if let Some(id) = self.tree.right_id(next_id) {
             self.stack.push(id);
-            while let Some(id) = self.tree.left_id(*self.stack.last().unwrap()) && self.is_id_valid(id) {
+            while let Some(id) = self.tree.left_id(*self.stack.last().unwrap()) {
                 self.stack.push(id);
             }
         }
@@ -303,5 +266,32 @@ where
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.tree.len(), Some(self.tree.len()))
+    }
+}
+
+impl<T> TreeIterator<T> for IntoInorderIter<T> {
+    fn next_with_subtree_filter<P>(&mut self, mut predicate: P) -> Option<Self::Item>
+    where 
+        P: FnMut(&T) -> bool
+    {
+        if self.first_iteration {
+            // Make an initial stack, up to the leftmost node in the tree.
+            let mut cursor = self.tree.cursor();
+            while let Some(data) = cursor.get() && predicate(data) {
+                self.stack.push(cursor.node_id());
+                cursor.move_left();
+            }
+            self.first_iteration = false;
+        }
+
+        // Get id of the to-be-reported element, and expand stack.
+        let next_id = self.stack.pop()?;
+        if let Some(id) = self.tree.right_id(next_id) && self.is_id_valid(id, &mut predicate) {
+            self.stack.push(id);
+            while let Some(id) = self.tree.left_id(*self.stack.last().unwrap()) && self.is_id_valid(id, &mut predicate) {
+                self.stack.push(id);
+            }
+        }
+        self.tree.remove_node(next_id)
     }
 }

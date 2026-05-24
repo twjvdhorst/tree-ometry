@@ -502,6 +502,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::binary_trees::tree_iterators::TreeIterator;
     
     #[test]
     fn test_cursors() {
@@ -600,13 +601,13 @@ mod tests {
         let mut tree = get_iter_test_tree();
         let inorder_sequence = [3, 2, 5, 4, 1];
 
-        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_filtered(|&i| i == 6)) {
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter().subtree_filter(|&i| i != 6)) {
             assert_eq!(i, j);
         }
-        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_filtered_mut(|&i| i == 6)) {
+        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.inorder_iter_mut().subtree_filter(|&i| i != 6)) {
             assert_eq!(i, j);
         }
-        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_inorder_iter_filtered(|&i| i == 6)) {
+        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_inorder_iter().subtree_filter(|&i| i != 6)) {
             assert_eq!(i, j);
         }
     }
