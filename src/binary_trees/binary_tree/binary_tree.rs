@@ -334,9 +334,9 @@ impl<T> BinaryTree<T> {
         self.nodes.len()
     }
 
-    pub fn map<U, F>(self, f: F) -> BinaryTree<U>
+    pub fn map<U, F>(self, mut f: F) -> BinaryTree<U>
     where 
-        F: Fn(T) -> U,
+        F: FnMut(T) -> U,
     {
         let old_root_id = self.root_id;
         if old_root_id.is_null() {

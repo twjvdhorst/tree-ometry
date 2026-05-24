@@ -129,9 +129,9 @@ impl<K, V, C> CartesianTree<K, V, C> {
         self.0.len()
     }
 
-    pub fn map_values<U, F>(self, f: F) -> CartesianTree<K, U, C>
+    pub fn map_values<U, F>(self, mut f: F) -> CartesianTree<K, U, C>
     where 
-        F: Fn(V) -> U,
+        F: FnMut(V) -> U,
     {
         let f = |node: CartesianNode<K, V>| CartesianNode { key: node.key, value: f(node.value) };
         CartesianTree(self.0.map(f), PhantomData)

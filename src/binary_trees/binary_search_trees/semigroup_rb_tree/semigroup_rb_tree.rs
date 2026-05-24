@@ -202,9 +202,9 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
         self.0.len()
     }
 
-    pub fn map_values<U, F>(self, f: F) -> SemigroupRbTree<K, U, S>
+    pub fn map_values<U, F>(self, mut f: F) -> SemigroupRbTree<K, U, S>
     where 
-        F: Fn(V) -> U,
+        F: FnMut(V) -> U,
     {
         let f = |node: SemigroupRbNode<K, V, S>| SemigroupRbNode {
             key: node.key, 

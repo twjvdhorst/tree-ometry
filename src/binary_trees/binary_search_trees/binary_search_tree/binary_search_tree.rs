@@ -87,9 +87,9 @@ impl<K, V> BinarySearchTree<K, V> {
         self.0.len()
     }
 
-    pub fn map_values<U, F>(self, f: F) -> BinarySearchTree<K, U>
+    pub fn map_values<U, F>(self, mut f: F) -> BinarySearchTree<K, U>
     where 
-        F: Fn(V) -> U,
+        F: FnMut(V) -> U,
     {
         let f = |node: BstNode<K, V>| BstNode { key: node.key, value: f(node.value) };
         BinarySearchTree(self.0.map(f))

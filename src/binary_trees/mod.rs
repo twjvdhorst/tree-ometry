@@ -16,16 +16,16 @@ pub struct Neighborhood<T> {
 }
 
 impl<T> Neighborhood<T> {
-    pub fn map<U, F>(self, f: F) -> Neighborhood<U>
+    pub fn map<U, F>(self, mut f: F) -> Neighborhood<U>
     where 
-        F: Fn(T) -> U,
+        F: FnMut(T) -> U,
     {
         let Self { node, parent, left, right } = self;
         Neighborhood {
-            node: node.map(&f),
-            parent: parent.map(&f),
-            left: left.map(&f),
-            right: right.map(&f),
+            node: node.map(&mut f),
+            parent: parent.map(&mut f),
+            left: left.map(&mut f),
+            right: right.map(&mut f),
         }
     }
 }

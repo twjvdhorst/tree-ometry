@@ -174,9 +174,9 @@ impl<K, V> RedBlackTree<K, V> {
         self.0.len()
     }
 
-    pub fn map_values<U, F>(self, f: F) -> RedBlackTree<K, U>
+    pub fn map_values<U, F>(self, mut f: F) -> RedBlackTree<K, U>
     where 
-        F: Fn(V) -> U,
+        F: FnMut(V) -> U,
     {
         let f = |node: RedBlackNode<K, V>| RedBlackNode {
             key: node.key, 
