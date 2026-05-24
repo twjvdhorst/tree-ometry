@@ -255,9 +255,9 @@ impl<T> Iterator for IntoInorderIter<T> {
 
         // Get id of the to-be-reported element, and expand stack.
         let next_id = self.stack.pop()?;
-        if let Some(id) = self.tree.right_id(next_id) {
+        if let Some(id) = self.tree.right_id(next_id) && !id.is_null() {
             self.stack.push(id);
-            while let Some(id) = self.tree.left_id(*self.stack.last().unwrap()) {
+            while let Some(id) = self.tree.left_id(*self.stack.last().unwrap()) && !id.is_null() {
                 self.stack.push(id);
             }
         }
