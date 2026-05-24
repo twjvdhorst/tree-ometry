@@ -624,41 +624,39 @@ mod tests {
     #[test]
     fn test_preorder_iters() {
         let mut tree = get_iter_test_tree();
-        let preorder_sequence = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let mut preorder_sequence = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
         // Testing iters without mutations.
-        for (i, j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter()) {
-            assert_eq!(i, j);
-        }
-        for (i, j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter_mut()) {
-            assert_eq!(i, j);
-        }
-        for (i, j) in Iterator::zip(preorder_sequence.clone().into_iter(), tree.into_preorder_iter()) {
-            assert_eq!(i, j);
-        }
+        assert!(Iterator::eq(preorder_sequence.iter(), tree.preorder_iter()));
+        assert!(Iterator::eq(preorder_sequence.iter_mut(), tree.preorder_iter_mut()));
+        assert!(Iterator::eq(preorder_sequence.clone().into_iter(), tree.into_preorder_iter()));
 
         // Test mutating elements during iteration.
         let mut tree = get_iter_test_tree();
         for i in tree.preorder_iter_mut() {
             *i = 2 * *i;
         }
-        for (&i, &j) in Iterator::zip(preorder_sequence.iter(), tree.preorder_iter()) {
-            assert_eq!(2 * i, j);
-        }
+        assert!(Iterator::eq(
+            preorder_sequence.map(|i| 2 * i).iter_mut(),
+            tree.preorder_iter_mut()
+        ));
 
         // Test filtering the subtree rooted at 6.
         let mut tree = get_iter_test_tree();
-        let inorder_sequence = [3, 2, 5, 4, 1];
+        let mut preorder_sequence = [1, 2, 3, 4, 5];
 
-        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.preorder_iter_filtered(|&i| i != 6)) {
-            assert_eq!(i, j);
-        }
-        for (i, j) in Iterator::zip(inorder_sequence.iter(), tree.preorder_iter_filtered_mut(|&i| i != 6)) {
-            assert_eq!(i, j);
-        }
-        for (i, j) in Iterator::zip(inorder_sequence.clone().into_iter(), tree.into_preorder_iter_filtered(|&i| i != 6)) {
-            assert_eq!(i, j);
-        }
+        assert!(Iterator::eq(
+            preorder_sequence.iter(), 
+            tree.preorder_iter().subtree_filter(|&i| i != 6)
+        ));
+        assert!(Iterator::eq(
+            preorder_sequence.iter_mut(),
+            tree.preorder_iter_mut().subtree_filter(|&i| i != 6)
+        ));
+        assert!(Iterator::eq(
+            preorder_sequence.clone().into_iter(),
+            tree.into_preorder_iter().subtree_filter(|&i| i != 6)
+        ));
     }
 
     #[test]

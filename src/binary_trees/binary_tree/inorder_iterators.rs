@@ -234,7 +234,7 @@ impl<T> IntoInorderIter<T> {
         P: FnMut(&T) -> bool,
     {
         self.tree.node(id)
-            .map(|node| (predicate)(node.data()))
+            .map(|node| predicate(node.data()))
             .unwrap_or(false)
     }
 }
