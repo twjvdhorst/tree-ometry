@@ -28,6 +28,37 @@ impl<T> BinaryTree<T> {
     }
 }
 
+fn move_cursor_to_next_node<T>(cursor: &mut Cursor<'_, T>) {
+    if cursor.move_up() == Some(Side::Left) {
+        if cursor.try_move_right() {
+            while cursor.try_move_left() {}
+        }
+    }
+}
+
+fn is_id_valid<T, P>(tree: &BinaryTree<T>, id: NodeId, mut predicate: P) -> bool
+where 
+    P: FnMut(&T) -> bool,
+{
+    tree.node(id)
+        .map(|node| (predicate)(node.data()))
+        .unwrap_or(false)
+}
+
+fn move_cursor_to_next_valid_node<T, P>(cursor: &mut Cursor<'_, T>, mut predicate: P)
+where 
+    P: FnMut(&T) -> bool,
+{
+    if cursor.move_up() == Some(Side::Left) {
+        if let Some(right) = cursor.peek_right() && predicate(right) {
+            cursor.move_right();
+            while let Some(left) = cursor.peek_left() && predicate(left) {
+                cursor.move_left();
+            }
+        }
+    }
+}
+
 pub struct PostorderIter<'t, T> {
     tree: &'t BinaryTree<T>,
     current_id: Option<NodeId>,
@@ -40,55 +71,23 @@ impl<'t, T> PostorderIter<'t, T> {
             current_id: None,
         }
     }
-
-    fn next_id(&mut self) -> Option<NodeId> {
-        let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if cursor.move_up()? == Side::Left {
-            if cursor.try_move_right() {
-                while cursor.try_move_left() {}
-            }
-        }
-        Some(cursor.node_id())
-    }
-
-    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
-    where 
-        P: FnMut(&T) -> bool,
-    {
-        self.tree.node(id)
-            .map(|node| (predicate)(node.data()))
-            .unwrap_or(false)
-    }
-
-    fn next_id_with_filter<P>(&mut self, mut predicate: P) -> Option<NodeId>
-    where 
-        P: FnMut(&T) -> bool,
-    {
-        let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if cursor.move_up()? == Side::Left {
-            if let Some(right) = cursor.peek_right() && predicate(right) {
-                cursor.move_right();
-                while let Some(left) = cursor.peek_left() && predicate(left) {
-                    cursor.move_left();
-                }
-            }
-        }
-        Some(cursor.node_id())
-    }
 }
 
 impl<'t, T> Iterator for PostorderIter<'t, T> {
     type Item = &'t T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+        if let Some(id) = self.current_id {
+            let mut cursor = Cursor::new(self.tree, id);
+            move_cursor_to_next_node(&mut cursor);
+            self.current_id = Some(cursor.node_id());
+        } else {
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
             while cursor.try_move_left() {}
             self.current_id = Some(cursor.node_id());
-        } else {
-            self.current_id = self.next_id();
         }
+
         self.tree.node(self.current_id?).map(BinaryTreeNode::data)
     }
 
@@ -102,17 +101,20 @@ impl<'t, T> TreeIterator<T> for PostorderIter<'t, T> {
     where 
         P: FnMut(&T) -> bool
     {
-        if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+        if let Some(id) = self.current_id {
+            let mut cursor = Cursor::new(self.tree, id);
+            move_cursor_to_next_valid_node(&mut cursor, predicate);
+            self.current_id = Some(cursor.node_id());
+        } else {
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
-            if !self.is_id_valid(cursor.node_id(), predicate) {
+            while is_id_valid(self.tree, cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
+            if !is_id_valid(self.tree, cursor.node_id(), predicate) {
                 cursor.move_up();
             }
             self.current_id = Some(cursor.node_id());
-        } else {
-            self.current_id = self.next_id_with_filter(predicate);
         }
+        
         self.tree.node(self.current_id?).map(BinaryTreeNode::data)
     }
 }
@@ -129,55 +131,23 @@ impl<'t, T> PostorderIterMut<'t, T> {
             current_id: None,
         }
     }
-
-    fn next_id(&mut self) -> Option<NodeId> {
-        let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if cursor.move_up()? == Side::Left {
-            if cursor.try_move_right() {
-                while cursor.try_move_left() {}
-            }
-        }
-        Some(cursor.node_id())
-    }
-
-    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
-    where 
-        P: FnMut(&T) -> bool,
-    {
-        self.tree.node(id)
-            .map(|node| (predicate)(node.data()))
-            .unwrap_or(false)
-    }
-
-    fn next_id_with_filter<P>(&mut self, mut predicate: P) -> Option<NodeId>
-    where 
-        P: FnMut(&T) -> bool,
-    {
-        let mut cursor = Cursor::new(self.tree, self.current_id?);
-        if cursor.move_up()? == Side::Left {
-            if let Some(right) = cursor.peek_right() && predicate(right) {
-                cursor.move_right();
-                while let Some(left) = cursor.peek_left() && predicate(left) {
-                    cursor.move_left();
-                }
-            }
-        }
-        Some(cursor.node_id())
-    }
 }
 
 impl<'t, T> Iterator for PostorderIterMut<'t, T> {
     type Item = &'t mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+        if let Some(id) = self.current_id {
+            let mut cursor = Cursor::new(self.tree, id);
+            move_cursor_to_next_node(&mut cursor);
+            self.current_id = Some(cursor.node_id());
+        } else {
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
             while cursor.try_move_left() {}
             self.current_id = Some(cursor.node_id());
-        } else {
-            self.current_id = self.next_id();
         }
+
         let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
         // Extend the lifetime of the yielded reference to be independent of the iterator.
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
@@ -195,17 +165,20 @@ impl<'t, T> TreeIterator<T> for PostorderIterMut<'t, T> {
     where 
         P: FnMut(&T) -> bool
     {
-        if self.current_id.is_none() {
-            // In the first iteration, move the "cursor" to the leftmost node that satisfies the filter.
+        if let Some(id) = self.current_id {
+            let mut cursor = Cursor::new(self.tree, id);
+            move_cursor_to_next_valid_node(&mut cursor, predicate);
+            self.current_id = Some(cursor.node_id());
+        } else {
+            // In the first iteration, move the "cursor" to the leftmost node.
             let mut cursor = self.tree.cursor();
-            while self.is_id_valid(cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
-            if !self.is_id_valid(cursor.node_id(), predicate) {
+            while is_id_valid(self.tree, cursor.node_id(), &mut predicate) && cursor.try_move_left() {}
+            if !is_id_valid(self.tree, cursor.node_id(), predicate) {
                 cursor.move_up();
             }
             self.current_id = Some(cursor.node_id());
-        } else {
-            self.current_id = self.next_id_with_filter(predicate);
         }
+
         let next = self.tree.node_mut(self.current_id?).map(BinaryTreeNode::data_mut)?;
         // Extend the lifetime of the yielded reference to be independent of the iterator.
         // This is safe, because the reference cannot change the tree structure, nor other elements of the tree.
@@ -227,15 +200,6 @@ impl<T> IntoPostorderIter<T> {
             stack: Vec::new(),
             first_iteration: true,
         }
-    }
-
-    fn is_id_valid<P>(&self, id: NodeId, mut predicate: P) -> bool
-    where 
-        P: FnMut(&T) -> bool,
-    {
-        self.tree.node(id)
-            .map(|node| predicate(node.data()))
-            .unwrap_or(false)
     }
 }
 
@@ -287,9 +251,9 @@ impl<T> TreeIterator<T> for IntoPostorderIter<T> {
 
         // Expand the stack first, then report the element.
         let id = self.stack.last()?;
-        if let Some(right_id) = self.tree.right_id(*id) && self.is_id_valid(right_id, &mut predicate) {
+        if let Some(right_id) = self.tree.right_id(*id) && is_id_valid(&self.tree, right_id, &mut predicate) {
             self.stack.push(right_id);
-            while let Some(left_id) = self.tree.left_id(*self.stack.last().unwrap()) && self.is_id_valid(left_id, &mut predicate) {
+            while let Some(left_id) = self.tree.left_id(*self.stack.last().unwrap()) && is_id_valid(&self.tree, left_id, &mut predicate) {
                 self.stack.push(left_id);
             }
         }
