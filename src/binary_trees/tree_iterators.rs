@@ -1,6 +1,6 @@
-use std::{borrow::Borrow, marker::PhantomData};
+use std::marker::PhantomData;
 
-pub trait TreeIterator<T>: Iterator<Item: Borrow<T>> {
+pub trait TreeIterator<T>: Iterator {
     fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
     where 
         P: FnMut(&T) -> bool;
@@ -10,7 +10,7 @@ pub trait TreeIterator<T>: Iterator<Item: Borrow<T>> {
         Self: Sized,
         P: FnMut(&T) -> bool,
     {
-        SubtreeFilter { iter: self, predicate, _item: PhantomData }
+        SubtreeFilter { iter: self, predicate, _filter_arg: PhantomData }
     }
 }
 
@@ -20,7 +20,7 @@ pub trait TreeIterator<T>: Iterator<Item: Borrow<T>> {
 pub struct SubtreeFilter<I, T, P> {
     iter: I,
     predicate: P,
-    _item: PhantomData<T>,
+    _filter_arg: PhantomData<T>,
 }
 
 impl<I, T, P> Iterator for SubtreeFilter<I, T, P>
