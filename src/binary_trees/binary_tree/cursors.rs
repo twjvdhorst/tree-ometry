@@ -46,6 +46,10 @@ impl<'t, T> Cursor<'t, T> {
     pub(super) fn node_id(&self) -> NodeId {
         self.node_id
     }
+
+    pub(super) fn tree(&self) -> &BinaryTree<T> {
+        self.tree
+    }
 }
 
 impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
@@ -153,6 +157,18 @@ impl<'t, T> CursorMut<'t, T> {
 
     fn node_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.tree.node_mut(self.node_id)
+    }
+
+    pub(super) fn node_id(&self) -> NodeId {
+        self.node_id
+    }
+
+    pub(super) fn tree(&self) -> &BinaryTree<T> {
+        self.tree
+    }
+
+    pub(super) fn into_tree_mut(self) -> &'t mut BinaryTree<T> {
+        self.tree
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.

@@ -84,7 +84,7 @@ pub trait BinaryTreeCursor {
         if self.try_move_left() {
             while self.try_move_right() {}
         } else {
-            while let Some(side) = self.move_up() && side != Side::Right {}
+            while self.move_up() == Some(Side::Left) {}
         }
     }
 
@@ -95,7 +95,7 @@ pub trait BinaryTreeCursor {
         if self.try_move_right() {
             while self.try_move_left() {}
         } else {
-            while let Some(side) = self.move_up() && side != Side::Left {}
+            while self.move_up() == Some(Side::Right) {}
         }
     }
 }
