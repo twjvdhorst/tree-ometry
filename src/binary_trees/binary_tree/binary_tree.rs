@@ -627,7 +627,7 @@ mod tests {
             cursor.drain_subtree_inorder(),
         ));
     }
-/*
+
     #[test]
     fn test_preorder_iters() {
         let mut tree = get_iter_test_tree();
@@ -648,21 +648,29 @@ mod tests {
             tree.preorder_iter_mut()
         ));
 
-        // Test filtering the subtree rooted at 6.
+        // Test iterating the subtree rooted at 2.
         let mut tree = get_iter_test_tree();
-        let mut preorder_sequence = [1, 2, 3, 4, 5];
+        let mut preorder_subtree_sequence = [2, 3, 4, 5];
 
+        let mut cursor = tree.cursor();
+        cursor.move_left();
         assert!(Iterator::eq(
-            preorder_sequence.iter(), 
-            tree.preorder_iter().subtree_filter(|&i| i != 6)
+            preorder_subtree_sequence.iter(), 
+            cursor.preorder_subtree_iter(),
         ));
+
+        let mut cursor = tree.cursor_mut();
+        cursor.move_left();
         assert!(Iterator::eq(
-            preorder_sequence.iter_mut(),
-            tree.preorder_iter_mut().subtree_filter(|&i| i != 6)
+            preorder_subtree_sequence.iter_mut(),
+            cursor.preorder_subtree_iter_mut(),
         ));
+        
+        let mut cursor = tree.cursor_mut();
+        cursor.move_left();
         assert!(Iterator::eq(
-            preorder_sequence.clone().into_iter(),
-            tree.into_preorder_iter().subtree_filter(|&i| i != 6)
+            preorder_subtree_sequence.clone().into_iter(),
+            cursor.drain_subtree_preorder(),
         ));
     }
 
@@ -686,22 +694,29 @@ mod tests {
             tree.postorder_iter_mut()
         ));
 
-        // Test filtering the subtree rooted at 6.
+        // Test iterating the subtree rooted at 2.
         let mut tree = get_iter_test_tree();
-        let mut postorder_sequence = [3, 5, 4, 2, 1];
+        let mut postorder_subtree_sequence = [3, 5, 4, 2];
 
+        let mut cursor = tree.cursor();
+        cursor.move_left();
         assert!(Iterator::eq(
-            postorder_sequence.iter(), 
-            tree.postorder_iter().subtree_filter(|&i| i != 6)
+            postorder_subtree_sequence.iter(), 
+            cursor.postorder_subtree_iter(),
         ));
+
+        let mut cursor = tree.cursor_mut();
+        cursor.move_left();
         assert!(Iterator::eq(
-            postorder_sequence.iter_mut(),
-            tree.postorder_iter_mut().subtree_filter(|&i| i != 6)
+            postorder_subtree_sequence.iter_mut(),
+            cursor.postorder_subtree_iter_mut(),
         ));
+        
+        let mut cursor = tree.cursor_mut();
+        cursor.move_left();
         assert!(Iterator::eq(
-            postorder_sequence.clone().into_iter(),
-            tree.into_postorder_iter().subtree_filter(|&i| i != 6)
+            postorder_subtree_sequence.clone().into_iter(),
+            cursor.drain_subtree_postorder(),
         ));
     }
-*/
 }
