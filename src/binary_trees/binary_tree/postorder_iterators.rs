@@ -38,6 +38,10 @@ impl<'t, T> Cursor<'t, T> {
 }
 
 impl<'t, T> CursorMut<'t, T> {
+    pub fn postorder_subtree_iter(self) -> PostorderSubtreeIter<'t, T> {
+        PostorderSubtreeIter::new(self.into())
+    }
+
     pub fn postorder_subtree_iter_mut(self) -> PostorderSubtreeIterMut<'t, T> {
         PostorderSubtreeIterMut::new(self)
     }

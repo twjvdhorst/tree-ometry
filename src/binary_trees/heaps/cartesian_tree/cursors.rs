@@ -28,6 +28,12 @@ impl<'t, K, V> Clone for Cursor<'t, K, V> {
 
 impl<'t, K, V> Copy for Cursor<'t, K, V> {}
 
+impl<'t, K, V> From<CursorMut<'t, K, V>> for Cursor<'t, K, V> {
+    fn from(value: CursorMut<'t, K, V>) -> Self {
+        Self(value.0.into())
+    }
+}
+
 impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, CartesianNode<K, V>>) -> Self {
         Self(cursor)

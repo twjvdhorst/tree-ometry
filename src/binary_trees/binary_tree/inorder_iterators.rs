@@ -37,6 +37,10 @@ impl<'t, T> Cursor<'t, T> {
 }
 
 impl<'t, T> CursorMut<'t, T> {
+    pub fn inorder_subtree_iter(self) -> InorderSubtreeIter<'t, T> {
+        InorderSubtreeIter::new(self.into())
+    }
+
     pub fn inorder_subtree_iter_mut(self) -> InorderSubtreeIterMut<'t, T> {
         InorderSubtreeIterMut::new(self)
     }

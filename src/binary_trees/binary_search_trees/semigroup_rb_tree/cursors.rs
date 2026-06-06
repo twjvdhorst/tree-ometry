@@ -28,6 +28,12 @@ impl<'t, K, V, S> Clone for Cursor<'t, K, V, S> {
 
 impl<'t, K, V, S> Copy for Cursor<'t, K, V, S> {}
 
+impl<'t, K, V, S> From<CursorMut<'t, K, V, S>> for Cursor<'t, K, V, S> {
+    fn from(value: CursorMut<'t, K, V, S>) -> Self {
+        Self(value.0.into())
+    }
+}
+
 impl<'t, K, V, S> Cursor<'t, K, V, S> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)

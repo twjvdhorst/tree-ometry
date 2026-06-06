@@ -31,6 +31,15 @@ impl<'t, T> Clone for Cursor<'t, T> {
 
 impl<'t, T> Copy for Cursor<'t, T> {}
 
+impl<'t, T> From<CursorMut<'t, T>> for Cursor<'t, T> {
+    fn from(value: CursorMut<'t, T>) -> Self {
+        Self {
+            tree: value.tree,
+            node_id: value.node_id,
+        }
+    }
+}
+
 impl<'t, T> Cursor<'t, T> {
     pub(super) fn new(tree: &'t BinaryTree<T>, node_id: NodeId) -> Self {
         Self {
