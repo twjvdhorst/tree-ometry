@@ -1,12 +1,12 @@
 use paste::paste;
 
-use super::{CartesianNode, CartesianTree};
+use super::{CartesianNode, CartesianTree, Cursor, CursorMut};
 use crate::binary_trees::{
-    tree_iterators::TreeIterator,
+    impl_iterator_macro::impl_iter,
     binary_tree,
 };
 
-macro_rules! impl_iter {
+macro_rules! impl_tree_iter {
     ($iter: ident) => {
         paste! {
             impl<K, V, C> CartesianTree<K, V, C> {
@@ -27,72 +27,47 @@ macro_rules! impl_iter {
             pub struct [<$iter:camel Mut>]<'t, K, V>(binary_tree::[<$iter:camel Mut>]<'t, CartesianNode<K, V>>);
             pub struct [<Into $iter:camel>]<K, V>(binary_tree::[<Into $iter:camel>]<CartesianNode<K, V>>);
 
-            impl<'t, K, V> Iterator for [<$iter:camel>]<'t, K, V> {
-                type Item = (&'t K, &'t V);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(CartesianNode::data)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
-                }
-            }
-
-            impl<'t, K, V> TreeIterator<CartesianNode<K, V>> for [<$iter:camel>]<'t, K, V> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&CartesianNode<K, V>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(CartesianNode::data)
-                }
-            }
-
-            impl<'t, K, V> Iterator for [<$iter:camel Mut>]<'t, K, V> {
-                type Item = (&'t K, &'t mut V);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(CartesianNode::data_with_mut_value)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
-                }
-            }
-
-            impl<'t, K, V> TreeIterator<CartesianNode<K, V>> for [<$iter:camel Mut>]<'t, K, V> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&CartesianNode<K, V>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(CartesianNode::data_with_mut_value)
-                }
-            }
-
-            impl<K, V> Iterator for [<Into $iter:camel>]<K, V> {
-                type Item = (K, V);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(Into::into)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
-                }
-            }
-
-            impl<K, V> TreeIterator<CartesianNode<K, V>> for [<Into $iter:camel>]<K, V> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&CartesianNode<K, V>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(Into::into)
-                }
-            }
+            impl_iter!([<$iter:camel>]<'t, K, V>, (&'t K, &'t V), CartesianNode::data);
+            impl_iter!([<$iter:camel Mut>]<'t, K, V>, (&'t K, &'t mut V), CartesianNode::data_with_mut_value);
+            impl_iter!([<Into $iter:camel>]<K, V>, (K, V), CartesianNode::into_data);
         }
     };
 }
 
-impl_iter!(InorderIter);
-impl_iter!(PreorderIter);
-impl_iter!(PostorderIter);
+macro_rules! impl_subtree_iter {
+    ($iter: ident) => {
+        paste! {
+            impl<'t, K, V> Cursor<'t, K, V> {
+                pub fn [<$iter:snake _subtree_iter>](self) -> [<$iter:camel SubtreeIter>]<'t, K, V> {
+                    [<$iter:camel SubtreeIter>](self.into_inner().[<$iter:snake _subtree_iter>]())
+                }
+            }
+
+            impl<'t, K, V> CursorMut<'t, K, V> {
+                pub fn [<$iter:snake _subtree_iter_mut>](self) -> [<$iter:camel SubtreeIterMut>]<'t, K, V> {
+                    [<$iter:camel SubtreeIterMut>](self.into_inner().[<$iter:snake _subtree_iter_mut>]())
+                }
+
+                pub fn [<drain_subtree_ $iter:snake>](self) -> [<DrainSubtree $iter:camel>]<'t, K, V> {
+                    [<DrainSubtree $iter:camel>](self.into_inner().[<drain_subtree_ $iter:snake>]())
+                }
+            }
+
+            pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, CartesianNode<K, V>>);
+            pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, CartesianNode<K, V>>);
+            pub struct [<DrainSubtree $iter:camel>]<'t, K, V>(binary_tree::[<DrainSubtree $iter:camel>]<'t, CartesianNode<K, V>>);
+
+            impl_iter!([<$iter:camel SubtreeIter>]<'t, K, V>, (&'t K, &'t V), CartesianNode::data);
+            impl_iter!([<$iter:camel SubtreeIterMut>]<'t, K, V>, (&'t K, &'t mut V), CartesianNode::data_with_mut_value);
+            impl_iter!([<DrainSubtree $iter:camel>]<'t, K, V>, (K, V), CartesianNode::into_data);
+        }
+    };
+}
+
+impl_tree_iter!(InorderIter);
+impl_tree_iter!(PreorderIter);
+impl_tree_iter!(PostorderIter);
+
+impl_subtree_iter!(Inorder);
+impl_subtree_iter!(Preorder);
+impl_subtree_iter!(Postorder);

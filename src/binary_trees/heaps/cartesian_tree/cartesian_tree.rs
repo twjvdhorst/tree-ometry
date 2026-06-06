@@ -93,6 +93,10 @@ impl<K, V> CartesianNode<K, V> {
     pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
         (&self.key, &mut self.value)
     }
+
+    pub fn into_data(self) -> (K, V) {
+        (self.key, self.value)
+    }
 }
 
 impl<K, V> Into<(K, V)> for CartesianNode<K, V> {
