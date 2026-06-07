@@ -42,6 +42,7 @@ macro_rules! impl_tree_iter {
     };
 }
 
+// CursorMut does not have drain_subtree functions, as those will violate the red-black property of the tree.
 macro_rules! impl_subtree_iter {
     ($iter: ident) => {
         paste! {
@@ -59,10 +60,6 @@ macro_rules! impl_subtree_iter {
                 pub fn [<$iter:snake _subtree_iter_mut>](self) -> [<$iter:camel SubtreeIterMut>]<'t, K, V> {
                     [<$iter:camel SubtreeIterMut>](self.into_inner().[<$iter:snake _subtree_iter_mut>]())
                 }
-
-                pub fn [<drain_subtree_ $iter:snake>](self) -> [<DrainSubtree $iter:camel>]<'t, K, V> {
-                    [<DrainSubtree $iter:camel>](self.into_inner().[<drain_subtree_ $iter:snake>]())
-                }
             }
 
             impl_iter!(
@@ -74,11 +71,6 @@ macro_rules! impl_subtree_iter {
                 pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, RedBlackNode<K, V>>),
                 (&'t K, &'t mut V),
                 RedBlackNode::data_with_mut_value
-            );
-            impl_iter!(
-                pub struct [<DrainSubtree $iter:camel>]<'t, K, V>(binary_tree::[<DrainSubtree $iter:camel>]<'t, RedBlackNode<K, V>>),
-                (K, V),
-                RedBlackNode::into_data
             );
         }
     };
