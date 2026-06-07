@@ -33,7 +33,7 @@ use crate::binary_trees::{
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct RedBlackNode<K, V> {
+pub(super) struct RedBlackNode<K, V> {
     key: K, 
     value: V,
     color: Color,
@@ -48,27 +48,23 @@ impl<K, V> RedBlackNode<K, V> {
         }
     }
     
-    pub fn key(&self) -> &K {
+    pub(super) fn key(&self) -> &K {
         &self.key
     }
 
-    pub fn value(&self) -> &V {
+    pub(super) fn value(&self) -> &V {
         &self.value
     }
 
-    pub fn value_mut(&mut self) -> &mut V {
-        &mut self.value
-    }
-
-    pub fn data(&self) -> (&K, &V) {
+    pub(super) fn data(&self) -> (&K, &V) {
         (&self.key, &self.value)
     }
 
-    pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
+    pub(super) fn data_with_mut_value(&mut self) -> (&K, &mut V) {
         (&self.key, &mut self.value)
     }
 
-    pub fn into_data(self) -> (K, V) {
+    pub(super) fn into_data(self) -> (K, V) {
         (self.key, self.value)
     }
 
@@ -162,7 +158,7 @@ impl<K, V> RedBlackTree<K, V> {
         Self(BinaryTree::with_capacity(capacity))
     }
 
-    pub fn root(&self) -> Option<&RedBlackNode<K, V>> {
+    fn root(&self) -> Option<&RedBlackNode<K, V>> {
         self.0.root().map(BinaryTreeNode::data)
     }
 
@@ -388,7 +384,7 @@ where
         let mut cursor = self.get_cursor_mut_at_key(key)?;
         if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
-            let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
+            let [key_node, successor_node] = cursor.spawn_and_peek_nodes_mut(|[_, successor_cursor]| {
                 Self::move_cursor_to_successor(successor_cursor);
             }).unwrap();
             std::mem::swap(&mut key_node.key, &mut successor_node.key);

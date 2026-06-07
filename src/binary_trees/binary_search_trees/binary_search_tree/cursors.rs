@@ -115,7 +115,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.
-    /// Reports mutable references to the nodes the cursors end up pointing at.
+    /// Reports mutable references to the data the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
     pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
     where
@@ -128,7 +128,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             *cursors = bst_cursors.map(|cursor| cursor.0);
         };
         self.0.spawn_and_peek_mut(cursors_fn)
-            .map(|results| results.map(BstNode::data_with_mut_value))
+            .map(|arr| arr.map(BstNode::data_with_mut_value))
     }
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.

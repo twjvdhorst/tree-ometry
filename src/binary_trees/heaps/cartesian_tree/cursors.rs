@@ -115,9 +115,9 @@ impl<'t, K, V> CursorMut<'t, K, V> {
     }
     
     /// Spawn N cursors and move them around the tree according to the supplied function.
-    /// Reports mutable references to the nodes the cursors end up pointing at.
+    /// Reports mutable references to the data the cursors end up pointing at.
     /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
-    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut CartesianNode<K, V>; N]>
+    pub fn spawn_and_peek_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[(&K, &mut V); N]>
     where
         F: FnOnce(&mut [Cursor<'_, K, V>; N]),
     {
@@ -128,6 +128,7 @@ impl<'t, K, V> CursorMut<'t, K, V> {
             *cursors = cart_cursors.map(|cursor| cursor.0);
         };
         self.0.spawn_and_peek_mut(cursors_fn)
+            .map(|arr| arr.map(CartesianNode::data_with_mut_value))
     }
 
     pub(super) fn re_root_tree(&mut self, root: CartesianNode<K, V>, side: Side) {

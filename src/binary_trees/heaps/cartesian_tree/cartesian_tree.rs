@@ -61,7 +61,7 @@ impl Comparer for super::Max {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct CartesianNode<K, V> {
+pub(super) struct CartesianNode<K, V> {
     key: K,
     value: V,
 }
@@ -74,27 +74,23 @@ impl<K, V> CartesianNode<K, V> {
         }
     }
 
-    pub fn key(&self) -> &K {
+    pub(super) fn key(&self) -> &K {
         &self.key
     }
 
-    pub fn value(&self) -> &V {
+    pub(super) fn value(&self) -> &V {
         &self.value
     }
 
-    pub fn value_mut(&mut self) -> &mut V {
-        &mut self.value
-    }
-
-    pub fn data(&self) -> (&K, &V) {
+    pub(super) fn data(&self) -> (&K, &V) {
         (&self.key, &self.value)
     }
 
-    pub fn data_with_mut_value(&mut self) -> (&K, &mut V) {
+    pub(super) fn data_with_mut_value(&mut self) -> (&K, &mut V) {
         (&self.key, &mut self.value)
     }
 
-    pub fn into_data(self) -> (K, V) {
+    pub(super) fn into_data(self) -> (K, V) {
         (self.key, self.value)
     }
 }

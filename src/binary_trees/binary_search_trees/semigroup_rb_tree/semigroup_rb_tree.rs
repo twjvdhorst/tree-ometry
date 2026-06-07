@@ -32,7 +32,7 @@ use super::{Color, cursors::{Cursor, CursorMut}};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct SemigroupRbNode<K, V, S> {
+pub(super) struct SemigroupRbNode<K, V, S> {
     key: K, 
     value: V,
     semigroup_value: S,
@@ -66,31 +66,27 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
 }
 
 impl<K, V, S> SemigroupRbNode<K, V, S> {
-    pub fn key(&self) -> &K {
+    pub(super) fn key(&self) -> &K {
         &self.key
     }
 
-    pub fn value(&self) -> &V {
+    pub(super) fn value(&self) -> &V {
         &self.value
     }
 
-    pub fn value_mut(&mut self) -> &mut V {
-        &mut self.value
-    }
-
-    pub fn semigroup_value(&self) -> &S {
+    pub(super) fn semigroup_value(&self) -> &S {
         &self.semigroup_value
     }
 
-    pub fn data(&self) -> (&K, &V, &S) {
+    pub(super) fn data(&self) -> (&K, &V, &S) {
         (&self.key, &self.value, &self.semigroup_value)
     }
 
-    pub fn data_with_mut_value(&mut self) -> (&K, &mut V, &S) {
+    pub(super) fn data_with_mut_value(&mut self) -> (&K, &mut V, &S) {
         (&self.key, &mut self.value, &self.semigroup_value)
     }
 
-    pub fn into_data(self) -> (K, V, S) {
+    pub(super) fn into_data(self) -> (K, V, S) {
         (self.key, self.value, self.semigroup_value)
     }
 
@@ -190,7 +186,7 @@ impl<K, V, S> SemigroupRbTree<K, V, S> {
         Self(BinaryTree::with_capacity(capacity))
     }
 
-    pub fn root(&self) -> Option<&SemigroupRbNode<K, V, S>> {
+    fn root(&self) -> Option<&SemigroupRbNode<K, V, S>> {
         self.0.root().map(BinaryTreeNode::data)
     }
 
@@ -463,7 +459,7 @@ where
         let mut cursor = self.get_cursor_mut_at_key(key)?;
         if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
-            let [key_node, successor_node] = cursor.spawn_and_peek_mut(|[_, successor_cursor]| {
+            let [key_node, successor_node] = cursor.spawn_and_peek_nodes_mut(|[_, successor_cursor]| {
                 if successor_cursor.try_move_right() {
                     while successor_cursor.try_move_left() {}
                 }
