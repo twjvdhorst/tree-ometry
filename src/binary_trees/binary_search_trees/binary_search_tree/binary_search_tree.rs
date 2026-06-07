@@ -109,15 +109,31 @@ where
         Q: Ord,
         K: Borrow<Q>,
     {
+        self.get_key_value(key).is_some()
+    }
+
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
+        self.get_key_value(key).map(|(_, v)| v)
+    }
+
+    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
+    where 
+        Q: Ord,
+        K: Borrow<Q>,
+    {
         let mut cursor = self.cursor();
-        while let Some((curr_key, _)) = cursor.get() {
+        while let Some(data @ (curr_key, _)) = cursor.get() {
             match Q::cmp(curr_key.borrow(), key) {
                 Ordering::Greater => cursor.move_left(),
                 Ordering::Less => cursor.move_right(),
-                Ordering::Equal => return true,
+                Ordering::Equal => return Some(data),
             }
         }
-        false
+        None
     }
 
     pub fn pred_key<Q>(&self, key: &Q) -> Option<&K>
@@ -219,7 +235,7 @@ where
         unsafe { Some((&*key_pointer, &mut *value_pointer)) }
     }
 
-    pub fn succ_node_mut<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
+    pub fn succ_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
     where 
         Q: Ord,
         K: Borrow<Q>,
