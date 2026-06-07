@@ -39,6 +39,10 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
         Self(cursor)
     }
 
+    pub(super) fn into_inner(self) -> binary_tree::Cursor<'t, SemigroupRbNode<K, V, S>> {
+        self.0
+    }
+
     pub(super) fn node(&self) -> Option<&SemigroupRbNode<K, V, S>> {
         self.0.get()
     }
@@ -127,6 +131,10 @@ pub struct CursorMut<'t, K, V, S>(binary_tree::CursorMut<'t, SemigroupRbNode<K, 
 impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, SemigroupRbNode<K, V, S>>) -> Self {
         Self(cursor)
+    }
+
+    pub(super) fn into_inner(self) -> binary_tree::CursorMut<'t, SemigroupRbNode<K, V, S>> {
+        self.0
     }
 
     pub(super) fn node_color(&self) -> Option<Color> {

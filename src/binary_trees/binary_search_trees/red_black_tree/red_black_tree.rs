@@ -68,6 +68,10 @@ impl<K, V> RedBlackNode<K, V> {
         (&self.key, &mut self.value)
     }
 
+    pub fn into_data(self) -> (K, V) {
+        (self.key, self.value)
+    }
+
     pub(super) fn is_red(&self) -> bool {
         self.color == Color::Red
     }

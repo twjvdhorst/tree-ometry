@@ -10,26 +10,34 @@ macro_rules! impl_tree_iter {
     ($iter: ident) => {
         paste! {
             impl<K, V, C> CartesianTree<K, V, C> {
-                pub fn [<$iter:snake>](&self) -> [<$iter:camel>]<'_, K, V> {
-                    [<$iter:camel>](self.0.[<$iter:snake>]())
+                pub fn [<$iter:snake _iter>](&self) -> [<$iter:camel Iter>]<'_, K, V> {
+                    [<$iter:camel Iter>](self.0.[<$iter:snake _iter>]())
                 }
 
-                pub fn [<$iter:snake _mut>](&mut self) -> [<$iter:camel Mut>]<'_, K, V> {
-                    [<$iter:camel Mut>](self.0.[<$iter:snake _mut>]())
+                pub fn [<$iter:snake _iter_mut>](&mut self) -> [<$iter:camel IterMut>]<'_, K, V> {
+                    [<$iter:camel IterMut>](self.0.[<$iter:snake _iter_mut>]())
                 }
 
-                pub fn [<into_ $iter:snake>](self) -> [<Into $iter:camel>]<K, V> {
-                    [<Into $iter:camel>](self.0.[<into_ $iter:snake>]())
+                pub fn [<into_ $iter:snake _iter>](self) -> [<Into $iter:camel Iter>]<K, V> {
+                    [<Into $iter:camel Iter>](self.0.[<into_ $iter:snake _iter>]())
                 }
             }
 
-            pub struct [<$iter:camel>]<'t, K, V>(binary_tree::[<$iter:camel>]<'t, CartesianNode<K, V>>);
-            pub struct [<$iter:camel Mut>]<'t, K, V>(binary_tree::[<$iter:camel Mut>]<'t, CartesianNode<K, V>>);
-            pub struct [<Into $iter:camel>]<K, V>(binary_tree::[<Into $iter:camel>]<CartesianNode<K, V>>);
-
-            impl_iter!([<$iter:camel>]<'t, K, V>, (&'t K, &'t V), CartesianNode::data);
-            impl_iter!([<$iter:camel Mut>]<'t, K, V>, (&'t K, &'t mut V), CartesianNode::data_with_mut_value);
-            impl_iter!([<Into $iter:camel>]<K, V>, (K, V), CartesianNode::into_data);
+            impl_iter!(
+                pub struct [<$iter:camel Iter>]<'t, K, V>(binary_tree::[<$iter:camel Iter>]<'t, CartesianNode<K, V>>),
+                (&'t K, &'t V),
+                CartesianNode::data
+            );
+            impl_iter!(
+                pub struct [<$iter:camel IterMut>]<'t, K, V>(binary_tree::[<$iter:camel IterMut>]<'t, CartesianNode<K, V>>),
+                (&'t K, &'t mut V),
+                CartesianNode::data_with_mut_value
+            );
+            impl_iter!(
+                pub struct [<Into $iter:camel Iter>]<K, V>(binary_tree::[<Into $iter:camel Iter>]<CartesianNode<K, V>>),
+                (K, V),
+                CartesianNode::into_data
+            );
         }
     };
 }
@@ -57,20 +65,28 @@ macro_rules! impl_subtree_iter {
                 }
             }
 
-            pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, CartesianNode<K, V>>);
-            pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, CartesianNode<K, V>>);
-            pub struct [<DrainSubtree $iter:camel>]<'t, K, V>(binary_tree::[<DrainSubtree $iter:camel>]<'t, CartesianNode<K, V>>);
-
-            impl_iter!([<$iter:camel SubtreeIter>]<'t, K, V>, (&'t K, &'t V), CartesianNode::data);
-            impl_iter!([<$iter:camel SubtreeIterMut>]<'t, K, V>, (&'t K, &'t mut V), CartesianNode::data_with_mut_value);
-            impl_iter!([<DrainSubtree $iter:camel>]<'t, K, V>, (K, V), CartesianNode::into_data);
+            impl_iter!(
+                pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, CartesianNode<K, V>>),
+                (&'t K, &'t V),
+                CartesianNode::data
+            );
+            impl_iter!(
+                pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, CartesianNode<K, V>>),
+                (&'t K, &'t mut V),
+                CartesianNode::data_with_mut_value
+            );
+            impl_iter!(
+                pub struct [<DrainSubtree $iter:camel>]<'t, K, V>(binary_tree::[<DrainSubtree $iter:camel>]<'t, CartesianNode<K, V>>),
+                (K, V),
+                CartesianNode::into_data
+            );
         }
     };
 }
 
-impl_tree_iter!(InorderIter);
-impl_tree_iter!(PreorderIter);
-impl_tree_iter!(PostorderIter);
+impl_tree_iter!(Inorder);
+impl_tree_iter!(Preorder);
+impl_tree_iter!(Postorder);
 
 impl_subtree_iter!(Inorder);
 impl_subtree_iter!(Preorder);

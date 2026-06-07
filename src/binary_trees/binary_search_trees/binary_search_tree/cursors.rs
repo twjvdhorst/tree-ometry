@@ -38,6 +38,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, BstNode<K, V>>) -> Self {
         Self(cursor)
     }
+
+    pub(super) fn into_inner(self) -> binary_tree::Cursor<'t, BstNode<K, V>> {
+        self.0
+    }
 }
 
 impl<'t, K, V> BinaryTreeCursor for Cursor<'t, K, V> {
@@ -104,6 +108,10 @@ pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, BstNode<K, V>>);
 impl<'t, K, V> CursorMut<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, BstNode<K, V>>) -> Self {
         Self(cursor)
+    }
+
+    pub(super) fn into_inner(self) -> binary_tree::CursorMut<'t, BstNode<K, V>> {
+        self.0
     }
 
     /// Spawn N cursors and move them around the tree according to the supplied function.

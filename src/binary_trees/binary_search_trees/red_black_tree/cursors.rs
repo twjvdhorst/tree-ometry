@@ -39,6 +39,10 @@ impl<'t, K, V> Cursor<'t, K, V> {
         Self(cursor)
     }
 
+    pub(super) fn into_inner(self) -> binary_tree::Cursor<'t, RedBlackNode<K, V>> {
+        self.0
+    }
+
     pub(super) fn child_color(&self, side: Side) -> Option<Color> {
         Some(match side {
             Side::Left => self.0.peek_left()?.color(),
@@ -111,6 +115,10 @@ pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, RedBlackNode<K, V>>);
 impl<'t, K, V> CursorMut<'t, K, V> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, RedBlackNode<K, V>>) -> Self {
         Self(cursor)
+    }
+
+    pub(super) fn into_inner(self) -> binary_tree::CursorMut<'t, RedBlackNode<K, V>> {
+        self.0
     }
 
     pub(super) fn node_color(&self) -> Option<Color> {

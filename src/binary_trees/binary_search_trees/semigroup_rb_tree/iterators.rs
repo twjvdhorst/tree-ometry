@@ -1,98 +1,93 @@
 use paste::paste;
 
-use super::{SemigroupRbNode, SemigroupRbTree};
+use super::{SemigroupRbNode, SemigroupRbTree, Cursor, CursorMut};
 use crate::binary_trees::{
-    tree_iterators::TreeIterator,
+    impl_iterator_macro::impl_iter,
     binary_tree,
 };
 
-macro_rules! impl_iter {
+macro_rules! impl_tree_iter {
     ($iter: ident) => {
         paste! {
             impl<K, V, S> SemigroupRbTree<K, V, S> {
-                pub fn [<$iter:snake>](&self) -> [<$iter:camel>]<'_, K, V, S> {
-                    [<$iter:camel>](self.0.[<$iter:snake>]())
+                pub fn [<$iter:snake _iter>](&self) -> [<$iter:camel Iter>]<'_, K, V, S> {
+                    [<$iter:camel Iter>](self.0.[<$iter:snake _iter>]())
                 }
 
-                pub fn [<$iter:snake _mut>](&mut self) -> [<$iter:camel Mut>]<'_, K, V, S> {
-                    [<$iter:camel Mut>](self.0.[<$iter:snake _mut>]())
+                pub fn [<$iter:snake _iter_mut>](&mut self) -> [<$iter:camel IterMut>]<'_, K, V, S> {
+                    [<$iter:camel IterMut>](self.0.[<$iter:snake _iter_mut>]())
                 }
 
-                pub fn [<into_ $iter:snake>](self) -> [<Into $iter:camel>]<K, V, S> {
-                    [<Into $iter:camel>](self.0.[<into_ $iter:snake>]())
-                }
-            }
-
-            pub struct [<$iter:camel>]<'t, K, V, S>(binary_tree::[<$iter:camel>]<'t, SemigroupRbNode<K, V, S>>);
-            pub struct [<$iter:camel Mut>]<'t, K, V, S>(binary_tree::[<$iter:camel Mut>]<'t, SemigroupRbNode<K, V, S>>);
-            pub struct [<Into $iter:camel>]<K, V, S>(binary_tree::[<Into $iter:camel>]<SemigroupRbNode<K, V, S>>);
-
-            impl<'t, K, V, S> Iterator for [<$iter:camel>]<'t, K, V, S> {
-                type Item = (&'t K, &'t V, &'t S);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(SemigroupRbNode::data)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
+                pub fn [<into_ $iter:snake _iter>](self) -> [<Into $iter:camel Iter>]<K, V, S> {
+                    [<Into $iter:camel Iter>](self.0.[<into_ $iter:snake _iter>]())
                 }
             }
 
-            impl<'t, K, V, S> TreeIterator<SemigroupRbNode<K, V, S>> for [<$iter:camel>]<'t, K, V, S> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&SemigroupRbNode<K, V, S>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(SemigroupRbNode::data)
-                }
-            }
-
-            impl<'t, K, V, S> Iterator for [<$iter:camel Mut>]<'t, K, V, S> {
-                type Item = (&'t K, &'t mut V, &'t S);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(SemigroupRbNode::data_with_mut_value)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
-                }
-            }
-
-            impl<'t, K, V, S> TreeIterator<SemigroupRbNode<K, V, S>> for [<$iter:camel Mut>]<'t, K, V, S> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&SemigroupRbNode<K, V, S>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(SemigroupRbNode::data_with_mut_value)
-                }
-            }
-
-            impl<K, V, S> Iterator for [<Into $iter:camel>]<K, V, S> {
-                type Item = (K, V);
-
-                fn next(&mut self) -> Option<Self::Item> {
-                    self.0.next().map(Into::into)
-                }
-
-                fn size_hint(&self) -> (usize, Option<usize>) {
-                    self.0.size_hint()
-                }
-            }
-
-            impl<K, V, S> TreeIterator<SemigroupRbNode<K, V, S>> for [<Into $iter:camel>]<K, V, S> {
-                fn next_with_subtree_filter<P>(&mut self, predicate: P) -> Option<Self::Item>
-                where 
-                    P: FnMut(&SemigroupRbNode<K, V, S>) -> bool
-                {
-                    self.0.next_with_subtree_filter(predicate).map(Into::into)
-                }
-            }
+            impl_iter!(
+                pub struct [<$iter:camel Iter>]<'t, K, V, S>(binary_tree::[<$iter:camel Iter>]<'t, SemigroupRbNode<K, V, S>>),
+                (&'t K, &'t V, &'t S),
+                SemigroupRbNode::data
+            );
+            impl_iter!(
+                pub struct [<$iter:camel IterMut>]<'t, K, V, S>(binary_tree::[<$iter:camel IterMut>]<'t, SemigroupRbNode<K, V, S>>),
+                (&'t K, &'t mut V, &'t S),
+                SemigroupRbNode::data_with_mut_value
+            );
+            impl_iter!(
+                pub struct [<Into $iter:camel Iter>]<K, V, S>(binary_tree::[<Into $iter:camel Iter>]<SemigroupRbNode<K, V, S>>),
+                (K, V, S),
+                SemigroupRbNode::into_data
+            );
         }
     };
 }
 
-impl_iter!(InorderIter);
-impl_iter!(PreorderIter);
-impl_iter!(PostorderIter);
+macro_rules! impl_subtree_iter {
+    ($iter: ident) => {
+        paste! {
+            impl<'t, K, V, S> Cursor<'t, K, V, S> {
+                pub fn [<$iter:snake _subtree_iter>](self) -> [<$iter:camel SubtreeIter>]<'t, K, V, S> {
+                    [<$iter:camel SubtreeIter>](self.into_inner().[<$iter:snake _subtree_iter>]())
+                }
+            }
+
+            impl<'t, K, V, S> CursorMut<'t, K, V, S> {
+                pub fn [<$iter:snake _subtree_iter>](self) -> [<$iter:camel SubtreeIter>]<'t, K, V, S> {
+                    [<$iter:camel SubtreeIter>](self.into_inner().[<$iter:snake _subtree_iter>]())
+                }
+                
+                pub fn [<$iter:snake _subtree_iter_mut>](self) -> [<$iter:camel SubtreeIterMut>]<'t, K, V, S> {
+                    [<$iter:camel SubtreeIterMut>](self.into_inner().[<$iter:snake _subtree_iter_mut>]())
+                }
+
+                pub fn [<drain_subtree_ $iter:snake>](self) -> [<DrainSubtree $iter:camel>]<'t, K, V, S> {
+                    [<DrainSubtree $iter:camel>](self.into_inner().[<drain_subtree_ $iter:snake>]())
+                }
+            }
+
+            impl_iter!(
+                pub struct [<$iter:camel SubtreeIter>]<'t, K, V, S>(binary_tree::[<$iter:camel SubtreeIter>]<'t, SemigroupRbNode<K, V, S>>),
+                (&'t K, &'t V, &'t S),
+                SemigroupRbNode::data
+            );
+            impl_iter!(
+                pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V, S>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, SemigroupRbNode<K, V, S>>),
+                (&'t K, &'t mut V, &'t S),
+                SemigroupRbNode::data_with_mut_value
+            );
+            impl_iter!(
+                pub struct [<DrainSubtree $iter:camel>]<'t, K, V, S>(binary_tree::[<DrainSubtree $iter:camel>]<'t, SemigroupRbNode<K, V, S>>),
+                (K, V, S),
+                SemigroupRbNode::into_data
+            );
+        }
+    };
+}
+
+impl_tree_iter!(Inorder);
+impl_tree_iter!(Preorder);
+impl_tree_iter!(Postorder);
+
+impl_subtree_iter!(Inorder);
+impl_subtree_iter!(Preorder);
+impl_subtree_iter!(Postorder);

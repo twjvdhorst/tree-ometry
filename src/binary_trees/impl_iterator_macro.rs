@@ -1,9 +1,11 @@
 macro_rules! impl_iter {
     (
-        $name: ident $(<$($gen:tt),*>)?,
+        $vis: vis struct $name: ident $(<$($gen: tt),*>)? ($inner: ty),
         $item: ty,
         $map: expr
     ) => {
+        $vis struct $name $(<$($gen),*>)? ($inner);
+
         impl$(<$($gen),*>)? Iterator for $name$(<$($gen),*>)? {
             type Item = $item;
 

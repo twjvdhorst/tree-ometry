@@ -5,7 +5,7 @@ pub mod binary_tree_cursor;
 pub mod cursor_errors;
 mod impl_iterator_macro;
 
-//pub mod binary_search_trees;
+pub mod binary_search_trees;
 pub mod heaps;
 
 pub struct Neighborhood<T> {
