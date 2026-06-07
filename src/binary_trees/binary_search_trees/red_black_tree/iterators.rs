@@ -1,9 +1,9 @@
 use paste::paste;
 
-use super::{RedBlackNode, RedBlackTree, Cursor, CursorMut};
+use super::{RedBlackTree, Cursor, CursorMut};
 use crate::binary_trees::{
     impl_iterator_macro::impl_iter,
-    binary_tree,
+    binary_search_trees::semigroup_rb_tree,
 };
 
 macro_rules! impl_tree_iter {
@@ -24,19 +24,19 @@ macro_rules! impl_tree_iter {
             }
 
             impl_iter!(
-                pub struct [<$iter:camel Iter>]<'t, K, V>(binary_tree::[<$iter:camel Iter>]<'t, RedBlackNode<K, V>>),
+                pub struct [<$iter:camel Iter>]<'t, K, V>(semigroup_rb_tree::[<$iter:camel Iter>]<'t, K, V, ()>),
                 (&'t K, &'t V),
-                RedBlackNode::data
+                |(k, v, _)| (k, v)
             );
             impl_iter!(
-                pub struct [<$iter:camel IterMut>]<'t, K, V>(binary_tree::[<$iter:camel IterMut>]<'t, RedBlackNode<K, V>>),
+                pub struct [<$iter:camel IterMut>]<'t, K, V>(semigroup_rb_tree::[<$iter:camel IterMut>]<'t, K, V, ()>),
                 (&'t K, &'t mut V),
-                RedBlackNode::data_with_mut_value
+                |(k, v, _)| (k, v)
             );
             impl_iter!(
-                pub struct [<Into $iter:camel Iter>]<K, V>(binary_tree::[<Into $iter:camel Iter>]<RedBlackNode<K, V>>),
+                pub struct [<Into $iter:camel Iter>]<K, V>(semigroup_rb_tree::[<Into $iter:camel Iter>]<K, V, ()>),
                 (K, V),
-                RedBlackNode::into_data
+                |(k, v, _)| (k, v)
             );
         }
     };
@@ -63,14 +63,14 @@ macro_rules! impl_subtree_iter {
             }
 
             impl_iter!(
-                pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, RedBlackNode<K, V>>),
+                pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(semigroup_rb_tree::[<$iter:camel SubtreeIter>]<'t, K, V, ()>),
                 (&'t K, &'t V),
-                RedBlackNode::data
+                |(k, v, _)| (k, v)
             );
             impl_iter!(
-                pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, RedBlackNode<K, V>>),
+                pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(semigroup_rb_tree::[<$iter:camel SubtreeIterMut>]<'t, K, V, ()>),
                 (&'t K, &'t mut V),
-                RedBlackNode::data_with_mut_value
+                |(k, v, _)| (k, v)
             );
         }
     };
