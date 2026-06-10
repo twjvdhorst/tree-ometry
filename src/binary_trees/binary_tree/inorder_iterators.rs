@@ -1,4 +1,4 @@
-use std::mem;
+use std::{iter::FusedIterator, mem};
 
 use slotmap::Key;
 
@@ -9,11 +9,10 @@ use crate::binary_trees::{
         Cursor,
         CursorMut,
         NodeId,
-    },
-    binary_tree_cursor::{
+    }, binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor, PeekingCursorMut,
-    },
+    }
 };
 
 impl<T> BinaryTree<T> {
@@ -130,6 +129,13 @@ impl<'t, T> Iterator for InorderIter<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for InorderIter<'t, T> {}
+impl<'t, T> ExactSizeIterator for InorderIter<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for InorderSubtreeIter<'t, T> {
     type Item = &'t T;
 
@@ -142,6 +148,8 @@ impl<'t, T> Iterator for InorderSubtreeIter<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for InorderSubtreeIter<'t, T> {}
 
 pub struct InorderIterMut<'t, T> {
     cursor: CursorMut<'t, T>,
@@ -190,6 +198,13 @@ impl<'t, T> Iterator for InorderIterMut<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for InorderIterMut<'t, T> {}
+impl<'t, T> ExactSizeIterator for InorderIterMut<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for InorderSubtreeIterMut<'t, T> {
     type Item = &'t mut T;
 
@@ -206,6 +221,8 @@ impl<'t, T> Iterator for InorderSubtreeIterMut<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for InorderSubtreeIterMut<'t, T> {}
 
 pub struct IntoInorderIter<T> {
     tree: BinaryTree<T>,
@@ -270,6 +287,13 @@ impl<T> Iterator for IntoInorderIter<T> {
     }
 }
 
+impl<T> FusedIterator for IntoInorderIter<T> {}
+impl<T> ExactSizeIterator for IntoInorderIter<T> {
+    fn len(&self) -> usize {
+        self.tree.len()
+    }
+}
+
 impl<'t, T> Iterator for DrainSubtreeInorder<'t, T> {
     type Item = T;
 
@@ -289,6 +313,8 @@ impl<'t, T> Iterator for DrainSubtreeInorder<'t, T> {
         (0, Some(self.tree.len()))
     }
 }
+
+impl<'t, T> FusedIterator for DrainSubtreeInorder<'t, T> {}
 
 /// Custom drop implementation that removes the remaining elements in the subtree from the tree.
 /// This is done to ensure the tree remains a valid binary tree.

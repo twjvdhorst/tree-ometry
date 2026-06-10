@@ -2,7 +2,7 @@ use paste::paste;
 
 use super::{BstNode, BinarySearchTree, Cursor, CursorMut};
 use crate::binary_trees::{
-    impl_iterator_macro::impl_iter,
+    impl_iterator_macro::{conditionally_expand, impl_iter},
     binary_tree,
 };
 
@@ -26,17 +26,23 @@ macro_rules! impl_tree_iter {
             impl_iter!(
                 pub struct [<$iter:camel Iter>]<'t, K, V>(binary_tree::[<$iter:camel Iter>]<'t, BstNode<K, V>>),
                 (&'t K, &'t V),
-                BstNode::data
+                BstNode::data,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<$iter:camel IterMut>]<'t, K, V>(binary_tree::[<$iter:camel IterMut>]<'t, BstNode<K, V>>),
                 (&'t K, &'t mut V),
-                BstNode::data_with_mut_value
+                BstNode::data_with_mut_value,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<Into $iter:camel Iter>]<K, V>(binary_tree::[<Into $iter:camel Iter>]<BstNode<K, V>>),
                 (K, V),
-                BstNode::into_data
+                BstNode::into_data,
+                true,
+                true,
             );
         }
     };
@@ -68,17 +74,23 @@ macro_rules! impl_subtree_iter {
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, BstNode<K, V>>),
                 (&'t K, &'t V),
-                BstNode::data
+                BstNode::data,
+                true,
+                false,
             );
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, BstNode<K, V>>),
                 (&'t K, &'t mut V),
-                BstNode::data_with_mut_value
+                BstNode::data_with_mut_value,
+                true,
+                false,
             );
             impl_iter!(
                 pub struct [<DrainSubtree $iter:camel>]<'t, K, V>(binary_tree::[<DrainSubtree $iter:camel>]<'t, BstNode<K, V>>),
                 (K, V),
-                BstNode::into_data
+                BstNode::into_data,
+                true,
+                false,
             );
         }
     };

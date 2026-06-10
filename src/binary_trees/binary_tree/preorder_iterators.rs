@@ -1,4 +1,4 @@
-use std::mem;
+use std::{iter::FusedIterator, mem};
 
 use slotmap::Key;
 
@@ -136,6 +136,13 @@ impl<'t, T> Iterator for PreorderIter<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for PreorderIter<'t, T> {}
+impl<'t, T> ExactSizeIterator for PreorderIter<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for PreorderSubtreeIter<'t, T> {
     type Item = &'t T;
 
@@ -148,6 +155,8 @@ impl<'t, T> Iterator for PreorderSubtreeIter<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for PreorderSubtreeIter<'t, T> {}
 
 pub struct PreorderIterMut<'t, T> {
     cursor: CursorMut<'t, T>,
@@ -196,6 +205,13 @@ impl<'t, T> Iterator for PreorderIterMut<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for PreorderIterMut<'t, T> {}
+impl<'t, T> ExactSizeIterator for PreorderIterMut<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for PreorderSubtreeIterMut<'t, T> {
     type Item = &'t mut T;
 
@@ -212,6 +228,8 @@ impl<'t, T> Iterator for PreorderSubtreeIterMut<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for PreorderSubtreeIterMut<'t, T> {}
 
 pub struct IntoPreorderIter<T> {
     tree: BinaryTree<T>,
@@ -263,6 +281,13 @@ impl<T> Iterator for IntoPreorderIter<T> {
     }
 }
 
+impl<T> FusedIterator for IntoPreorderIter<T> {}
+impl<T> ExactSizeIterator for IntoPreorderIter<T> {
+    fn len(&self) -> usize {
+        self.tree.len()
+    }
+}
+
 impl<'t, T> Iterator for DrainSubtreePreorder<'t, T> {
     type Item = T;
 
@@ -282,6 +307,8 @@ impl<'t, T> Iterator for DrainSubtreePreorder<'t, T> {
         (0, Some(self.tree.len()))
     }
 }
+
+impl<'t, T> FusedIterator for DrainSubtreePreorder<'t, T> {}
 
 /// Custom drop implementation that removes the remaining elements in the subtree from the tree.
 /// This is done to ensure the tree remains a valid binary tree.

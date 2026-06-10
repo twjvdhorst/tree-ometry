@@ -2,7 +2,7 @@ use paste::paste;
 
 use super::{RedBlackNode, RedBlackTree, Cursor, CursorMut};
 use crate::binary_trees::{
-    impl_iterator_macro::impl_iter,
+    impl_iterator_macro::{conditionally_expand, impl_iter},
     binary_tree,
 };
 
@@ -26,17 +26,23 @@ macro_rules! impl_tree_iter {
             impl_iter!(
                 pub struct [<$iter:camel Iter>]<'t, K, V>(binary_tree::[<$iter:camel Iter>]<'t, RedBlackNode<K, V>>),
                 (&'t K, &'t V),
-                RedBlackNode::data
+                RedBlackNode::data,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<$iter:camel IterMut>]<'t, K, V>(binary_tree::[<$iter:camel IterMut>]<'t, RedBlackNode<K, V>>),
                 (&'t K, &'t mut V),
-                RedBlackNode::data_with_mut_value
+                RedBlackNode::data_with_mut_value,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<Into $iter:camel Iter>]<K, V>(binary_tree::[<Into $iter:camel Iter>]<RedBlackNode<K, V>>),
                 (K, V),
-                RedBlackNode::into_data
+                RedBlackNode::into_data,
+                true,
+                true,
             );
         }
     };
@@ -65,12 +71,16 @@ macro_rules! impl_subtree_iter {
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIter>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIter>]<'t, RedBlackNode<K, V>>),
                 (&'t K, &'t V),
-                RedBlackNode::data
+                RedBlackNode::data,
+                true,
+                false,
             );
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, RedBlackNode<K, V>>),
                 (&'t K, &'t mut V),
-                RedBlackNode::data_with_mut_value
+                RedBlackNode::data_with_mut_value,
+                true,
+                false,
             );
         }
     };

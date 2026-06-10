@@ -1,4 +1,4 @@
-use std::mem;
+use std::{iter::FusedIterator, mem};
 
 use slotmap::Key;
 
@@ -128,6 +128,13 @@ impl<'t, T> Iterator for PostorderIter<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for PostorderIter<'t, T> {}
+impl<'t, T> ExactSizeIterator for PostorderIter<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for PostorderSubtreeIter<'t, T> {
     type Item = &'t T;
 
@@ -140,6 +147,8 @@ impl<'t, T> Iterator for PostorderSubtreeIter<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for PostorderSubtreeIter<'t, T> {}
 
 pub struct PostorderIterMut<'t, T> {
     cursor: CursorMut<'t, T>,
@@ -188,6 +197,13 @@ impl<'t, T> Iterator for PostorderIterMut<'t, T> {
     }
 }
 
+impl<'t, T> FusedIterator for PostorderIterMut<'t, T> {}
+impl<'t, T> ExactSizeIterator for PostorderIterMut<'t, T> {
+    fn len(&self) -> usize {
+        self.cursor.tree().len()
+    }
+}
+
 impl<'t, T> Iterator for PostorderSubtreeIterMut<'t, T> {
     type Item = &'t mut T;
 
@@ -204,6 +220,8 @@ impl<'t, T> Iterator for PostorderSubtreeIterMut<'t, T> {
         (0, Some(self.cursor.tree().len()))
     }
 }
+
+impl<'t, T> FusedIterator for PostorderSubtreeIterMut<'t, T> {}
 
 pub struct IntoPostorderIter<T> {
     tree: BinaryTree<T>,
@@ -269,6 +287,13 @@ impl<T> Iterator for IntoPostorderIter<T> {
     }
 }
 
+impl<T> FusedIterator for IntoPostorderIter<T> {}
+impl<T> ExactSizeIterator for IntoPostorderIter<T> {
+    fn len(&self) -> usize {
+        self.tree.len()
+    }
+}
+
 impl<'t, T> Iterator for DrainSubtreePostorder<'t, T> {
     type Item = T;
 
@@ -289,6 +314,8 @@ impl<'t, T> Iterator for DrainSubtreePostorder<'t, T> {
         (0, Some(self.tree.len()))
     }
 }
+
+impl<'t, T> FusedIterator for DrainSubtreePostorder<'t, T> {}
 
 /// Custom drop implementation that removes the remaining elements in the subtree from the tree.
 /// This is done to ensure the tree remains a valid binary tree.

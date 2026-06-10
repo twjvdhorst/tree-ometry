@@ -2,7 +2,7 @@ use paste::paste;
 
 use super::{SemigroupRbNode, SemigroupRbTree, Cursor, CursorMut};
 use crate::binary_trees::{
-    impl_iterator_macro::impl_iter,
+    impl_iterator_macro::{conditionally_expand, impl_iter},
     binary_tree,
 };
 
@@ -26,17 +26,23 @@ macro_rules! impl_tree_iter {
             impl_iter!(
                 pub struct [<$iter:camel Iter>]<'t, K, V, S>(binary_tree::[<$iter:camel Iter>]<'t, SemigroupRbNode<K, V, S>>),
                 (&'t K, &'t V, &'t S),
-                SemigroupRbNode::data
+                SemigroupRbNode::data,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<$iter:camel IterMut>]<'t, K, V, S>(binary_tree::[<$iter:camel IterMut>]<'t, SemigroupRbNode<K, V, S>>),
                 (&'t K, &'t mut V, &'t S),
-                SemigroupRbNode::data_with_mut_value
+                SemigroupRbNode::data_with_mut_value,
+                true,
+                true,
             );
             impl_iter!(
                 pub struct [<Into $iter:camel Iter>]<K, V, S>(binary_tree::[<Into $iter:camel Iter>]<SemigroupRbNode<K, V, S>>),
                 (K, V, S),
-                SemigroupRbNode::into_data
+                SemigroupRbNode::into_data,
+                true,
+                true,
             );
         }
     };
@@ -65,12 +71,16 @@ macro_rules! impl_subtree_iter {
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIter>]<'t, K, V, S>(binary_tree::[<$iter:camel SubtreeIter>]<'t, SemigroupRbNode<K, V, S>>),
                 (&'t K, &'t V, &'t S),
-                SemigroupRbNode::data
+                SemigroupRbNode::data,
+                true,
+                false,
             );
             impl_iter!(
                 pub struct [<$iter:camel SubtreeIterMut>]<'t, K, V, S>(binary_tree::[<$iter:camel SubtreeIterMut>]<'t, SemigroupRbNode<K, V, S>>),
                 (&'t K, &'t mut V, &'t S),
-                SemigroupRbNode::data_with_mut_value
+                SemigroupRbNode::data_with_mut_value,
+                true,
+                false,
             );
         }
     };
