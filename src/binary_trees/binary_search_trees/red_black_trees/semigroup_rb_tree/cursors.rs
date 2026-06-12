@@ -387,6 +387,10 @@ where
         self.0.get().map(SemigroupRbNode::key)
     }
 
+    fn replace_value(&mut self, value: Self::Value) -> Option<Self::Value> {
+        Some(std::mem::replace(self.get_mut()?.1, value))
+    }
+
     fn color(&self) -> Option<Color> {
         self.0.get().map(SemigroupRbNode::color)
     }

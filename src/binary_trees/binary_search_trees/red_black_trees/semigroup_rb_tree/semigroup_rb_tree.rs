@@ -17,7 +17,7 @@ use super::{
     TreeSemigroup,
 };
 use crate::binary_trees::{
-    Neighborhood, Side, binary_search_trees::red_black_trees::{Color, traits::RedBlackCursor}, binary_tree::{
+    Neighborhood, Side, binary_search_trees::red_black_trees::{Color, traits::{RedBlackCursor, RedBlackTree}}, binary_tree::{
         BinaryTree,
         BinaryTreeNode,
     }, binary_tree_cursor::{
@@ -269,6 +269,35 @@ where
     }
 }
 
+impl<K, V, S> RedBlackTree for SemigroupRbTree<K, V, S>
+where 
+    K: Ord,
+    S: TreeSemigroup<K>,
+{
+    type Key = K;
+    type Value = V;
+    type RbCursor<'t> = CursorMut<'t, K, V, S>
+    where Self: 't;
+
+    fn rb_cursor(&mut self) -> Self::RbCursor<'_> {
+        self.cursor_mut()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn create_root(&mut self, key: Self::Key, value: Self::Value, color: Color) {
+        self.0 = BinaryTree::new_singleton(SemigroupRbNode::new_with_color(key, value, color))
+    }
+
+    fn set_root_color(&mut self, color: Color) {
+        if let Some(root) = self.root_mut() {
+            root.color = color;
+        }
+    }
+}
+
 /// Insertions.
 impl<K, V, S> SemigroupRbTree<K, V, S>
 where 
@@ -342,6 +371,8 @@ where
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        return <Self as RedBlackTree>::insert(self, key, value);
+
         // Cormen et al.'s algorithm.
         if self.root().is_none() {
             self.0 = BinaryTree::new_singleton(SemigroupRbNode::new_with_color(key, value, Color::Black));

@@ -15,7 +15,8 @@ pub(super) trait RedBlackCursor: PeekingCursorMut {
     type Value;
 
     fn key(&self) -> Option<&Self::Key>;
-    
+    fn replace_value(&mut self, value: Self::Value) -> Option<Self::Value>;
+
     fn color(&self) -> Option<Color>;
     fn parent_color(&self) -> Option<Color>;
     fn uncle_color(&self) -> Option<Color>;
@@ -91,6 +92,8 @@ pub(super) trait RedBlackCursor: PeekingCursorMut {
                 self.move_side(side.opposite());
             }
         }
+
+        while self.move_up_after_subtree_change().is_some() {}
     }
 
     fn remove_fixup(&mut self) {
@@ -101,15 +104,46 @@ pub(super) trait RedBlackCursor: PeekingCursorMut {
 pub(super) trait RedBlackTree {
     type Key: Ord;
     type Value;
-    type RbCursor: RedBlackCursor<Key = Self::Key, Value = Self::Value>;
+    type RbCursor<'t>: RedBlackCursor<Key = Self::Key, Value = Self::Value>
+    where Self: 't;
 
-    fn rb_cursor(&mut self) -> Self::RbCursor;
+    fn rb_cursor(&mut self) -> Self::RbCursor<'_>;
+
+    fn is_empty(&self) -> bool;
+    fn create_root(&mut self, key: Self::Key, value: Self::Value, color: Color);
+    fn set_root_color(&mut self, color: Color);
 
     fn insert(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        todo!()
+        // Cormen et al.'s algorithm.
+        if self.is_empty() {
+            self.create_root(key, value, Color::Black);
+            return None;
+        }
+
+        {
+            let mut cursor = self.rb_cursor();
+
+            // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
+            let Some(side) = cursor.find_node_to_insert_at(&key) else {
+                // Cursor was moved to the node containing the key.
+                let old_value = cursor.replace_value(value).unwrap();
+                return Some(old_value);
+            };
+
+            // The cursor now points to the parent of the node we will create.
+            cursor.attach_child(key, value, Color::Red, side).unwrap();
+
+            // Fix the red-black tree structure.
+            cursor.move_side(side);
+            cursor.insert_fixup();
+        }
+
+        // Maintain the invariant that the root is black.
+        self.set_root_color(Color::Black);
+        None
     }
 
-    fn get_cursor_mut_at_key<Q>(&mut self, key: &Q) -> Option<Self::RbCursor>
+    fn get_cursor_mut_at_key<Q>(&mut self, key: &Q) -> Option<Self::RbCursor<'_>>
     where 
         Self::Key: Borrow<Q>,
         Q: Ord + ?Sized,
