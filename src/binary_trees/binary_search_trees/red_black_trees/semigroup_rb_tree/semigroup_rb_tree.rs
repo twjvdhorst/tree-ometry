@@ -17,19 +17,16 @@ use super::{
     TreeSemigroup,
 };
 use crate::binary_trees::{
-    Neighborhood,
-    Side, 
-    binary_tree::{
+    Neighborhood, Side, binary_search_trees::red_black_trees::{Color, traits::RedBlackCursor}, binary_tree::{
         BinaryTree,
         BinaryTreeNode,
-    }, 
-    binary_tree_cursor::{
+    }, binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
-    },
+    }
 };
-use super::{Color, cursors::{Cursor, CursorMut}};
+use super::cursors::{Cursor, CursorMut};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -44,7 +41,7 @@ impl<K, V, S> SemigroupRbNode<K, V, S>
 where 
     S: TreeSemigroup<K>,
 {
-    fn new_with_color(key: K, value: V, color: Color) -> Self {
+    pub(super) fn new_with_color(key: K, value: V, color: Color) -> Self {
         let semigroup_value = S::op(&key, None, None);
         Self {
             key,
@@ -302,18 +299,18 @@ where
     }
 
     fn insert_fixup(cursor: &mut CursorMut<'_, K, V, S>) {
+        cursor.insert_fixup();
+        Self::fix_ancestor_semigroup_values(cursor);
+        return;
         // Cormen et al.'s algorithm.
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
         while cursor.parent_color() == Some(Color::Red) {
-            // Throughout the loop, cursor points to z, and peeking_cursor moves around to check states of various nodes.
-            let mut peeking_cursor = cursor.as_cursor();
-            let side_current = peeking_cursor.move_up().unwrap(); // Move the cursor to z.p
-            let side_parent = peeking_cursor.move_up() // Move the cursor to z.p.p
-                .unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
+            // At the start of the loop, cursor points to z.
+            let side_current = cursor.move_up_and_recompute_semigroup_value().unwrap(); // Move the cursor to z.p
+            let side_parent = cursor.side_of_parent().unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
 
-            if let Some(uncle) = peeking_cursor.child(side_parent.opposite()) && uncle.is_red() {
+            if cursor.uncle_color() == Some(Color::Red) {
                 // Case 1
-                cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to z.p
                 cursor.set_color(Color::Black);
                 cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to z.p.p, where it stays for the next iteration.
                 cursor.set_color(Color::Red);
@@ -321,12 +318,11 @@ where
             } else {
                 if side_current == side_parent.opposite() {
                     // Case 2
-                    cursor.move_up_and_recompute_semigroup_value();
                     cursor.rotate_and_fix_semigroup_value(side_parent).unwrap();
+                    cursor.move_up_and_recompute_semigroup_value();
                 }
 
                 // Case 3
-                cursor.move_up_and_recompute_semigroup_value();
                 cursor.set_color(Color::Black);
                 cursor.move_up_and_recompute_semigroup_value();
                 cursor.set_color(Color::Red);
@@ -475,7 +471,7 @@ where
         }
 
         // The to-be-removed node has at most one child.
-        let key_color = cursor.node_color().unwrap(); // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let key_color = cursor.color().unwrap(); // Can unwrap safely: the cursor exists, so it points to the node with the key.
         let data = match cursor.peek_neighborhood() {
             Neighborhood { left: None, right: None, .. } => {
                 let Some(side) = cursor.side_of_parent() else {

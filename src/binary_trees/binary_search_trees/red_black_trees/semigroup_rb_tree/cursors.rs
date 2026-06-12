@@ -1,16 +1,18 @@
 use derive_more::Debug;
 
-use super::{Color, TreeSemigroup, SemigroupRbNode};
+use super::{TreeSemigroup, SemigroupRbNode};
 use crate::binary_trees::{
     Neighborhood,
-    Side, 
-    binary_tree, 
-    cursor_errors::CursorError, 
+    Side,
+    binary_search_trees::red_black_trees::traits::RedBlackCursor,
+    binary_tree,
     binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
     },
+    cursor_errors::CursorError,
+    binary_search_trees::red_black_trees::Color,
 };
 
 /// A cursor over a SemigroupRbTree.
@@ -63,6 +65,21 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
         match side {
             Side::Left => self.0.peek_left(),
             Side::Right => self.0.peek_right(),
+        }
+    }
+
+    pub(super) fn left_color(&self) -> Option<Color> {
+        self.0.peek_left().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn right_color(&self) -> Option<Color> {
+        self.0.peek_right().map(SemigroupRbNode::color)
+    }
+
+    pub(super) fn child_color(&self, side: Side) -> Option<Color> {
+        match side {
+            Side::Left => self.left_color(),
+            Side::Right => self.right_color(),
         }
     }
 }
@@ -137,7 +154,7 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
         self.0
     }
 
-    pub(super) fn node_color(&self) -> Option<Color> {
+    pub(super) fn color(&self) -> Option<Color> {
         self.0.get().map(SemigroupRbNode::color)
     }
 
@@ -158,6 +175,12 @@ impl<'t, K, V, S> CursorMut<'t, K, V, S> {
             Side::Left => self.left_color(),
             Side::Right => self.right_color(),
         }
+    }
+
+    pub(super) fn uncle_color(&self) -> Option<Color> {
+        let mut cursor = self.as_cursor();
+        let side = cursor.move_up()?;
+        cursor.child_color(side.opposite())
     }
 
     pub(super) fn set_color(&mut self, color: Color) {
@@ -237,7 +260,6 @@ where
         self.recompute_semigroup_value();
         Some(side)
     }
-
     
     pub(super) fn try_move_up_and_recompute_semigroup_value(&mut self) -> Option<Side> {
         let side = self.try_move_up()?;
@@ -353,3 +375,96 @@ impl<'t, K, V, S> PeekingCursorMut for CursorMut<'t, K, V, S> {
     }
 }
 
+impl<'t, K, V, S> RedBlackCursor for CursorMut<'t, K, V, S>
+where 
+    K: Ord,
+    S: TreeSemigroup<K>,
+{
+    type Key = K;
+    type Value = V;
+    
+    fn key(&self) -> Option<&Self::Key> {
+        self.0.get().map(SemigroupRbNode::key)
+    }
+
+    fn color(&self) -> Option<Color> {
+        self.0.get().map(SemigroupRbNode::color)
+    }
+
+    fn parent_color(&self) -> Option<Color> {
+        self.0.peek_up().map(SemigroupRbNode::color)
+    }
+
+    fn uncle_color(&self) -> Option<Color> {
+        let mut cursor = self.as_cursor();
+        let side = cursor.move_up()?;
+        cursor.child_color(side.opposite())
+    }
+
+    fn left_color(&self) -> Option<Color> {
+        self.0.peek_left().map(SemigroupRbNode::color)
+    }
+
+    fn right_color(&self) -> Option<Color> {
+        self.0.peek_right().map(SemigroupRbNode::color)
+    }
+
+    fn set_color(&mut self, color: Color) {
+        if let Some(node) = self.0.get_mut() {
+            node.set_color(color);
+        }
+    }
+
+    fn set_child_color(&mut self, side: Side, color: Color) {
+        match side {
+            Side::Left => if let Some(left) = self.0.peek_left_mut() {
+                left.set_color(color);
+            },
+            Side::Right => if let Some(right) = self.0.peek_right_mut() {
+                right.set_color(color);
+            }
+        }
+    }
+
+    fn move_up_after_subtree_change(&mut self) -> Option<Side> {
+        let side = self.move_up()?;
+        self.recompute_semigroup_value();
+        Some(side)
+    }
+
+    /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
+    fn attach_child(&mut self, key: Self::Key, value: Self::Value, color: Color, side: Side) -> Result<(), CursorError> {
+        self.0.attach_child(SemigroupRbNode::new_with_color(key, value, color), side)?;
+        self.recompute_semigroup_value();
+        Ok(())
+    }
+
+    /// Detaches the node pointed at by the cursor from the tree, and moves the cursor up.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
+    /// Does nothing if the cursor does not point to a leaf.
+    /// Returns the detached node.
+    fn detach_node(&mut self) -> Option<(Self::Key, Self::Value)> {
+        let data = self.0.detach_node().map(Into::into)?;
+        self.recompute_semigroup_value();
+        Some(data)
+    }
+
+    fn transplant_child(&mut self) -> Option<(Self::Key, Self::Value)> {
+        // No need to fix semigroup values for the cursor node, as the subtree of the child is unchanged.
+        self.0.transplant_child().map(Into::into)
+    }
+
+    fn swap_data_with_successor(&mut self) {
+        todo!()
+    }
+
+    /// Performs a tree rotation.
+    /// The cursor keeps pointing to the node it originally pointed to.
+    /// Ensures the subtree rooted at the cursor remains a valid semigroup tree.
+    fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
+        self.0.rotate(side)?;
+        self.recompute_semigroup_value();
+        Ok(())
+    }
+}

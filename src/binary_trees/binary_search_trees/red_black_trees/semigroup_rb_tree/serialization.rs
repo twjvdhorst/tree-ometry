@@ -2,7 +2,6 @@ use serde::{Serialize, Deserialize, de::Error};
 use thiserror::Error;
 
 use super::{
-    Color,
     SemigroupRbNode, 
     SemigroupRbTree, 
     TreeSemigroup,
@@ -17,6 +16,7 @@ use crate::binary_trees::{
         BinaryTreeCursor,
         PeekingCursor,
     },
+    binary_search_trees::red_black_trees::Color,
 };
 
 impl<K, V, SG> Serialize for SemigroupRbTree<K, V, SG>
