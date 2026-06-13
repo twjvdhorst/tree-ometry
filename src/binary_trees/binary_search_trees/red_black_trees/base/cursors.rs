@@ -1,6 +1,6 @@
 use super::RbNode;
 use crate::binary_trees::{
-    Neighborhood, Side, binary_search_trees::red_black_trees::Color, binary_tree, binary_tree_cursor::{
+    Neighborhood, Side, binary_search_trees::red_black_trees::Color, binary_tree::{self, NodeId}, binary_tree_cursor::{
         BinaryTreeCursor,
         PeekingCursor,
         PeekingCursorMut,
@@ -32,8 +32,12 @@ impl<'t, T> Cursor<'t, T> {
         Self(cursor)
     }
 
-    pub(super) fn into_inner(self) -> binary_tree::Cursor<'t, RbNode<T>> {
+    pub(crate) fn into_inner(self) -> binary_tree::Cursor<'t, RbNode<T>> {
         self.0
+    }
+
+    pub(crate) fn move_to_id(&mut self, node_id: NodeId) {
+        self.0.move_to_id(node_id)
     }
 }
 
@@ -100,7 +104,12 @@ impl<'t, T> CursorMut<'t, T> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, RbNode<T>>) -> Self {
         Self(cursor)
     }
-    pub(super) fn into_inner(self) -> binary_tree::CursorMut<'t, RbNode<T>> {
+
+    pub(crate) fn node_id(&self) -> NodeId {
+        self.0.node_id()
+    }
+
+    pub(crate) fn into_inner(self) -> binary_tree::CursorMut<'t, RbNode<T>> {
         self.0
     }
 

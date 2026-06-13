@@ -1,32 +1,39 @@
 use std::borrow::Borrow;
 
+use slotmap::Key;
+
 use super::{
     Cursor,
     CursorMut,
 };
 use crate::binary_trees::{
     binary_search_trees::{
-        red_black_trees::{
-            base, 
-            ord_by_key::OrdByKey,
-        },
-        red_black_tree::iterators::{
+        min_max_rb_tree::iterators::{
             InorderIter,
             InorderIterMut,
             IntoInorderIter,
         },
+        red_black_trees::{
+            base, 
+            ord_by_key::OrdByKey,
+        }
     },
+    binary_tree::NodeId,
+    binary_tree_cursor::PeekingCursorMut,
 };
 
 /// Struct containing the data in each node of the tree.
 /// Values are considered equal if their keys are equal, regardless of what other data they store.
+/// id_min and id_max store the ids of the leftmost, respectively rightmost node in the node's subtree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct RbData<K, V> {
+pub(super) struct MinMaxRbData<K, V> {
     key: K,
     value: V,
+    id_min: NodeId,
+    id_max: NodeId,
 }
 
-impl<K, V> OrdByKey for RbData<K, V>
+impl<K, V> OrdByKey for MinMaxRbData<K, V>
 where 
     K: Ord,
 {
@@ -37,13 +44,21 @@ where
     }
 }
 
-impl<K, V> RbData<K, V> {
+impl<K, V> MinMaxRbData<K, V> {
     fn value(&self) -> &V {
         &self.value
     }
 
     fn into_value(self) -> V {
         self.value
+    }
+
+    pub(super) fn id_min(&self) -> NodeId {
+        self.id_min
+    }
+
+    pub(super) fn id_max(&self) -> NodeId {
+        self.id_max
     }
 
     pub(super) fn data(&self) -> (&K, &V) {
@@ -60,15 +75,15 @@ impl<K, V> RbData<K, V> {
 }
 
 #[derive(Clone)]
-pub struct RedBlackTree<K, V>(pub(super) base::RedBlackTree<RbData<K, V>>);
+pub struct MinMaxRbTree<K, V>(pub(super) base::RedBlackTree<MinMaxRbData<K, V>>);
 
-impl<K, V> Default for RedBlackTree<K, V> {
+impl<K, V> Default for MinMaxRbTree<K, V> {
     fn default() -> Self {
         Self(base::RedBlackTree::default())
     }
 }
 
-impl<K, V> RedBlackTree<K, V> {
+impl<K, V> MinMaxRbTree<K, V> {
     pub fn new() -> Self {
         Self(base::RedBlackTree::new())
     }
@@ -82,17 +97,30 @@ impl<K, V> RedBlackTree<K, V> {
     }
 }
 
-impl<K, V> RedBlackTree<K, V>
+impl<K, V> MinMaxRbTree<K, V>
 where 
     K: Ord,
 {
+    /// Recomputes the semigroup value of the current node.
+    fn on_subtree_change(cursor: &mut base::CursorMut<'_, MinMaxRbData<K, V>>) {
+        let node_id = cursor.node_id();
+        let id_min = cursor.peek_left().map_or(node_id, MinMaxRbData::id_min);
+        let id_max = cursor.peek_right().map_or(node_id, MinMaxRbData::id_max);
+        if let Some(node) = cursor.get_mut() {
+            node.id_min = id_min;
+            node.id_max = id_max;
+        }
+    }
+
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        let data = RbData {
+        let data = MinMaxRbData {
             key,
             value,
+            id_min: NodeId::null(),
+            id_max: NodeId::null(),
         };
-        self.0.insert(data, |_| {})
-            .map(RbData::into_value)
+        self.0.insert(data, Self::on_subtree_change)
+            .map(MinMaxRbData::into_value)
     }
 
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
@@ -100,12 +128,12 @@ where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
     {
-        self.0.remove(key, |_| {})
-            .map(RbData::into_data)
+        self.0.remove(key, Self::on_subtree_change)
+            .map(MinMaxRbData::into_data)
     }
 }
 
-impl<K, V> RedBlackTree<K, V>
+impl<K, V> MinMaxRbTree<K, V>
 where 
     K: Ord,
 {
@@ -123,7 +151,7 @@ where
         Q: Ord + ?Sized,
     {
         self.0.get(key)
-            .map(RbData::value)
+            .map(MinMaxRbData::value)
     }
 
     pub fn pred_key<Q>(&self, key: &Q) -> Option<&K>
@@ -140,7 +168,7 @@ where
         Q: Ord + ?Sized,
     {
         self.0.pred(key)
-            .map(RbData::data)
+            .map(MinMaxRbData::data)
     }
 
     pub fn pred_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
@@ -149,7 +177,7 @@ where
         Q: Ord + ?Sized,
     {
         self.0.pred_mut(key)
-            .map(RbData::data_with_mut_value)
+            .map(MinMaxRbData::data_with_mut_value)
     }
 
     pub fn succ_key<Q>(&self, key: &Q) -> Option<&K>
@@ -166,7 +194,7 @@ where
         Q: Ord + ?Sized,
     {
         self.0.succ(key)
-            .map(RbData::data)
+            .map(MinMaxRbData::data)
     }
 
     pub fn succ_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
@@ -175,11 +203,11 @@ where
         Q: Ord + ?Sized,
     {
         self.0.succ_mut(key)
-            .map(RbData::data_with_mut_value)
+            .map(MinMaxRbData::data_with_mut_value)
     }
 }
 
-impl<K, V> Extend<(K, V)> for RedBlackTree<K, V>
+impl<K, V> Extend<(K, V)> for MinMaxRbTree<K, V>
 where 
     K: Ord,
 {
@@ -190,7 +218,7 @@ where
     }
 }
 
-impl<K, V> FromIterator<(K, V)> for RedBlackTree<K, V>
+impl<K, V> FromIterator<(K, V)> for MinMaxRbTree<K, V>
 where 
     K: Ord,
 {
@@ -201,7 +229,7 @@ where
     }
 }
 
-impl<'t, K, V> IntoIterator for &'t RedBlackTree<K, V> {
+impl<'t, K, V> IntoIterator for &'t MinMaxRbTree<K, V> {
     type Item = (&'t K, &'t V);
     type IntoIter = InorderIter<'t, K, V>;
 
@@ -210,7 +238,7 @@ impl<'t, K, V> IntoIterator for &'t RedBlackTree<K, V> {
     }
 }
 
-impl<'t, K, V> IntoIterator for &'t mut RedBlackTree<K, V> {
+impl<'t, K, V> IntoIterator for &'t mut MinMaxRbTree<K, V> {
     type Item = (&'t K, &'t mut V);
     type IntoIter = InorderIterMut<'t, K, V>;
 
@@ -219,7 +247,7 @@ impl<'t, K, V> IntoIterator for &'t mut RedBlackTree<K, V> {
     }
 }
 
-impl<K, V> IntoIterator for RedBlackTree<K, V> {
+impl<K, V> IntoIterator for MinMaxRbTree<K, V> {
     type Item = (K, V);
     type IntoIter = IntoInorderIter<K, V>;
 

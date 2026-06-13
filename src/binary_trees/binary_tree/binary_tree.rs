@@ -20,7 +20,7 @@ use super::cursors::{
     CursorMut,
 };
 
-new_key_type! { pub(super) struct NodeId; }
+new_key_type! { pub(crate) struct NodeId; }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct BinaryTreeNode<T> {
@@ -146,14 +146,27 @@ impl<T> BinaryTree<T> {
     }
 
     pub fn new_singleton(data: T) -> Self {
+        Self::new_singleton_with_id(|_| data)
+    }
+
+    pub(crate) fn new_singleton_with_id<F>(f: F) -> Self
+    where 
+        F: FnOnce(NodeId) -> T,
+    {
         let mut tree = Self::default();
-        let root_id = tree.new_node(data);
-        tree.root_id = root_id;
+        tree.new_node_with_id(f);
         tree
     }
 
     pub(super) fn new_node(&mut self, data: T) -> NodeId {
-        let node_id = self.nodes.insert(BinaryTreeNode::new(data));
+        self.new_node_with_id(|_| data)
+    }
+
+    pub(super) fn new_node_with_id<F>(&mut self, f: F) -> NodeId
+    where 
+        F: FnOnce(NodeId) -> T,
+    {
+        let node_id = self.nodes.insert_with_key(|id| BinaryTreeNode::new(f(id)));
         if self.root_id.is_null() {
             self.root_id = node_id;
         }
@@ -183,7 +196,7 @@ impl<T> BinaryTree<T> {
         self.root_id = root_id;
     }
 
-    pub(super) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
+    pub(crate) fn node(&self, node_id: NodeId) -> Option<&BinaryTreeNode<T>> {
         self.nodes.get(node_id)
     }
 

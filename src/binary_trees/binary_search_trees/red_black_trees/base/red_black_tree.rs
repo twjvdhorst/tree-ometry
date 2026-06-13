@@ -84,17 +84,21 @@ where
 {
     /// Moves the cursor to the direct predecessor or successor of the value being inserted.
     /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
-    fn find_node_to_insert_at(cursor: &mut CursorMut<'_, T>, data: &T) -> Option<Side> {
+    fn find_node_to_insert_at<Q>(cursor: &mut CursorMut<'_, T>, key: &Q) -> Option<Side>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         while let Some(curr_data) = cursor.get() {
-            match T::cmp(&data, curr_data) {
+            match curr_data.cmp_to_key(key) {
                 Ordering::Less => {
-                    if !cursor.try_move_left() {
-                        return Some(Side::Left);
+                    if !cursor.try_move_right() {
+                        return Some(Side::Right);
                     }
                 },
                 Ordering::Greater => {
-                    if !cursor.try_move_right() {
-                        return Some(Side::Right);
+                    if !cursor.try_move_left() {
+                        return Some(Side::Left);
                     }
                 },
                 Ordering::Equal => {
@@ -144,9 +148,9 @@ where
         while cursor.move_up_after_subtree_change(&mut on_subtree_change).is_some() {}
     }
 
-    /// Inserts the key-value pair into the tree.
-    /// If the key was not present in the tree yet, None is returned.
-    /// Otherwise, the value stored at the given key is updated, and the old value is returned.
+    /// Inserts the data into the tree.
+    /// If its key was not present in the tree yet, None is returned.
+    /// Otherwise, the data stored at the given key is updated, and the old data is returned.
     /// Time complexity: O(log n).
     pub fn insert<F>(&mut self, data: T, mut on_subtree_change: F) -> Option<T>
     where 
@@ -164,7 +168,7 @@ where
         let mut cursor = self.cursor_mut();
 
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
-        let Some(side) = Self::find_node_to_insert_at(&mut cursor, &data) else {
+        let Some(side) = Self::find_node_to_insert_at(&mut cursor, data.key()) else {
             // Cursor was moved to the node containing the key.
             return Some(std::mem::replace(cursor.get_mut()?, data));
         };
@@ -528,7 +532,7 @@ impl<T> IntoIterator for RedBlackTree<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Borrow, cmp::Ordering};
+    use std::cmp::Ordering;
     use std::collections::HashSet;
     use rand::prelude::*;
 
@@ -620,16 +624,8 @@ use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor};
     impl<T: Ord> OrdByKey for T {
         type Key = T;
 
-        fn cmp(&self, other: &Self) -> Ordering {
-            self.cmp(other)
-        }
-
-        fn cmp_to_key<Q>(&self, key: &Q) -> Ordering
-        where
-            Self::Key: Borrow<Q>,
-            Q: Ord + ?Sized
-        {
-            self.borrow().cmp(key)
+        fn key(&self) -> &Self::Key {
+            self
         }
     }
 

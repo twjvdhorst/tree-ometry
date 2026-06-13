@@ -1,4 +1,3 @@
-use derive_more::Debug;
 use slotmap::Key;
 
 use super::{BinaryTree, BinaryTreeNode, NodeId};
@@ -16,7 +15,6 @@ use crate::binary_trees::{
 /// A cursor over a BinaryTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
 pub struct Cursor<'t, T> {
     tree: &'t BinaryTree<T>,
     node_id: NodeId,
@@ -52,12 +50,16 @@ impl<'t, T> Cursor<'t, T> {
         self.tree.node(self.node_id)
     }
 
-    pub(super) fn node_id(&self) -> NodeId {
+    pub(crate) fn node_id(&self) -> NodeId {
         self.node_id
     }
 
-    pub(super) fn tree(&self) -> &BinaryTree<T> {
+    pub(crate) fn tree(&self) -> &BinaryTree<T> {
         self.tree
+    }
+
+    pub(crate) fn move_to_id(&mut self, node_id: NodeId) {
+        self.node_id = node_id
     }
 }
 
@@ -145,7 +147,6 @@ impl<'t, T> PeekingCursor for Cursor<'t, T> {
 /// A cursor over a BinaryTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
 pub struct CursorMut<'t, T> {
     tree: &'t mut BinaryTree<T>,
     node_id: NodeId,
@@ -167,11 +168,11 @@ impl<'t, T> CursorMut<'t, T> {
         self.tree.node_mut(self.node_id)
     }
 
-    pub(super) fn node_id(&self) -> NodeId {
+    pub(crate) fn node_id(&self) -> NodeId {
         self.node_id
     }
 
-    pub(super) fn tree(&self) -> &BinaryTree<T> {
+    pub(crate) fn tree(&self) -> &BinaryTree<T> {
         self.tree
     }
 
@@ -229,6 +230,13 @@ impl<'t, T> CursorMut<'t, T> {
 
     /// Creates a new node and attaches it as a child to the node pointed at by the cursor.
     pub fn attach_child(&mut self, data: T, side: Side) -> Result<(), CursorError> {
+        self.attach_child_with_id(|_| data, side)
+    }
+
+    pub(crate) fn attach_child_with_id<C>(&mut self, construct_with_id: C, side: Side) -> Result<(), CursorError>
+    where 
+        C: FnOnce(NodeId) -> T,
+    {
         let node = self.node().ok_or(CursorError::NullError)?;
 
         if node.has_child(side) {
@@ -236,7 +244,7 @@ impl<'t, T> CursorMut<'t, T> {
         }
 
         let curr_id = self.node_id;
-        let new_id = self.tree.new_node(data);
+        let new_id = self.tree.new_node_with_id(construct_with_id);
         self.tree.add_edge_unchecked(curr_id, new_id, side);
         Ok(())
     }

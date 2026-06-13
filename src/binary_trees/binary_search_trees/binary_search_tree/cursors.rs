@@ -1,5 +1,3 @@
-use derive_more::Debug;
-
 use super::{BstNode};
 use crate::binary_trees::{
     Neighborhood,
@@ -16,7 +14,6 @@ use crate::binary_trees::{
 /// A cursor over a BinarySearchTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
 pub struct Cursor<'t, K, V>(binary_tree::Cursor<'t, BstNode<K, V>>);
 
 /// Make own implementation of Clone, so K and V don't have to be Clone.
@@ -101,8 +98,6 @@ impl<'t, K, V> PeekingCursor for Cursor<'t, K, V> {
 /// A cursor over a BinarySearchTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-/// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
-#[derive(Debug)]
 pub struct CursorMut<'t, K, V>(binary_tree::CursorMut<'t, BstNode<K, V>>);
 
 impl<'t, K, V> CursorMut<'t, K, V> {

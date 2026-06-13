@@ -1,5 +1,3 @@
-use derive_more::Debug;
-
 use crate::binary_trees::{
     Neighborhood,
     Side,
@@ -17,7 +15,6 @@ use crate::binary_trees::{
 /// A cursor over a SemigroupRbTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
 pub struct Cursor<'t, K, V>(base::Cursor<'t, RbData<K, V>>);
 
 /// Make own implementation of Clone, so K and V don't have to be Clone.
@@ -102,7 +99,6 @@ impl<'t, K, V> PeekingCursor for Cursor<'t, K, V> {
 /// A cursor over a SemigroupRbTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
 pub struct CursorMut<'t, K, V>(base::CursorMut<'t, RbData<K, V>>);
 
 impl<'t, K, V> CursorMut<'t, K, V> {

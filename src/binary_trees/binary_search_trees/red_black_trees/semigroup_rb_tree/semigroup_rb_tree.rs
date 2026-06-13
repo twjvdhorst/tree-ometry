@@ -35,16 +35,8 @@ where
 {
     type Key = K;
 
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.key.cmp(&other.key)
-    }
-
-    fn cmp_to_key<Q>(&self, key: &Q) -> std::cmp::Ordering
-    where
-        Self::Key: Borrow<Q>,
-        Q: Ord + ?Sized
-    {
-        self.key.borrow().cmp(key)
+    fn key(&self) -> &Self::Key {
+        &self.key
     }
 }
 
