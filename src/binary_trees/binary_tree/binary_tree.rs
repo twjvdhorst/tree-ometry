@@ -171,10 +171,6 @@ impl<T> BinaryTree<T> {
         self.root_id.is_null()
     }
 
-    pub(crate) fn root(&self) -> Option<&BinaryTreeNode<T>> {
-        self.nodes.get(self.root_id)
-    }
-
     pub(crate) fn root_mut(&mut self) -> Option<&mut BinaryTreeNode<T>> {
         self.nodes.get_mut(self.root_id)
     }

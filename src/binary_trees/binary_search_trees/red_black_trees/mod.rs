@@ -1,6 +1,6 @@
 mod ord_by_key;
 mod base;
-//pub mod red_black_tree;
+pub mod red_black_tree;
 pub mod semigroup_rb_tree;
 
 #[cfg(feature = "serde")]

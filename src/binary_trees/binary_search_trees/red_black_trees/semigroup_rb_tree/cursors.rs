@@ -5,7 +5,7 @@ use crate::binary_trees::{
     Side,
     binary_search_trees::{
         red_black_trees::base,
-        semigroup_rb_tree::semigroup_rb_tree::SemigroupRbData,
+        semigroup_rb_tree::SemigroupRbData,
     },
     binary_tree_cursor::{
         BinaryTreeCursor,
