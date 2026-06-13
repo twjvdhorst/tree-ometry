@@ -49,6 +49,10 @@ where
 }
 
 impl<K, V, S> SemigroupRbData<K, V, S> {
+    fn value(&self) -> &V {
+        &self.value
+    }
+
     fn into_value(self) -> V {
         self.value
     }
@@ -131,6 +135,80 @@ where
     {
         self.0.remove(key, Self::on_subtree_change)
             .map(SemigroupRbData::into_key_value)
+    }
+}
+
+impl<K, V, S> SemigroupRbTree<K, V, S>
+where 
+    K: Ord,
+{
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.contains_key(key)
+    }
+
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.get(key)
+            .map(SemigroupRbData::value)
+    }
+
+    pub fn pred_key<Q>(&self, key: &Q) -> Option<&K>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.pred_data(key).map(|(k, ..)| k)
+    }
+
+    pub fn pred_data<Q>(&self, key: &Q) -> Option<(&K, &V, &S)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.pred(key)
+            .map(SemigroupRbData::data)
+    }
+
+    pub fn pred_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V, &S)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.pred_mut(key)
+            .map(SemigroupRbData::data_with_mut_value)
+    }
+
+    pub fn succ_key<Q>(&self, key: &Q) -> Option<&K>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.succ_data(key).map(|(k, ..)| k)
+    }
+
+    pub fn succ_data<Q>(&self, key: &Q) -> Option<(&K, &V, &S)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.succ(key)
+            .map(SemigroupRbData::data)
+    }
+
+    pub fn succ_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V, &S)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.succ_mut(key)
+            .map(SemigroupRbData::data_with_mut_value)
     }
 }
 

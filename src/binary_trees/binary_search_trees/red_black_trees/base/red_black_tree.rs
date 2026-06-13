@@ -18,8 +18,7 @@ use crate::binary_trees::{
         BinaryTreeNode,
     },
     binary_tree_cursor::{
-        BinaryTreeCursor,
-        PeekingCursorMut,
+        BinaryTreeCursor, PeekingCursor, PeekingCursorMut
     },
 };
 
@@ -322,6 +321,159 @@ where
             root.color = Color::Black;
         }
         Some(data)
+    }
+}
+
+
+/// Queries.
+impl<T> RedBlackTree<T>
+where 
+    T: OrdByKey,
+{
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.get(key).is_some()
+    }
+
+    pub fn get<Q>(&self, key: &Q) -> Option<&T>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor();
+        while let Some(data) = cursor.get() {
+            match data.cmp_to_key(key) {
+                Ordering::Greater => cursor.move_left(),
+                Ordering::Less => cursor.move_right(),
+                Ordering::Equal => return Some(data),
+            }
+        }
+        None
+    }
+
+    pub fn pred<Q>(&self, key: &Q) -> Option<&T>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor();
+        let mut pred = None;
+        while let Some(data) = cursor.get() {
+            match data.cmp_to_key(key) {
+                Ordering::Greater => cursor.move_left(),
+                Ordering::Less => {
+                    pred = Some(data);
+                    cursor.move_right();
+                },
+                Ordering::Equal => return Some(data),
+            }
+        }
+        pred
+    }
+
+    pub fn succ<Q>(&self, key: &Q) -> Option<&T>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor();
+        let mut succ = None;
+        while let Some(data) = cursor.get() {
+            match data.cmp_to_key(key) {
+                Ordering::Greater => {
+                    succ = Some(data);
+                    cursor.move_left();
+                },
+                Ordering::Less => cursor.move_right(),
+                Ordering::Equal => return Some(data),
+            }
+        }
+        succ
+    }
+
+    pub fn pred_mut<Q>(&mut self, key: &Q) -> Option<&mut T>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor_mut();
+        let mut depth_since_pred = None;
+        while let Some(data) = cursor.get() {
+            match data.cmp_to_key(key) {
+                Ordering::Greater => {
+                    if cursor.try_move_left() {
+                        if let Some(depth) = depth_since_pred {
+                            depth_since_pred = Some(depth + 1);
+                        }
+                    } else {
+                        // Move the cursor back to the last seen predecessor.
+                        let depth = depth_since_pred?;
+                        for _ in 0..depth {
+                            cursor.move_up();
+                        }
+                        break;
+                    }
+                },
+                Ordering::Less => {
+                    if cursor.try_move_right() {
+                        depth_since_pred = Some(1);
+                    } else {
+                        break;
+                    }
+                },
+                Ordering::Equal => break,
+            }
+        }
+
+        // Cursor is in the predecessor.
+        // Extend the lifetime of the yielded references to be independent of the cursor.
+        // This is safe, because we don't alter the tree after returning.
+        let pointer = cursor.get_mut()? as *mut T;
+        unsafe { Some(&mut *pointer) }
+    }
+
+    pub fn succ_mut<Q>(&mut self, key: &Q) -> Option<&mut T>
+    where 
+        T::Key: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor_mut();
+        let mut depth_since_succ = None;
+        while let Some(data) = cursor.get() {
+            match data.cmp_to_key(key) {
+                Ordering::Greater => {
+                    if cursor.try_move_left() {
+                        depth_since_succ = Some(1);
+                    } else {
+                        break;
+                    }
+                },
+                Ordering::Less => {
+                    if cursor.try_move_right() {
+                        if let Some(depth) = depth_since_succ {
+                            depth_since_succ = Some(depth + 1);
+                        }
+                    } else {
+                        // Move the cursor back to the last seen successor.
+                        let depth = depth_since_succ?;
+                        for _ in 0..depth {
+                            cursor.move_up();
+                        }
+                        break;
+                    }
+                },
+                Ordering::Equal => break,
+            }
+        }
+
+        // Cursor is in the successor.
+        // Extend the lifetime of the yielded references to be independent of the cursor.
+        // This is safe, because we don't alter the tree after returning.
+        let pointer = cursor.get_mut()? as *mut T;
+        unsafe { Some(&mut *pointer) }
     }
 }
 
