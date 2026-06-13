@@ -1,7 +1,19 @@
-use std::{cmp::Ordering, marker::PhantomData};
+use std::{borrow::Borrow, cmp::Ordering};
 
 use super::{Cursor, CursorMut};
-use crate::binary_trees::{Side, binary_search_trees::red_black_trees::Color, binary_tree::{BinaryTree, BinaryTreeNode}, binary_tree_cursor::{BinaryTreeCursor, PeekingCursorMut}, cursor_errors::CursorError};
+use crate::binary_trees::{
+    Neighborhood,
+    Side,
+    binary_search_trees::red_black_trees::Color,
+    binary_tree::{
+        BinaryTree,
+        BinaryTreeNode,
+    },
+    binary_tree_cursor::{
+        BinaryTreeCursor,
+        PeekingCursorMut,
+    },
+};
 
 pub(super) struct RbNode<T> {
     data: T,
@@ -11,6 +23,10 @@ pub(super) struct RbNode<T> {
 impl<T> RbNode<T> {
     fn data(&self) -> &T {
         &self.data
+    }
+
+    pub(super) fn into_data(self) -> T {
+        self.data
     }
 
     pub(super) fn color(&self) -> Color {
@@ -27,6 +43,28 @@ pub(super) struct RedBlackTree<T>(BinaryTree<RbNode<T>>);
 impl<T> Default for RedBlackTree<T> {
     fn default() -> Self {
         Self(BinaryTree::default())
+    }
+}
+
+impl<T> Extend<T> for RedBlackTree<T>
+where 
+    T: Ord,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for data in iter {
+            self.insert(data, |_| {});
+        }
+    }
+}
+
+impl<T> FromIterator<T> for RedBlackTree<T>
+where 
+    T: Ord,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut tree = Self::default();
+        tree.extend(iter);
+        tree
     }
 }
 
@@ -52,7 +90,6 @@ impl<T> RedBlackTree<T> {
 impl<T> RedBlackTree<T>
 where 
     T: Ord,
-    //F: for<'c> FnMut(&mut CursorMut<'c, T>),//for<'c> TreeCallback<Cursor<'c> = CursorMut<'c, T, C>>,
 {
     /// Moves the cursor to the direct predecessor or successor of the value being inserted.
     /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
@@ -161,6 +198,138 @@ where
             .unwrap() // Can unwrap safely: we already handled the case where the tree was empty.
             .set_color(Color::Black);
         None
+    }
+}
+
+/// Deletions.
+impl<T> RedBlackTree<T>
+where 
+    T: Ord,
+{
+    /// Creates a cursor at the node storing the given data.
+    /// Returns None if the data is not in the tree.
+    fn get_cursor_mut_at_data<Q>(&mut self, data: &Q) -> Option<CursorMut<'_, T>>
+    where 
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let mut cursor = self.cursor_mut();
+        while let Some(curr_data) = cursor.get().map(RbNode::data) {
+            match Q::cmp(data, curr_data.borrow()) {
+                Ordering::Less => cursor.move_left(),
+                Ordering::Greater => cursor.move_right(),
+                Ordering::Equal => return Some(cursor),
+            };
+        }
+        None
+    }
+
+    fn remove_fixup_leaf<F>(cursor: &mut CursorMut<'_, T>, mut side: Side, mut on_subtree_change: F)
+    where 
+        F: for<'c> FnMut(&mut CursorMut<'c, T>),
+    {
+        // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
+        while cursor.get().is_some() && cursor.child_color(side) != Some(Color::Red) {
+            if cursor.child_color(side.opposite()) == Some(Color::Red) {
+                // Case 1.
+                cursor.set_child_color(side.opposite(), Color::Black);
+                cursor.set_color(Color::Red);
+                cursor.rotate(side, &mut on_subtree_change).unwrap();
+            }
+            
+            cursor.move_side(side.opposite()); // Move the cursor to w
+            if cursor.left_color() != Some(Color::Red) && cursor.right_color() != Some(Color::Red) {
+                // Case 2.
+                cursor.set_color(Color::Red);
+                cursor.move_up_after_subtree_change(&mut on_subtree_change); // Move the cursor to x.p
+            } else {
+                if cursor.child_color(side.opposite()) != Some(Color::Red) {
+                    // Case 3.
+                    cursor.set_child_color(side, Color::Black);
+                    cursor.set_color(Color::Red);
+                    cursor.rotate(side.opposite(), &mut on_subtree_change).unwrap();
+                    cursor.move_up_after_subtree_change(&mut on_subtree_change);
+                }
+
+                // Case 4.
+                cursor.set_color(cursor.parent_color().unwrap()); // w is the sibling of x, so x.p is also w.p
+                cursor.set_child_color(side.opposite(), Color::Black);
+                cursor.move_up_after_subtree_change(&mut on_subtree_change);
+                cursor.set_color(Color::Black);
+                cursor.rotate(side, &mut on_subtree_change).unwrap();
+
+                // Move cursor to root and maintain the invariant that the root is black.
+                while cursor.move_up_after_subtree_change(&mut on_subtree_change).is_some() {}
+                return;
+            }
+
+            if let Some(side_parent) = cursor.move_up_after_subtree_change(&mut on_subtree_change) {
+                side = side_parent;
+            } else {
+                break;
+            }
+        }
+
+        // Cursor points to the parent of x.
+        cursor.move_side(side);
+        cursor.set_color(Color::Black);
+    }
+
+    /// Removes the node with the given data from the tree.
+    /// Time complexity: O(log n).
+    pub fn remove<Q, F>(&mut self, data: &Q, mut on_subtree_change: F) -> Option<T>
+    where 
+        T: Borrow<Q>,
+        Q: Ord + ?Sized,
+        F: for<'c> FnMut(&mut CursorMut<'c, T>),
+    {
+        // Cormen et al.'s algorithm, with some simplifications.
+        let mut cursor = self.get_cursor_mut_at_data(data)?;
+        if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
+            // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
+            let [data_node, successor_node] = cursor.spawn_and_peek_nodes_mut(|[_, successor_cursor]| {
+                if successor_cursor.try_move_right() {
+                    while successor_cursor.try_move_left() {}
+                }
+            }).unwrap();
+            std::mem::swap(&mut data_node.data, &mut successor_node.data);
+
+            // Move the cursor to the successor node, which now holds the to-be-removed data.
+            if cursor.try_move_right() {
+                while cursor.try_move_left() {}
+            }
+        }
+
+        // The to-be-removed node has at most one child.
+        let key_color = cursor.color().unwrap(); // Can unwrap safely: the cursor exists, so it points to the node with the key.
+        let data = match cursor.peek_neighborhood() {
+            Neighborhood { left: None, right: None, .. } => {
+                let Some(side) = cursor.side_of_parent() else {
+                    // The to-be-deleted node is the only node left in the tree.
+                    // No need to fix semigroup values after removal.
+                    return cursor.detach_node(&mut on_subtree_change);
+                };
+                let data = cursor.detach_node(&mut on_subtree_change).unwrap();
+                if key_color == Color::Black {
+                    Self::remove_fixup_leaf(&mut cursor, side, &mut on_subtree_change);
+                }
+                while cursor.move_up_after_subtree_change(&mut on_subtree_change).is_some() {}
+                data
+            },
+            _ => {
+                // The to-be-deleted node has exactly one child.
+                // This means it is black and its child is red, so we can simply transplant and recolor.
+                let data = cursor.transplant_child().unwrap();
+                cursor.set_color(Color::Black);
+                while cursor.move_up_after_subtree_change(&mut on_subtree_change).is_some() {}
+                data
+            }
+        };
+        
+        if let Some(root) = self.0.root_mut().map(BinaryTreeNode::data_mut) {
+            root.color = Color::Black;
+        }
+        Some(data)
     }
 }
 
@@ -286,6 +455,23 @@ mod tests {
                 let old_value_tree = tree.insert(i, |_| {});
                 let old_value_set = if !set.insert(i) { Some(i) } else { None };
                 assert_eq!(old_value_tree, old_value_set);
+            }
+        }
+    }
+
+    #[test]
+    fn test_deletion() {
+        // Test deleting values in random order.
+        let mut rng = rand::rng();
+        for _ in 0..50 {
+            let mut values = (1..=30).collect::<Vec<_>>();
+            values.shuffle(&mut rng);
+            let mut tree = values.clone().into_iter().collect::<RedBlackTree<_>>();
+
+            values.shuffle(&mut rng);
+            for i in values {
+                tree.remove(&i, |_| {});
+                assert_valid_rb_tree(&tree);
             }
         }
     }

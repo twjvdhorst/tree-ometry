@@ -120,6 +120,13 @@ impl<'t, T> CursorMut<'t, T> {
         self.0.peek_right().map(RbNode::color)
     }
 
+    pub(super) fn child_color(&self, side: Side) -> Option<Color> {
+        match side {
+            Side::Left => self.left_color(),
+            Side::Right => self.right_color(),
+        }
+    }
+
     pub(super) fn uncle_color(&self) -> Option<Color> {
         let mut cursor = self.as_cursor();
         let side = cursor.move_up()?;
@@ -145,7 +152,7 @@ impl<'t, T> CursorMut<'t, T> {
 
     pub(super) fn move_up_after_subtree_change<F>(&mut self, mut on_subtree_change: F) -> Option<Side>
     where 
-        F: for<'c> FnMut(&mut Self),
+        F: FnMut(&mut Self),
     {
         let side = self.move_up()?;
         on_subtree_change(self);
@@ -154,7 +161,7 @@ impl<'t, T> CursorMut<'t, T> {
 
     pub(super) fn rotate<F>(&mut self, side: Side, mut on_subtree_change: F) -> Result<(), CursorError>
     where 
-        F: for<'c> FnMut(&mut Self),
+        F: FnMut(&mut Self),
     {
         self.0.rotate(side)?;
         on_subtree_change(self);
@@ -163,11 +170,45 @@ impl<'t, T> CursorMut<'t, T> {
 
     pub(super) fn attach_child<F>(&mut self, node: RbNode<T>, side: Side, mut on_subtree_change: F) -> Result<(), CursorError>
     where 
-        F: for<'c> FnMut(&mut Self),
+        F: FnMut(&mut Self),
     {
         self.0.attach_child(node, side)?;
         on_subtree_change(self);
         Ok(())
+    }
+
+    pub(super) fn detach_node<F>(&mut self, mut on_subtree_change: F) -> Option<T>
+    where 
+        F: FnMut(&mut Self),
+    {
+        let data = self.0.detach_node()?.into_data();
+        on_subtree_change(self);
+        Some(data)
+    }
+
+    /// Removes the node pointed at by the cursor from the tree, assuming the node has exactly one child.
+    /// Replaces the node by its child, after which the cursor points to this child.
+    /// Does nothing if the node has zero or two children.
+    /// Returns the removed node.
+    pub(super) fn transplant_child(&mut self) -> Option<T> {
+        // No need to use a callback function, as the child's subtree is not changed.
+        self.0.transplant_child().map(RbNode::into_data)
+    }
+
+    /// Spawn N cursors and move them around the tree according to the supplied function.
+    /// Reports mutable references to the nodes the cursors end up pointing at.
+    /// Requires the cursors to end up pointing at distinct, existing nodes; else None is returned.
+    pub(super) fn spawn_and_peek_nodes_mut<F, const N: usize>(&mut self, cursors_fn: F) -> Option<[&mut RbNode<T>; N]>
+    where
+        F: FnOnce(&mut [Cursor<'_, T>; N]),
+    {
+        // "Downgrade" cursors_fn to one that works on binary_tree::Cursor.
+        let cursors_fn = |cursors: &mut [binary_tree::Cursor<'_, RbNode<T>>; N]| {
+            let mut rb_cursors = std::array::from_fn(|i| Cursor(cursors[i]));
+            cursors_fn(&mut rb_cursors);
+            *cursors = rb_cursors.map(|cursor| cursor.0);
+        };
+        self.0.spawn_and_peek_mut(cursors_fn)
     }
 }
 
