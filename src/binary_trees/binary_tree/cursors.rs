@@ -145,7 +145,6 @@ impl<'t, T> PeekingCursor for Cursor<'t, T> {
 /// A cursor over a BinaryTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-/// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
 pub struct CursorMut<'t, T> {
     tree: &'t mut BinaryTree<T>,

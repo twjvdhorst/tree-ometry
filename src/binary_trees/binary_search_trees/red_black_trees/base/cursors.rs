@@ -7,7 +7,7 @@ use crate::binary_trees::{
     }, cursor_errors::CursorError
 };
 
-/// A cursor over a RedBlackTreeBase.
+/// A cursor over a RedBlackTree.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct Cursor<'t, T>(binary_tree::Cursor<'t, RbNode<T>>);
@@ -32,8 +32,7 @@ impl<'t, T> Cursor<'t, T> {
         Self(cursor)
     }
 
-    #[cfg(test)]
-    pub(super) fn into_inner(&self) -> binary_tree::Cursor<'t, RbNode<T>> {
+    pub(super) fn into_inner(self) -> binary_tree::Cursor<'t, RbNode<T>> {
         self.0
     }
 }
@@ -92,15 +91,17 @@ impl<'t, T> PeekingCursor for Cursor<'t, T> {
     }
 }
 
-/// A cursor over a SemigroupRbTree with editing operations.
+/// A cursor over a RedBlackTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-/// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct CursorMut<'t, T>(binary_tree::CursorMut<'t, RbNode<T>>);
 
 impl<'t, T> CursorMut<'t, T> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, RbNode<T>>) -> Self {
         Self(cursor)
+    }
+    pub(super) fn into_inner(self) -> binary_tree::CursorMut<'t, RbNode<T>> {
+        self.0
     }
 
     pub(super) fn color(&self) -> Option<Color> {

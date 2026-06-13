@@ -5,11 +5,24 @@ use super::{
     CursorMut,
     TreeSemigroup,
 };
-use crate::binary_trees::{binary_search_trees::red_black_trees::{base, ord_by_key::OrdByKey}, binary_tree_cursor::PeekingCursorMut};
+use crate::binary_trees::{
+    binary_search_trees::{
+        red_black_trees::{
+            base, 
+            ord_by_key::OrdByKey,
+        },
+        semigroup_rb_tree::iterators::{
+            InorderIter,
+            InorderIterMut,
+            IntoInorderIter,
+        },
+    },
+    binary_tree_cursor::PeekingCursorMut,
+};
 
 /// Struct containing the data in each node of the tree.
 /// Values are considered equal if their keys are equal, regardless of what other data they store.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct SemigroupRbData<K, V, S> {
     key: K,
     value: V,
@@ -36,9 +49,16 @@ where
 }
 
 impl<K, V, S> SemigroupRbData<K, V, S> {
-
     fn into_value(self) -> V {
         self.value
+    }
+
+    fn semigroup_value(&self) -> &S {
+        &self.semigroup_value
+    }
+
+    fn into_key_value(self) -> (K, V) {
+        (self.key, self.value)
     }
 
     pub(super) fn data(&self) -> (&K, &V, &S) {
@@ -49,16 +69,13 @@ impl<K, V, S> SemigroupRbData<K, V, S> {
         (&self.key, &mut self.value, &self.semigroup_value)
     }
 
-    fn into_key_value(self) -> (K, V) {
-        (self.key, self.value)
-    }
-
-    fn semigroup_value(&self) -> &S {
-        &self.semigroup_value
+    pub(super) fn into_data(self) -> (K, V, S) {
+        (self.key, self.value, self.semigroup_value)
     }
 }
 
-pub struct SemigroupRbTree<K, V, S>(base::RedBlackTree<SemigroupRbData<K, V, S>>);
+#[derive(Clone)]
+pub struct SemigroupRbTree<K, V, S>(pub(super) base::RedBlackTree<SemigroupRbData<K, V, S>>);
 
 impl<K, V, S> Default for SemigroupRbTree<K, V, S> {
     fn default() -> Self {
@@ -67,6 +84,10 @@ impl<K, V, S> Default for SemigroupRbTree<K, V, S> {
 }
 
 impl<K, V, S> SemigroupRbTree<K, V, S> {
+    pub fn new() -> Self {
+        Self(base::RedBlackTree::new())
+    }
+
     pub fn cursor(&self) -> Cursor<'_, K, V, S> {
         Cursor::new(self.0.cursor())
     }
@@ -134,6 +155,33 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<'t, K, V, S> IntoIterator for &'t SemigroupRbTree<K, V, S> {
+    type Item = (&'t K, &'t V, &'t S);
+    type IntoIter = InorderIter<'t, K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, K, V, S> IntoIterator for &'t mut SemigroupRbTree<K, V, S> {
+    type Item = (&'t K, &'t mut V, &'t S);
+    type IntoIter = InorderIterMut<'t, K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
+    }
+}
+
+impl<K, V, S> IntoIterator for SemigroupRbTree<K, V, S> {
+    type Item = (K, V, S);
+    type IntoIter = IntoInorderIter<K, V, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 

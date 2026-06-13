@@ -4,7 +4,15 @@ use super::{Cursor, CursorMut};
 use crate::binary_trees::{
     Neighborhood,
     Side,
-    binary_search_trees::red_black_trees::{Color, ord_by_key::OrdByKey},
+    binary_search_trees::red_black_trees::{
+        Color, 
+        base::{
+            InorderIter,
+            InorderIterMut,
+            IntoInorderIter,
+        },
+        ord_by_key::OrdByKey,
+    },
     binary_tree::{
         BinaryTree,
         BinaryTreeNode,
@@ -15,6 +23,7 @@ use crate::binary_trees::{
     },
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct RbNode<T> {
     data: T,
     color: Color,
@@ -42,7 +51,8 @@ impl<T> RbNode<T> {
     }
 }
 
-pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct RedBlackTree<T>(BinaryTree<RbNode<T>>);
+#[derive(Clone)]
+pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct RedBlackTree<T>(pub(super) BinaryTree<RbNode<T>>);
 
 impl<T> Default for RedBlackTree<T> {
     fn default() -> Self {
@@ -334,6 +344,33 @@ where
         let mut tree = Self::default();
         tree.extend(iter);
         tree
+    }
+}
+
+impl<'t, T> IntoIterator for &'t RedBlackTree<T> {
+    type Item = &'t T;
+    type IntoIter = InorderIter<'t, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter()
+    }
+}
+
+impl<'t, T> IntoIterator for &'t mut RedBlackTree<T> {
+    type Item = &'t mut T;
+    type IntoIter = InorderIterMut<'t, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inorder_iter_mut()
+    }
+}
+
+impl<T> IntoIterator for RedBlackTree<T> {
+    type Item = T;
+    type IntoIter = IntoInorderIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_inorder_iter()
     }
 }
 

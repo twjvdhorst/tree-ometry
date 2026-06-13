@@ -39,6 +39,10 @@ impl<'t, K, V, S> Cursor<'t, K, V, S> {
     pub(super) fn new(cursor: base::Cursor<'t, SemigroupRbData<K, V, S>>) -> Self {
         Self(cursor)
     }
+
+    pub(super) fn into_inner(self) -> base::Cursor<'t, SemigroupRbData<K, V, S>> {
+        self.0
+    }
 }
 
 impl<'t, K, V, S> BinaryTreeCursor for Cursor<'t, K, V, S> {   
@@ -98,13 +102,16 @@ impl<'t, K, V, S> PeekingCursor for Cursor<'t, K, V, S> {
 /// A cursor over a SemigroupRbTree with editing operations.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-/// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
 #[derive(Debug)]
 pub struct CursorMut<'t, K, V, S>(base::CursorMut<'t, SemigroupRbData<K, V, S>>);
 
 impl<'t, K, V, S> CursorMut<'t, K, V, S> {
     pub(super) fn new(cursor: base::CursorMut<'t, SemigroupRbData<K, V, S>>) -> Self {
         Self(cursor)
+    }
+
+    pub(super) fn into_inner(self) -> base::CursorMut<'t, SemigroupRbData<K, V, S>> {
+        self.0
     }
 }
 
