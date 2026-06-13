@@ -1,8 +1,4 @@
-use std::marker::PhantomData;
-
-use derive_more::Debug;
-
-use super::{RbNode, RedBlackTree};
+use super::RbNode;
 use crate::binary_trees::{
     Neighborhood, Side, binary_search_trees::red_black_trees::Color, binary_tree, binary_tree_cursor::{
         BinaryTreeCursor,
@@ -14,8 +10,7 @@ use crate::binary_trees::{
 /// A cursor over a RedBlackTreeBase.
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
-#[derive(Debug)]
-pub(super) struct Cursor<'t, T>(binary_tree::Cursor<'t, RbNode<T>>);
+pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct Cursor<'t, T>(binary_tree::Cursor<'t, RbNode<T>>);
 
 /// Make own implementation of Clone, so T doesn't have to be Clone.
 impl<'t, T> Clone for Cursor<'t, T> {
@@ -35,6 +30,11 @@ impl<'t, T> From<CursorMut<'t, T>> for Cursor<'t, T> {
 impl<'t, T> Cursor<'t, T> {
     pub(super) fn new(cursor: binary_tree::Cursor<'t, RbNode<T>>) -> Self {
         Self(cursor)
+    }
+
+    #[cfg(test)]
+    pub(super) fn into_inner(&self) -> binary_tree::Cursor<'t, RbNode<T>> {
+        self.0
     }
 }
 
@@ -69,26 +69,26 @@ impl<'t, T> BinaryTreeCursor for Cursor<'t, T> {
 }
 
 impl<'t, T> PeekingCursor for Cursor<'t, T> {
-    type Item = &'t RbNode<T>;
+    type Item = &'t T;
 
     fn get(&self) -> Option<Self::Item> {
-        self.0.get()
+        self.0.get().map(RbNode::data)
     }
 
     fn peek_up(&self) -> Option<Self::Item> {
-        self.0.peek_up()
+        self.0.peek_up().map(RbNode::data)
     }
 
     fn peek_left(&self) -> Option<Self::Item> {
-        self.0.peek_left()
+        self.0.peek_left().map(RbNode::data)
     }
 
     fn peek_right(&self) -> Option<Self::Item> {
-        self.0.peek_right()
+        self.0.peek_right().map(RbNode::data)
     }
 
     fn peek_neighborhood(&self) -> Neighborhood<Self::Item> {
-        self.0.peek_neighborhood()
+        self.0.peek_neighborhood().map(RbNode::data)
     }
 }
 
@@ -96,8 +96,7 @@ impl<'t, T> PeekingCursor for Cursor<'t, T> {
 /// A Cursor can freely walk through the tree.
 /// When created, Cursors start at the (possibly non-existent) root of the tree.
 /// Cursors maintain the invariant that as long as the tree has a node, the cursor points to a node.
-#[derive(Debug)]
-pub(super) struct CursorMut<'t, T>(binary_tree::CursorMut<'t, RbNode<T>>);
+pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct CursorMut<'t, T>(binary_tree::CursorMut<'t, RbNode<T>>);
 
 impl<'t, T> CursorMut<'t, T> {
     pub(super) fn new(cursor: binary_tree::CursorMut<'t, RbNode<T>>) -> Self {
@@ -130,7 +129,7 @@ impl<'t, T> CursorMut<'t, T> {
     pub(super) fn uncle_color(&self) -> Option<Color> {
         let mut cursor = self.as_cursor();
         let side = cursor.move_up()?;
-        cursor.peek_side(side.opposite()).map(RbNode::color)
+        cursor.0.peek_side(side.opposite()).map(RbNode::color)
     }
 
     pub(super) fn set_color(&mut self, color: Color) {
@@ -243,16 +242,16 @@ impl<'t, T> BinaryTreeCursor for CursorMut<'t, T> {
 }
 
 impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
-    type Item<'c> = &'c RbNode<T> where Self: 'c;
-    type ItemMut<'c> = &'c mut RbNode<T> where Self: 'c;
+    type Item<'c> = &'c T where Self: 'c;
+    type ItemMut<'c> = &'c mut T where Self: 'c;
     type AsCursor<'c> = Cursor<'c, T> where Self: 'c;
 
     fn get(&self) -> Option<Self::Item<'_>> {
-        self.0.get()
+        self.0.get().map(RbNode::data)
     }
 
     fn get_mut(&mut self) -> Option<Self::ItemMut<'_>> {
-        self.0.get_mut()
+        self.0.get_mut().map(RbNode::data_mut)
     }
 
     fn as_cursor(&self) -> Self::AsCursor<'_> {
@@ -260,34 +259,34 @@ impl<'t, T> PeekingCursorMut for CursorMut<'t, T> {
     }
 
     fn peek_up(&self) -> Option<Self::Item<'_>> {
-        self.0.peek_up()
+        self.0.peek_up().map(RbNode::data)
     }
 
     fn peek_left(&self) -> Option<Self::Item<'_>> {
-        self.0.peek_left()
+        self.0.peek_left().map(RbNode::data)
     }
 
     fn peek_right(&self) -> Option<Self::Item<'_>> {
-        self.0.peek_right()
+        self.0.peek_right().map(RbNode::data)
     }
 
     fn peek_neighborhood(&self) -> Neighborhood<Self::Item<'_>> {
-        self.0.peek_neighborhood()
+        self.0.peek_neighborhood().map(RbNode::data)
     }
 
     fn peek_up_mut(&mut self) -> Option<Self::ItemMut<'_>> {
-        self.0.peek_up_mut()
+        self.0.peek_up_mut().map(RbNode::data_mut)
     }
 
     fn peek_left_mut(&mut self) -> Option<Self::ItemMut<'_>> {
-        self.0.peek_left_mut()
+        self.0.peek_left_mut().map(RbNode::data_mut)
     }
 
     fn peek_right_mut(&mut self) -> Option<Self::ItemMut<'_>> {
-        self.0.peek_right_mut()
+        self.0.peek_right_mut().map(RbNode::data_mut)
     }
 
     fn peek_neighborhood_mut(&mut self) -> Neighborhood<Self::ItemMut<'_>> {
-        self.0.peek_neighborhood_mut()
+        self.0.peek_neighborhood_mut().map(RbNode::data_mut)
     }
 }

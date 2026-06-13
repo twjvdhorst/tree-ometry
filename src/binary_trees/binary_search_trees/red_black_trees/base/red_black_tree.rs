@@ -4,7 +4,7 @@ use super::{Cursor, CursorMut};
 use crate::binary_trees::{
     Neighborhood,
     Side,
-    binary_search_trees::red_black_trees::Color,
+    binary_search_trees::red_black_trees::{Color, ord_by_key::OrdByKey},
     binary_tree::{
         BinaryTree,
         BinaryTreeNode,
@@ -15,14 +15,18 @@ use crate::binary_trees::{
     },
 };
 
-pub(super) struct RbNode<T> {
+pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct RbNode<T> {
     data: T,
     color: Color,
 }
 
 impl<T> RbNode<T> {
-    fn data(&self) -> &T {
+    pub fn data(&self) -> &T {
         &self.data
+    }
+
+    pub fn data_mut(&mut self) -> &mut T {
+        &mut self.data
     }
 
     pub(super) fn into_data(self) -> T {
@@ -38,7 +42,7 @@ impl<T> RbNode<T> {
     }
 }
 
-pub(super) struct RedBlackTree<T>(BinaryTree<RbNode<T>>);
+pub(in crate::binary_trees::binary_search_trees::red_black_trees) struct RedBlackTree<T>(BinaryTree<RbNode<T>>);
 
 impl<T> Default for RedBlackTree<T> {
     fn default() -> Self {
@@ -46,30 +50,8 @@ impl<T> Default for RedBlackTree<T> {
     }
 }
 
-impl<T> Extend<T> for RedBlackTree<T>
-where 
-    T: Ord,
-{
-    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        for data in iter {
-            self.insert(data, |_| {});
-        }
-    }
-}
-
-impl<T> FromIterator<T> for RedBlackTree<T>
-where 
-    T: Ord,
-{
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut tree = Self::default();
-        tree.extend(iter);
-        tree
-    }
-}
-
 impl<T> RedBlackTree<T> {
-    pub(super) fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
@@ -89,12 +71,12 @@ impl<T> RedBlackTree<T> {
 /// Insertions.
 impl<T> RedBlackTree<T>
 where 
-    T: Ord,
+    T: OrdByKey,
 {
     /// Moves the cursor to the direct predecessor or successor of the value being inserted.
     /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
     fn find_node_to_insert_at(cursor: &mut CursorMut<'_, T>, data: &T) -> Option<Side> {
-        while let Some(curr_data) = cursor.get().map(RbNode::data) {
+        while let Some(curr_data) = cursor.get() {
             match T::cmp(&data, curr_data) {
                 Ordering::Less => {
                     if !cursor.try_move_left() {
@@ -175,7 +157,7 @@ where
         // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
         let Some(side) = Self::find_node_to_insert_at(&mut cursor, &data) else {
             // Cursor was moved to the node containing the key.
-            return Some(std::mem::replace(&mut cursor.get_mut()?.data, data));
+            return Some(std::mem::replace(cursor.get_mut()?, data));
         };
 
         // The cursor now points to the parent of the node we will create.
@@ -204,20 +186,20 @@ where
 /// Deletions.
 impl<T> RedBlackTree<T>
 where 
-    T: Ord,
+    T: OrdByKey,
 {
     /// Creates a cursor at the node storing the given data.
     /// Returns None if the data is not in the tree.
-    fn get_cursor_mut_at_data<Q>(&mut self, data: &Q) -> Option<CursorMut<'_, T>>
+    fn get_cursor_mut_at_data<Q>(&mut self, key: &Q) -> Option<CursorMut<'_, T>>
     where 
-        T: Borrow<Q>,
+        T::Key: Borrow<Q>,
         Q: Ord + ?Sized,
     {
         let mut cursor = self.cursor_mut();
-        while let Some(curr_data) = cursor.get().map(RbNode::data) {
-            match Q::cmp(data, curr_data.borrow()) {
-                Ordering::Less => cursor.move_left(),
-                Ordering::Greater => cursor.move_right(),
+        while let Some(curr_key) = cursor.get() {
+            match curr_key.cmp_to_key(key) {
+                Ordering::Less => cursor.move_right(),
+                Ordering::Greater => cursor.move_left(),
                 Ordering::Equal => return Some(cursor),
             };
         }
@@ -275,16 +257,16 @@ where
         cursor.set_color(Color::Black);
     }
 
-    /// Removes the node with the given data from the tree.
+    /// Removes the node with the given key from the tree.
     /// Time complexity: O(log n).
-    pub fn remove<Q, F>(&mut self, data: &Q, mut on_subtree_change: F) -> Option<T>
+    pub fn remove<Q, F>(&mut self, key: &Q, mut on_subtree_change: F) -> Option<T>
     where 
-        T: Borrow<Q>,
+        T::Key: Borrow<Q>,
         Q: Ord + ?Sized,
         F: for<'c> FnMut(&mut CursorMut<'c, T>),
     {
         // Cormen et al.'s algorithm, with some simplifications.
-        let mut cursor = self.get_cursor_mut_at_data(data)?;
+        let mut cursor = self.get_cursor_mut_at_data(key)?;
         if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
             // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
             let [data_node, successor_node] = cursor.spawn_and_peek_nodes_mut(|[_, successor_cursor]| {
@@ -333,14 +315,37 @@ where
     }
 }
 
+impl<T> Extend<T> for RedBlackTree<T>
+where 
+    T: OrdByKey,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for data in iter {
+            self.insert(data, |_| {});
+        }
+    }
+}
+
+impl<T> FromIterator<T> for RedBlackTree<T>
+where 
+    T: OrdByKey,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut tree = Self::default();
+        tree.extend(iter);
+        tree
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{borrow::Borrow, cmp::Ordering};
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashSet;
     use rand::prelude::*;
 
     use super::*;
-    use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor};
+    use crate::binary_trees::binary_tree;
+use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor};
 
     fn assert_binary_search_tree<T>(tree: &RedBlackTree<T>)
     where 
@@ -350,7 +355,7 @@ mod tests {
         where
             T: Ord + Clone,
         {
-            let data = &cursor.get()?.data;
+            let data = cursor.get()?;
             let mut left_cursor = cursor;
             let mut right_cursor = cursor.clone();
             let left_result = if left_cursor.try_move_left() {
@@ -381,7 +386,7 @@ mod tests {
         T: Ord + Clone,
     {
         // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree.
-        fn assert_valid_rb_tree_recursive<T>(cursor: Cursor<'_, T>) -> usize
+        fn assert_valid_rb_tree_recursive<T>(cursor: binary_tree::Cursor<'_, RbNode<T>>) -> usize
         where
             T: Ord + Clone,
         {
@@ -415,11 +420,27 @@ mod tests {
             }
         }
 
-        let cursor = tree.cursor();
+        let cursor = tree.cursor().into_inner();
         if let Some(node) = cursor.get() {
             assert_eq!(node.color, Color::Black);
             assert_binary_search_tree(tree);
             assert_valid_rb_tree_recursive(cursor);
+        }
+    }
+
+    impl<T: Ord> OrdByKey for T {
+        type Key = T;
+
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.cmp(other)
+        }
+
+        fn cmp_to_key<Q>(&self, key: &Q) -> Ordering
+        where
+            Self::Key: Borrow<Q>,
+            Q: Ord + ?Sized
+        {
+            self.borrow().cmp(key)
         }
     }
 

@@ -1,79 +1,44 @@
-use std::{
-    borrow::Borrow, 
-    cmp::Ordering, 
-    fmt::{
-        Debug, 
-        Display,
-    },
-};
-
-#[cfg(feature = "serde")]
-use serde::Serialize;
+use std::borrow::Borrow;
 
 use super::{
-    InorderIter,
-    InorderIterMut,
-    IntoInorderIter,
+    Cursor,
+    CursorMut,
     TreeSemigroup,
 };
-use crate::binary_trees::{
-    Neighborhood, Side, binary_search_trees::red_black_trees::{Color, traits::{RedBlackCursor, RedBlackTree}}, binary_tree::{
-        BinaryTree,
-        BinaryTreeNode,
-    }, binary_tree_cursor::{
-        BinaryTreeCursor,
-        PeekingCursor,
-        PeekingCursorMut,
-    }
-};
-use super::cursors::{Cursor, CursorMut};
+use crate::binary_trees::{binary_search_trees::red_black_trees::{base, ord_by_key::OrdByKey}, binary_tree_cursor::PeekingCursorMut};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub(super) struct SemigroupRbNode<K, V, S> {
-    key: K, 
+/// Struct containing the data in each node of the tree.
+/// Values are considered equal if their keys are equal, regardless of what other data they store.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct SemigroupRbData<K, V, S> {
+    key: K,
     value: V,
     semigroup_value: S,
-    color: Color,
 }
 
-impl<K, V, S> SemigroupRbNode<K, V, S>
+impl<K, V, S> OrdByKey for SemigroupRbData<K, V, S>
 where 
-    S: TreeSemigroup<K>,
+    K: Ord,
 {
-    pub(super) fn new_with_color(key: K, value: V, color: Color) -> Self {
-        let semigroup_value = S::op(&key, None, None);
-        Self {
-            key,
-            value,
-            semigroup_value,
-            color,
-        }
+    type Key = K;
+
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.key.cmp(&other.key)
+    }
+
+    fn cmp_to_key<Q>(&self, key: &Q) -> std::cmp::Ordering
+    where
+        Self::Key: Borrow<Q>,
+        Q: Ord + ?Sized
+    {
+        self.key.borrow().cmp(key)
     }
 }
 
-impl<K, V, S> SemigroupRbNode<K, V, S> {
-    pub(super) fn new_with_color_and_semigroup_value(key: K, value: V, semigroup_value: S, color: Color) -> Self {
-        Self {
-            key,
-            value,
-            semigroup_value,
-            color,
-        }
-    }
-}
+impl<K, V, S> SemigroupRbData<K, V, S> {
 
-impl<K, V, S> SemigroupRbNode<K, V, S> {
-    pub(super) fn key(&self) -> &K {
-        &self.key
-    }
-
-    pub(super) fn value(&self) -> &V {
-        &self.value
-    }
-
-    pub(super) fn semigroup_value(&self) -> &S {
-        &self.semigroup_value
+    fn into_value(self) -> V {
+        self.value
     }
 
     pub(super) fn data(&self) -> (&K, &V, &S) {
@@ -84,43 +49,67 @@ impl<K, V, S> SemigroupRbNode<K, V, S> {
         (&self.key, &mut self.value, &self.semigroup_value)
     }
 
-    pub(super) fn into_data(self) -> (K, V, S) {
-        (self.key, self.value, self.semigroup_value)
-    }
-
-    pub(super) fn set_semigroup_value(&mut self, semigroup_value: S) {
-        self.semigroup_value = semigroup_value;
-    }
-
-    pub(super) fn is_red(&self) -> bool {
-        self.color == Color::Red
-    }
-
-    pub(super) fn is_black(&self) -> bool {
-        self.color == Color::Black
-    }
-
-    pub(super) fn color(&self) -> Color {
-        self.color
-    }
-
-    pub(super) fn set_color(&mut self, color: Color) {
-        self.color = color;
-    }
-}
-
-impl<K, V, S> Into<(K, V)> for SemigroupRbNode<K, V, S> {
-    fn into(self) -> (K, V) {
+    fn into_key_value(self) -> (K, V) {
         (self.key, self.value)
     }
+
+    fn semigroup_value(&self) -> &S {
+        &self.semigroup_value
+    }
 }
 
-#[derive(Clone)]
-pub struct SemigroupRbTree<K, V, S>(pub(super) BinaryTree<SemigroupRbNode<K, V, S>>);
+pub struct SemigroupRbTree<K, V, S>(base::RedBlackTree<SemigroupRbData<K, V, S>>);
 
 impl<K, V, S> Default for SemigroupRbTree<K, V, S> {
     fn default() -> Self {
-        Self(BinaryTree::default())
+        Self(base::RedBlackTree::default())
+    }
+}
+
+impl<K, V, S> SemigroupRbTree<K, V, S> {
+    pub fn cursor(&self) -> Cursor<'_, K, V, S> {
+        Cursor::new(self.0.cursor())
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V, S> {
+        CursorMut::new(self.0.cursor_mut())
+    }
+}
+
+impl<K, V, S> SemigroupRbTree<K, V, S>
+where 
+    K: Ord,
+    S: TreeSemigroup<K>,
+{
+    /// Recomputes the semigroup value of the current node.
+    fn on_subtree_change(cursor: &mut base::CursorMut<'_, SemigroupRbData<K, V, S>>) {
+        let Some(data) = cursor.get() else { return; };
+        let new_semigroup_value = S::op(
+            &data.key,
+            cursor.peek_left().map(SemigroupRbData::semigroup_value),
+            cursor.peek_right().map(SemigroupRbData::semigroup_value),
+        );
+        cursor.get_mut().unwrap().semigroup_value = new_semigroup_value;
+    }
+
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let semigroup_value = S::op(&key, None, None);
+        let data = SemigroupRbData {
+            key,
+            value,
+            semigroup_value,
+        };
+        self.0.insert(data, Self::on_subtree_change)
+            .map(SemigroupRbData::into_value)
+    }
+
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where 
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.remove(key, Self::on_subtree_change)
+            .map(SemigroupRbData::into_key_value)
     }
 }
 
@@ -130,8 +119,8 @@ where
     S: TreeSemigroup<K>,
 {
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        for (key, value) in iter {
-            self.insert(key, value);
+        for (k, v) in iter {
+            self.insert(k, v);
         }
     }
 }
@@ -148,776 +137,12 @@ where
     }
 }
 
-impl<'t, K, V, S> IntoIterator for &'t SemigroupRbTree<K, V, S> {
-    type Item = (&'t K, &'t V, &'t S);
-    type IntoIter = InorderIter<'t, K, V, S>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.inorder_iter()
-    }
-}
-
-impl<'t, K, V, S> IntoIterator for &'t mut SemigroupRbTree<K, V, S> {
-    type Item = (&'t K, &'t mut V, &'t S);
-    type IntoIter = InorderIterMut<'t, K, V, S>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.inorder_iter_mut()
-    }
-}
-
-impl<K, V, S> IntoIterator for SemigroupRbTree<K, V, S> {
-    type Item = (K, V, S);
-    type IntoIter = IntoInorderIter<K, V, S>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.into_inorder_iter()
-    }
-}
-
-impl<K, V, S> SemigroupRbTree<K, V, S> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self(BinaryTree::with_capacity(capacity))
-    }
-
-    fn root(&self) -> Option<&SemigroupRbNode<K, V, S>> {
-        self.0.root().map(BinaryTreeNode::data)
-    }
-
-    fn root_mut(&mut self) -> Option<&mut SemigroupRbNode<K, V, S>> {
-        self.0.root_mut().map(BinaryTreeNode::data_mut)
-    }
-
-    pub(super) fn inner(&self) -> &BinaryTree<SemigroupRbNode<K, V, S>> {
-        &self.0
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn map_values<U, F>(self, mut f: F) -> SemigroupRbTree<K, U, S>
-    where 
-        F: FnMut(V) -> U,
-    {
-        let f = |node: SemigroupRbNode<K, V, S>| SemigroupRbNode {
-            key: node.key, 
-            value: f(node.value), 
-            semigroup_value: node.semigroup_value,
-            color: node.color,
-        };
-        SemigroupRbTree(self.0.map(f))
-    }
-    
-    pub fn change_semigroup<SNew>(self) -> SemigroupRbTree<K, V, SNew>
-    where 
-        SNew: TreeSemigroup<K>,
-    {
-        // Make new tree with temporary semigroup values of type SNew.
-        let mut tree = SemigroupRbTree(self.0.map(|node| {
-            let temp_semigroup_value = SNew::op(&node.key, None, None);
-            SemigroupRbNode {
-                key: node.key, 
-                value: node.value, 
-                semigroup_value: temp_semigroup_value,
-                color: node.color,
-            }
-        }));
-
-        // Update semigroup values through a postorder traversal of the tree.
-        let mut cursor = tree.cursor_mut();
-        while cursor.try_move_left() {}
-        
-        while let Neighborhood { node: Some((key, ..)), left, right, .. } = cursor.peek_neighborhood() {
-            let new_semigroup_value = SNew::op(
-                key, 
-                left.map(|(.., s)| s), 
-                right.map(|(.., s)| s),
-            );
-            cursor.set_semigroup_value(new_semigroup_value);
-            
-            // Move to next node in postorder order.
-            if cursor.move_up() == Some(Side::Left) {
-                if cursor.try_move_right() {
-                    while cursor.try_move_left() {}
-                }
-            }
-        }
-
-        tree
-    }
-
-    pub fn cursor(&self) -> Cursor<'_, K, V, S> {
-        Cursor::new(self.0.cursor())
-    }
-
-    pub fn cursor_mut(&mut self) -> CursorMut<'_, K, V, S> {
-        CursorMut::new(self.0.cursor_mut())
-    }
-}
-
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where 
-    S: TreeSemigroup<K>,
-{
-    fn fix_ancestor_semigroup_values(cursor: &mut CursorMut<'_, K, V, S>) {
-        while cursor.move_up_and_recompute_semigroup_value().is_some() {}
-    }
-}
-
-impl<K, V, S> RedBlackTree for SemigroupRbTree<K, V, S>
-where 
-    K: Ord,
-    S: TreeSemigroup<K>,
-{
-    type Key = K;
-    type Value = V;
-    type RbCursor<'t> = CursorMut<'t, K, V, S>
-    where Self: 't;
-
-    fn rb_cursor(&mut self) -> Self::RbCursor<'_> {
-        self.cursor_mut()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn create_root(&mut self, key: Self::Key, value: Self::Value, color: Color) {
-        self.0 = BinaryTree::new_singleton(SemigroupRbNode::new_with_color(key, value, color))
-    }
-
-    fn set_root_color(&mut self, color: Color) {
-        if let Some(root) = self.root_mut() {
-            root.color = color;
-        }
-    }
-}
-
-/// Insertions.
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where 
-    K: Ord,
-    S: TreeSemigroup<K>,
-{
-    /// Moves the cursor to the direct predecessor or successor of the value being inserted.
-    /// Reports the side of the node that the key should be inserted at, or None if the node contains the key already.
-    fn find_node_to_insert_at(cursor: &mut CursorMut<'_, K, V, S>, key: &K) -> Option<Side> {
-        while let Some((curr_key, ..)) = cursor.get() {
-            match K::cmp(&key, curr_key) {
-                Ordering::Less => {
-                    if !cursor.try_move_left() {
-                        return Some(Side::Left);
-                    }
-                },
-                Ordering::Greater => {
-                    if !cursor.try_move_right() {
-                        return Some(Side::Right);
-                    }
-                },
-                Ordering::Equal => {
-                    return None;
-                },
-            };
-        }
-        None
-    }
-
-    fn insert_fixup(cursor: &mut CursorMut<'_, K, V, S>) {
-        cursor.insert_fixup();
-        Self::fix_ancestor_semigroup_values(cursor);
-        return;
-        // Cormen et al.'s algorithm.
-        // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.parent_color() == Some(Color::Red) {
-            // At the start of the loop, cursor points to z.
-            let side_current = cursor.move_up_and_recompute_semigroup_value().unwrap(); // Move the cursor to z.p
-            let side_parent = cursor.side_of_parent().unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
-
-            if cursor.uncle_color() == Some(Color::Red) {
-                // Case 1
-                cursor.set_color(Color::Black);
-                cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to z.p.p, where it stays for the next iteration.
-                cursor.set_color(Color::Red);
-                cursor.set_child_color(side_parent.opposite(), Color::Black);
-            } else {
-                if side_current == side_parent.opposite() {
-                    // Case 2
-                    cursor.rotate_and_fix_semigroup_value(side_parent).unwrap();
-                    cursor.move_up_and_recompute_semigroup_value();
-                }
-
-                // Case 3
-                cursor.set_color(Color::Black);
-                cursor.move_up_and_recompute_semigroup_value();
-                cursor.set_color(Color::Red);
-                cursor.rotate_and_fix_semigroup_value(side_parent.opposite()).unwrap();
-
-                // After rotating around z.p.p, z is the sibling of the node pointed at by the cursor.
-                let side = cursor.move_up_and_recompute_semigroup_value().unwrap();
-                cursor.move_side(side.opposite());
-            }
-        }
-
-        Self::fix_ancestor_semigroup_values(cursor);
-    }
-
-    /// Inserts the key-value pair into the tree.
-    /// If the key was not present in the tree yet, None is returned.
-    /// Otherwise, the value stored at the given key is updated, and the old value is returned.
-    /// Time complexity: O(log n).
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        return <Self as RedBlackTree>::insert(self, key, value);
-
-        // Cormen et al.'s algorithm.
-        if self.root().is_none() {
-            self.0 = BinaryTree::new_singleton(SemigroupRbNode::new_with_color(key, value, Color::Black));
-            return None;
-        }
-
-        let mut cursor = self.cursor_mut();
-
-        // Move the cursor to the direct predecessor or successor of the to-be-inserted key.
-        let Some(side) = Self::find_node_to_insert_at(&mut cursor, &key) else {
-            // Cursor was moved to the node containing the key.
-            let old_value = std::mem::replace(cursor.get_mut().unwrap().1, value);
-            return Some(old_value);
-        };
-
-        // The cursor now points to the parent of the node we will create.
-        let new_node = SemigroupRbNode::new_with_color(key, value, Color::Red);
-        cursor.attach_child(new_node, side).unwrap();
-
-        // Fix the red-black tree structure.
-        cursor.move_side(side);
-        Self::insert_fixup(&mut cursor);
-
-        // Maintain the invariant that the root is black.
-        self.root_mut().unwrap().set_color(Color::Black); // Can unwrap safely: we already handled the case where the tree was empty.
-        None
-    }
-}
-
-/// Deletions.
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where 
-    K: Ord,
-    S: TreeSemigroup<K>,
-{
-    /// Creates a cursor at the node storing the given key.
-    /// Returns None if the key is not in the tree.
-    fn get_cursor_mut_at_key<Q>(&mut self, key: &Q) -> Option<CursorMut<'_, K, V, S>>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        let mut cursor = self.cursor_mut();
-        while let Some((curr_key, ..)) = cursor.get() {
-            match Q::cmp(key, curr_key.borrow()) {
-                Ordering::Less => cursor.move_left(),
-                Ordering::Greater => cursor.move_right(),
-                Ordering::Equal => return Some(cursor),
-            };
-        }
-        None
-    }
-
-    fn remove_fixup_leaf(cursor: &mut CursorMut<'_, K, V, S>, mut side: Side) {
-        // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
-        while cursor.get().is_some() && cursor.child_color(side) != Some(Color::Red) {
-            if cursor.child_color(side.opposite()) == Some(Color::Red) {
-                // Case 1.
-                cursor.set_child_color(side.opposite(), Color::Black);
-                cursor.set_color(Color::Red);
-                cursor.rotate_and_fix_semigroup_value(side).unwrap();
-            }
-            
-            cursor.move_side(side.opposite()); // Move the cursor to w
-            if cursor.left_color() != Some(Color::Red) && cursor.right_color() != Some(Color::Red) {
-                // Case 2.
-                cursor.set_color(Color::Red);
-                cursor.move_up_and_recompute_semigroup_value(); // Move the cursor to x.p
-            } else {
-                if cursor.child_color(side.opposite()) != Some(Color::Red) {
-                    // Case 3.
-                    cursor.set_child_color(side, Color::Black);
-                    cursor.set_color(Color::Red);
-                    cursor.rotate_and_fix_semigroup_value(side.opposite()).unwrap();
-                    cursor.move_up_and_recompute_semigroup_value();
-                }
-
-                // Case 4.
-                cursor.set_color(cursor.parent_color().unwrap()); // w is the sibling of x, so x.p is also w.p
-                cursor.set_child_color(side.opposite(), Color::Black);
-                cursor.move_up_and_recompute_semigroup_value();
-                cursor.set_color(Color::Black);
-                cursor.rotate_and_fix_semigroup_value(side).unwrap();
-
-                // Move cursor to root and maintain the invariant that the root is black.
-                while cursor.try_move_up_and_recompute_semigroup_value().is_some() {}
-                cursor.set_color(Color::Black);
-                return;
-            }
-
-            if let Some(side_parent) = cursor.move_up_and_recompute_semigroup_value() {
-                side = side_parent;
-            } else {
-                break;
-            }
-        }
-
-        // Cursor points to the parent of x.
-        cursor.move_side(side);
-        cursor.set_color(Color::Black);
-    }
-
-    /// Removes the node with the given key from the tree.
-    /// Returns the key and associated value.
-    /// Time complexity: O(log n).
-    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        // Cormen et al.'s algorithm, with some simplifications.
-        let mut cursor = self.get_cursor_mut_at_key(key)?;
-        if let Neighborhood { left: Some(_), right: Some(_), .. } = cursor.peek_neighborhood() {
-            // Swap the data in the to-be-deleted node with its successor, which has at most 1 child.
-            let [key_node, successor_node] = cursor.spawn_and_peek_nodes_mut(|[_, successor_cursor]| {
-                if successor_cursor.try_move_right() {
-                    while successor_cursor.try_move_left() {}
-                }
-            }).unwrap();
-            std::mem::swap(&mut key_node.key, &mut successor_node.key);
-            std::mem::swap(&mut key_node.value, &mut successor_node.value);
-
-            // Move the cursor to the successor node, which now holds the to-be-removed data.
-            if cursor.try_move_right() {
-                while cursor.try_move_left() {}
-            }
-        }
-
-        // The to-be-removed node has at most one child.
-        let key_color = cursor.color().unwrap(); // Can unwrap safely: the cursor exists, so it points to the node with the key.
-        let data = match cursor.peek_neighborhood() {
-            Neighborhood { left: None, right: None, .. } => {
-                let Some(side) = cursor.side_of_parent() else {
-                    // The to-be-deleted node is the only node left in the tree.
-                    // No need to fix semigroup values after removal.
-                    return cursor.detach_node();
-                };
-                let data = cursor.detach_node().unwrap();
-                if key_color == Color::Black {
-                    Self::remove_fixup_leaf(&mut cursor, side);
-                }
-                Self::fix_ancestor_semigroup_values(&mut cursor);
-                data
-            },
-            _ => {
-                // The to-be-deleted node has exactly one child.
-                // This means it is black and its child is red, so we can simply transplant and recolor.
-                let data = cursor.transplant_child().unwrap();
-                cursor.set_color(Color::Black);
-                Self::fix_ancestor_semigroup_values(&mut cursor);
-                data
-            }
-        };
-        Some(data)
-    }
-
-    /// Removes the node with the given key from the tree.
-    /// Returns the associated value.
-    /// Time complexity: O(log n).
-    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
-    where 
-        K: Borrow<Q>,
-        Q: Ord + ?Sized,
-    {
-        self.remove_entry(key).map(|(_, v)| v)
-    }
-}
-
-/// Queries.
-impl<K, V, S> SemigroupRbTree<K, V, S>
-where 
-    K: Ord,
-{
-    pub fn contains_key<Q>(&self, key: &Q) -> bool
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        self.get_key_value(key).is_some()
-    }
-
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        self.get_key_value(key).map(|(_, v)| v)
-    }
-
-    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        let mut cursor = self.cursor();
-        while let Some((curr_key, curr_val, _)) = cursor.get() {
-            match Q::cmp(curr_key.borrow(), key) {
-                Ordering::Greater => cursor.move_left(),
-                Ordering::Less => cursor.move_right(),
-                Ordering::Equal => return Some((curr_key, curr_val)),
-            }
-        }
-        None
-    }
-
-    pub fn pred_key<Q>(&self, key: &Q) -> Option<&K>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        self.pred_data(key).map(|(pred_key, _)| pred_key)
-    }
-
-    pub fn succ_key<Q>(&self, key: &Q) -> Option<&K>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        self.succ_data(key).map(|(succ_key, _)| succ_key)
-    }
-
-    pub fn pred_data<Q>(&self, key: &Q) -> Option<(&K, &V)>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        let mut cursor = self.cursor();
-        let mut pred = None;
-        while let Some((curr_key, curr_val, _)) = cursor.get() {
-            match Q::cmp(curr_key.borrow(), key) {
-                Ordering::Greater => cursor.move_left(),
-                Ordering::Less => {
-                    pred = Some((curr_key, curr_val));
-                    cursor.move_right();
-                },
-                Ordering::Equal => return Some((curr_key, curr_val)),
-            }
-        }
-        pred
-    }
-
-    pub fn succ_data<Q>(&self, key: &Q) -> Option<(&K, &V)>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        let mut cursor = self.cursor();
-        let mut succ = None;
-        while let Some((curr_key, curr_val, _)) = cursor.get() {
-            match Q::cmp(curr_key.borrow(), key) {
-                Ordering::Greater => {
-                    succ = Some((curr_key, curr_val));
-                    cursor.move_left();
-                },
-                Ordering::Less => cursor.move_right(),
-                Ordering::Equal => return Some((curr_key, curr_val)),
-            }
-        }
-        succ
-    }
-
-    pub fn pred_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        let mut cursor = self.cursor_mut();
-        let mut depth_since_pred = None;
-        while let Some((curr_key, ..)) = cursor.get() {
-            match Q::cmp(curr_key.borrow(), key) {
-                Ordering::Greater => {
-                    if cursor.try_move_left() {
-                        if let Some(depth) = depth_since_pred {
-                            depth_since_pred = Some(depth + 1);
-                        }
-                    } else {
-                        // Move the cursor back to the last seen predecessor.
-                        let depth = depth_since_pred?;
-                        for _ in 0..depth {
-                            cursor.move_up();
-                        }
-                        break;
-                    }
-                },
-                Ordering::Less => {
-                    if cursor.try_move_right() {
-                        depth_since_pred = Some(1);
-                    } else {
-                        break;
-                    }
-                },
-                Ordering::Equal => break,
-            }
-        }
-
-        // Cursor is in the predecessor.
-        // Extend the lifetime of the yielded references to be independent of the cursor.
-        // This is safe, because we don't alter the tree or any value after returning.
-        let (pred_key, pred_value, _) = cursor.get_mut()?;
-        let key_pointer = pred_key as *const K;
-        let value_pointer = pred_value as *mut V;
-        unsafe { Some((&*key_pointer, &mut *value_pointer)) }
-    }
-
-    pub fn succ_data_with_mut_value<Q>(&mut self, key: &Q) -> Option<(&K, &mut V)>
-    where 
-        Q: Ord,
-        K: Borrow<Q>,
-    {
-        let mut cursor = self.cursor_mut();
-        let mut depth_since_succ = None;
-        while let Some((curr_key, ..)) = cursor.get() {
-            match Q::cmp(curr_key.borrow(), key) {
-                Ordering::Greater => {
-                    if cursor.try_move_left() {
-                        depth_since_succ = Some(1);
-                    } else {
-                        break;
-                    }
-                },
-                Ordering::Less => {
-                    if cursor.try_move_right() {
-                        if let Some(depth) = depth_since_succ {
-                            depth_since_succ = Some(depth + 1);
-                        }
-                    } else {
-                        // Move the cursor back to the last seen successor.
-                        let depth = depth_since_succ?;
-                        for _ in 0..depth {
-                            cursor.move_up();
-                        }
-                        break;
-                    }
-                },
-                Ordering::Equal => break,
-            }
-        }
-
-        // Cursor is in the successor.
-        // Extend the lifetime of the yielded reference to be independent of the cursor.
-        // This is safe, because we don't alter the tree or any value after returning.
-        let (succ_key, succ_value, _) = cursor.get_mut()?;
-        let key_pointer = succ_key as *const K;
-        let value_pointer = succ_value as *mut V;
-        unsafe { Some((&*key_pointer, &mut *value_pointer)) }
-    }
-}
-
-impl<K, V, S> Debug for SemigroupRbNode<K, V, S>
-where 
-    K: Debug,
-    V: Debug,
-    S: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let c = match self.color {
-            Color::Red => "r",
-            Color::Black => "b",
-        };
-        write!(f, "({:?}: {:?}, {:?}) ({c})", self.key, self.value, self.semigroup_value)
-    }
-}
-
-impl<K, V, S> Debug for SemigroupRbTree<K, V, S>
-where 
-    K: Debug,
-    V: Debug,
-    S: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl<K, V, S> Display for SemigroupRbNode<K, V, S>
-where 
-    K: Display,
-    V: Display,
-    S: Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}: {}, {})", self.key, self.value, self.semigroup_value)
-    }
-}
-
-impl<K, V, S> Display for SemigroupRbTree<K, V, S>
-where 
-    K: Display,
-    V: Display,
-    S: Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use std::cmp::Ordering;
-    use std::collections::HashMap;
-    use rand::prelude::*;
-
+mod test {
     use super::*;
-    use crate::binary_trees::binary_search_trees::semigroup_rb_tree::*;
-    use crate::binary_trees::binary_tree_cursor::{BinaryTreeCursor, PeekingCursor};
-
-    fn assert_binary_search_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
-    where 
-        K: Clone + Ord,
-    {
-        fn assert_binary_search_tree_recursive<K, V, S>(cursor: Cursor<'_, K, V, S>) -> Option<(K, K)>
-        where
-            K: Clone + Ord,
-        {
-            let Some((key, ..)) = cursor.get() else { return None; };
-            let mut left_cursor = cursor;
-            let mut right_cursor = cursor.clone();
-            let left_result = if left_cursor.try_move_left() {
-                assert_binary_search_tree_recursive(left_cursor)
-            } else { None };
-            let right_result = if right_cursor.try_move_right() {
-                assert_binary_search_tree_recursive(right_cursor)
-            } else { None };
-
-            if let Some((_, max_left)) = left_result.as_ref() {
-                assert_eq!(K::cmp(key, &max_left), Ordering::Greater);
-            }
-            if let Some((min_right, _)) = right_result.as_ref() {
-                assert_eq!(K::cmp(key, &min_right), Ordering::Less);
-            }
-            Some((
-                left_result.map_or(key.clone(), |(min, _)| min),
-                right_result.map_or(key.clone(), |(_, max)| max)
-            ))
-        }
-        
-        assert_binary_search_tree_recursive(tree.cursor());
-    }
-
-    /// Asserts the given tree is a valid red-black tree.
-    fn assert_valid_tree<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
-    where 
-        K: Clone + Ord,
-    {
-        // Asserts the given tree is a valid red-black tree, and returns the number of black nodes on any root-to-leaf path in the tree.
-        fn assert_valid_tree_recursive<K, V, S>(cursor: Cursor<'_, K, V, S>) -> usize
-        where
-            K: Clone + Ord,
-        {
-            // Tree is non-empty.
-            let node = cursor.node().unwrap();
-
-            // Assert no consecutive red nodes.
-            if node.color == Color::Red {
-                assert_ne!(cursor.left().map(|left| left.color), Some(Color::Red));
-                assert_ne!(cursor.right().map(|right| right.color), Some(Color::Red));
-            }
-
-            // Assert validity of subtrees.
-            let mut left_cursor = cursor;
-            let mut right_cursor = cursor.clone();
-            let num_black_left = if left_cursor.try_move_left() {
-                assert_valid_tree_recursive(left_cursor)
-            } else { 1 }; // Leaves are considered black.
-            let num_black_right = if right_cursor.try_move_right() {
-                assert_valid_tree_recursive(right_cursor)
-            } else { 1 }; // Leaves are considered black.
-
-            // Assert black counts match.
-            assert_eq!(num_black_left, num_black_right);
-
-            // Return number of black nodes on any root-to-leaf path.
-            if node.color == Color::Red {
-                num_black_left
-            } else {
-                1 + num_black_left
-            }
-        }
-
-        let cursor = tree.cursor();
-        if let Some(node) = cursor.node() {
-            assert_eq!(node.color, Color::Black);
-            assert_binary_search_tree(tree);
-            assert_valid_tree_recursive(cursor);
-        }
-    }
-
-    #[test]
-    fn test_insertion() {
-        // Test inserting values in order.
-        let mut tree = SemigroupRbTree::<_, _, ()>::new();
-        for key in 1..=30 {
-            tree.insert(key, ());
-        }
-        assert_valid_tree(&tree);
-
-        // Test inserting values in random order.
-        let mut rng = rand::rng();
-        for _ in 0..50 {
-            let mut tree = SemigroupRbTree::<_, _, ()>::new();
-            let mut keys = (1..=30).collect::<Vec<_>>();
-            keys.shuffle(&mut rng);
-            for key in keys {
-                tree.insert(key, ());
-            }
-            assert_valid_tree(&tree);
-        }
-
-        // Test inserting and updating data.
-        for _ in 0..50 {
-            let keys = (1..=5).cycle();
-            let mut values = (1..=30).collect::<Vec<_>>();
-            values.shuffle(&mut rng);
-
-            let mut tree = SemigroupRbTree::<_, _, ()>::new();
-            let mut key_data_map = HashMap::new();
-            for (key, value) in Iterator::zip(keys, values) {
-                let old_value_tree = tree.insert(key.clone(), value.clone());
-                let old_value_map = key_data_map.insert(key.clone(), value.clone());
-                assert_eq!(old_value_tree, old_value_map);
-            }
-        }
-    }
-
-    #[test]
-    fn test_deletion() {
-        // Test deleting values in random order.
-        let mut rng = rand::rng();
-        for _ in 0..50 {
-            let mut keys = (1..=30).collect::<Vec<_>>();
-            keys.shuffle(&mut rng);
-            let data = keys.clone().into_iter()
-                .map(|i| (i, i % 10));
-            let mut tree = data.clone().collect::<SemigroupRbTree<_, _, ()>>();
-            let mut map = data.collect::<HashMap<_, _>>();
-
-            keys.shuffle(&mut rng);
-            for key in keys {
-                let entry_tree = tree.remove_entry(&key);
-                let entry_map = map.remove_entry(&key);
-                assert_eq!(entry_tree, entry_map);
-                assert_valid_tree(&tree);
-            }
-        }
-    }
+    use crate::binary_trees::{Neighborhood, binary_search_trees::semigroup_rb_tree::{CanonInterval, CanonSubset, Cursor, Height}, binary_tree_cursor::{BinaryTreeCursor, PeekingCursor}};
+    
+    use std::fmt::Debug;
 
     fn assert_semigroup<K, V, S>(tree: &SemigroupRbTree<K, V, S>)
     where 
@@ -927,11 +152,11 @@ mod tests {
         where 
             S: TreeSemigroup<K> + Debug + PartialEq,
         {
-            let Some(node) = cursor.node() else { return; };
+            let Some((k, _, s)) = cursor.get() else { return; };
             let Neighborhood { left, right, .. } = cursor.peek_neighborhood();
             assert_eq!(
-                *node.semigroup_value(),
-                S::op(node.key(), left.map(|(.., s)| s), right.map(|(.., s)| s))
+                *s,
+                S::op(k, left.map(|(.., s)| s), right.map(|(.., s)| s))
             );
             
             let mut left_cursor = cursor;
@@ -993,7 +218,6 @@ mod tests {
         let mut tree = (1..=30).map(|i| (i, ()))
             .collect::<SemigroupRbTree<_, _, CanonInterval<i32>>>();
         assert_semigroup(&tree);
-        assert_eq!(tree.root().map(SemigroupRbNode::semigroup_value), Some(&(1, 30).into()));
         tree.remove_entry(&5);
         tree.remove_entry(&24);
         tree.remove_entry(&12);
