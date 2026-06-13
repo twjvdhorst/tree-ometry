@@ -142,13 +142,32 @@ impl<'t, T> CursorMut<'t, T> {
             }
         }
     }
-    
-    pub(super) fn rotate(&mut self, side: Side) -> Result<(), CursorError> {
-        self.0.rotate(side)
+
+    pub(super) fn move_up_after_subtree_change<F>(&mut self, mut on_subtree_change: F) -> Option<Side>
+    where 
+        F: for<'c> FnMut(&mut Self),
+    {
+        let side = self.move_up()?;
+        on_subtree_change(self);
+        Some(side)
     }
 
-    pub(super) fn attach_child(&mut self, node: RbNode<T>, side: Side) -> Result<(), CursorError> {
-        self.0.attach_child(node, side)
+    pub(super) fn rotate<F>(&mut self, side: Side, mut on_subtree_change: F) -> Result<(), CursorError>
+    where 
+        F: for<'c> FnMut(&mut Self),
+    {
+        self.0.rotate(side)?;
+        on_subtree_change(self);
+        Ok(())
+    }
+
+    pub(super) fn attach_child<F>(&mut self, node: RbNode<T>, side: Side, mut on_subtree_change: F) -> Result<(), CursorError>
+    where 
+        F: for<'c> FnMut(&mut Self),
+    {
+        self.0.attach_child(node, side)?;
+        on_subtree_change(self);
+        Ok(())
     }
 }
 

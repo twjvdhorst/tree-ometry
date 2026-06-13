@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
 use super::{Cursor, CursorMut};
-use crate::binary_trees::{Side, binary_search_trees::red_black_trees::Color, binary_tree::{BinaryTree, BinaryTreeNode}, binary_tree_cursor::{BinaryTreeCursor, PeekingCursorMut}};
+use crate::binary_trees::{Side, binary_search_trees::red_black_trees::Color, binary_tree::{BinaryTree, BinaryTreeNode}, binary_tree_cursor::{BinaryTreeCursor, PeekingCursorMut}, cursor_errors::CursorError};
 
 pub(super) struct RbNode<T> {
     data: T,
@@ -77,15 +77,6 @@ where
         None
     }
 
-    fn move_up_after_subtree_change<F>(cursor: &mut CursorMut<'_, T>, mut on_subtree_change: F) -> Option<Side>
-    where 
-        F: for<'c> FnMut(&mut CursorMut<'c, T>),
-    {
-        let side = cursor.move_up()?;
-        on_subtree_change(cursor);
-        Some(side)
-    }
-
     fn insert_fixup<F>(cursor: &mut CursorMut<'_, T>, mut on_subtree_change: F)
     where 
         F: for<'c> FnMut(&mut CursorMut<'c, T>),
@@ -94,42 +85,42 @@ where
         // We maintain the invariant that all nodes below the cursor have the correct semigroup value.
         while cursor.parent_color() == Some(Color::Red) {
             // At the start of the loop, cursor points to z.
-            let side_current = Self::move_up_after_subtree_change(cursor, &mut on_subtree_change).unwrap();//cursor.move_up_after_subtree_change().unwrap(); // Move the cursor to z.p
+            let side_current = cursor.move_up_after_subtree_change(&mut on_subtree_change).unwrap(); // Move the cursor to z.p
             let side_parent = cursor.side_of_parent().unwrap(); // Can unwrap safely, as z.p.p exists by the proof of correctness by Cormen et al.
 
             if cursor.uncle_color() == Some(Color::Red) {
                 // Case 1
                 cursor.set_color(Color::Black);
-                Self::move_up_after_subtree_change(cursor, &mut on_subtree_change);//cursor.move_up_after_subtree_change(); // Move the cursor to z.p.p, where it stays for the next iteration.
+                cursor.move_up_after_subtree_change(&mut on_subtree_change); // Move the cursor to z.p.p, where it stays for the next iteration.
                 cursor.set_color(Color::Red);
                 cursor.set_child_color(side_parent.opposite(), Color::Black);
             } else {
                 if side_current == side_parent.opposite() {
                     // Case 2
-                    cursor.rotate(side_parent).unwrap();
-                    Self::move_up_after_subtree_change(cursor, &mut on_subtree_change);//cursor.move_up_after_subtree_change();
+                    cursor.rotate(side_parent, &mut on_subtree_change).unwrap();
+                    cursor.move_up_after_subtree_change(&mut on_subtree_change);
                 }
 
                 // Case 3
                 cursor.set_color(Color::Black);
-                Self::move_up_after_subtree_change(cursor, &mut on_subtree_change);//cursor.move_up_after_subtree_change();
+                cursor.move_up_after_subtree_change(&mut on_subtree_change);
                 cursor.set_color(Color::Red);
-                cursor.rotate(side_parent.opposite()).unwrap();
+                cursor.rotate(side_parent.opposite(), &mut on_subtree_change).unwrap();
 
                 // After rotating around z.p.p, z is the sibling of the node pointed at by the cursor.
-                let side = Self::move_up_after_subtree_change(cursor, &mut on_subtree_change).unwrap();//cursor.move_up_after_subtree_change().unwrap();
+                let side = cursor.move_up_after_subtree_change(&mut on_subtree_change).unwrap();
                 cursor.move_side(side.opposite());
             }
         }
 
-        while Self::move_up_after_subtree_change(cursor, &mut on_subtree_change).is_some() {}//while cursor.move_up_after_subtree_change().is_some() {}
+        while cursor.move_up_after_subtree_change(&mut on_subtree_change).is_some() {}
     }
 
     /// Inserts the key-value pair into the tree.
     /// If the key was not present in the tree yet, None is returned.
     /// Otherwise, the value stored at the given key is updated, and the old value is returned.
     /// Time complexity: O(log n).
-    pub fn insert<F>(&mut self, data: T, on_subtree_change: F) -> Option<T>
+    pub fn insert<F>(&mut self, data: T, mut on_subtree_change: F) -> Option<T>
     where 
         F: for<'c> FnMut(&mut CursorMut<'c, T>),
     {
@@ -156,12 +147,13 @@ where
                 data,
                 color: Color::Red,
             },
-            side
+            side,
+            &mut on_subtree_change,
         ).unwrap();
 
         // Fix the red-black tree structure.
         cursor.move_side(side);
-        Self::insert_fixup(&mut cursor, on_subtree_change);
+        Self::insert_fixup(&mut cursor, &mut on_subtree_change);
 
         // Maintain the invariant that the root is black.
         self.0.root_mut()
